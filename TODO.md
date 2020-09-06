@@ -8,9 +8,12 @@
     *  Dynamisches Ändern des Sleep intervall
     *  Dynamisches Ändern der Präzession der Temperatursensoren
     *  Dynamisches Ändern der Temperatursensoren Korrekturwerte??? sinnvoll??
+    *  Soll einmal am Tag nach der Akku Spannung fragen
 *  Telegram Brücke -> Auslagern in eigene Komponente? (Für spätere Integration in NAHS interessant)
 *  Nachricht per Telegram wenn Node über längere Zeit keine Messwerte schickt (Akku leer?)
-*  temps array statt statischem temp wert für speicherung verwenden
+*  Nachricht per Telegram wenn der Akku unter einem gewissen Leven ist (zB 3,5Volt)
+*  **erledigt** temps array statt statischem temp wert für speicherung verwenden
+*  konfiguration in conf.json auslagern (storagedir,...)
 
 ## Node
 
