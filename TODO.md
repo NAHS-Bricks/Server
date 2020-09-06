@@ -13,7 +13,7 @@
 *  Nachricht per Telegram wenn Node über längere Zeit keine Messwerte schickt (Akku leer?)
 *  Nachricht per Telegram wenn der Akku unter einem gewissen Leven ist (zB 3,5Volt)
 *  **erledigt** temps array statt statischem temp wert für speicherung verwenden
-*  konfiguration in conf.json auslagern (storagedir,...)
+*  **erledigt** konfiguration in conf.json auslagern (storagedir,...)
 
 ## Node
 

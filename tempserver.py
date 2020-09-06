@@ -2,9 +2,16 @@ import cherrypy
 import json
 import subprocess
 import time
+import os
 
 
-storagedir = '/media/ramdisk/'
+config = {'storagedir': '/tmp', 'statefile': 'state.json'}
+if os.path.isfile('config.json'):
+    config.update(json.loads(open('config.json', 'r').read().strip()))
+else:
+    open('config.json', 'w').write(json.dumps(config, indent=2, sort_keys=True))
+storagedir = config['storagedir'] if config['storagedir'].endswith('/') else config['storagedir'] + '/'
+statefile = storagedir + config['statefile']
 
 
 def get_deviceid(ip):
