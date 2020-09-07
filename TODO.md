@@ -1,6 +1,6 @@
-# NAHS-tempserver / NAHS-NodeTemp
+# NAHS-Brickserver / NAHS-TempBrick
 
-## Tempserver
+## Server
 
 *  Registrieren von Nodes (MAC zuordnung zu namen)
 *  Nur registrierte Nodes erlauben (daten sammeln)
@@ -15,7 +15,7 @@
 *  **erledigt** temps array statt statischem temp wert für speicherung verwenden
 *  **erledigt** konfiguration in conf.json auslagern (storagedir,...)
 
-## Node
+## Brick
 
 *  Config Interface (Initiales Setup speichert Daten in SPIFFS)
     *  WiFi Config
@@ -23,7 +23,7 @@
     *  Temperatursensoren Korrekturwerte
 *  Feedback-Loop (Daten von Server annehmen und in RCT-Memory speichern)
 
-## Node und Server
+## Brick und Server
 
 *  map key auf einzelne zeichen beschränken (ist zwar blöd für leserlichkeit verkürzt aber generation und übertragungszeit)
 
