@@ -176,10 +176,10 @@ class Tempserver(object):
             [store[k](brick, data[k]) for k in data if k in store]
 
             # processing stage -- compare new and old data and do calculations if nesseccary
-            process_requests = [process[k](brick, bricks[brick_id]) for k in data if k in process]  # TODO: process requests
+            process_requests = [process[k](brick, bricks[brick_id]) for k in data if k in process]
 
             # feature-based processing stage
-            feature_requests = [feature[k](brick) for k in brick['features'] if k in feature]  # TODO: process requests
+            feature_requests = [feature[k](brick) for k in brick['features'] if k in feature]
 
             for k in [k for k in process_requests + feature_requests if k]:
                 if k == 'update_delay':
