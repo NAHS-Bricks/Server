@@ -149,11 +149,16 @@ class Tempserver(object):
         s = bat charging is in standby
 
     Output json keys:
+    s = state is 0 for ok and 1 for failure
+    d = delay value for brick to use
+    r = list of values, that are requestet from brick
+        b = bat-voltage is requested
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def index(self):
+        result = {'s': 0}
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
             brick_ip = cherrypy.request.remote.ip
@@ -171,16 +176,24 @@ class Tempserver(object):
             [store[k](brick, data[k]) for k in data if k in store]
 
             # processing stage -- compare new and old data and do calculations if nesseccary
-            [process[k](brick, bricks[brick_id]) for k in data if k in process]  # TODO: process requests
+            process_requests = [process[k](brick, bricks[brick_id]) for k in data if k in process]  # TODO: process requests
 
             # feature-based processing stage
-            [feature[k](brick) for k in brick['features'] if k in feature]  # TODO: process requests
+            feature_requests = [feature[k](brick) for k in brick['features'] if k in feature]  # TODO: process requests
+
+            for k in [k for k in process_requests + feature_requests if k]:
+                if k == 'update_delay':
+                    result['d'] = brick['delay']
+                elif k == 'request_bat_voltage':
+                    if 'r' not in result:
+                        result['r'] = []
+                    result['r'].append('b')
 
             # save-back intermediate brick
             bricks[brick_id] = brick
             # and write statefile
             open(statefile, 'w').write(json.dumps(bricks, indent=2))
-        return {'state': 'ok'}
+        return result
 
 
 if __name__ == '__main__':
