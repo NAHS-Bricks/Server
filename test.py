@@ -159,7 +159,7 @@ class TestBrickServer(unittest.TestCase):
     def test_bat_charging(self):
         r = send({'f': ['temp', 'bat'], 'v': 1.0, 'y': []})
         self.assertIn('r', r)
-        self.assertIn('b', r['r'])
+        self.assertIn(1, r['r'])
         s = state()
         self.assertIsNone(s['last_bat_ts'])
         r = send({'b': 3.6})

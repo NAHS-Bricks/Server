@@ -24,7 +24,8 @@ brick_state_defaults = {
         'version': None,
         'features': [],
         'desc': '',
-        'last_ts': None
+        'last_ts': None,
+        'initalized': False
     },
     'temp': {
         'last_temps': {},
@@ -76,6 +77,7 @@ def __store_y(brick, bools):
     if 'bat' in brick['features']:
         brick['bat_charging'] = ('c' in bools)
         brick['bat_charging_standby'] = ('s' in bools)
+        brick['initalized'] = ('i' in bools)
 
 
 def __process_t(brick_new, brick_old):
@@ -104,6 +106,11 @@ def __process_b(brick_new, brick_old):
             # TODO: send telegram message to charge bat
 
 
+def __process_y(brick_new, brick_old):
+    if brick_new['initalized']:
+        return 'request_version_and_features'
+
+
 def __feature_bat(brick):
     if brick['last_bat_ts']:
         if datetime.fromtimestamp(brick['last_ts']) > datetime.fromtimestamp(brick['last_bat_ts']) + timedelta(days=1):
@@ -122,7 +129,8 @@ store = {
 
 process = {
     't': __process_t,
-    'b': __process_b
+    'b': __process_b,
+    'y': __process_y
 }
 
 feature = {
@@ -147,12 +155,16 @@ class Tempserver(object):
     y = list of chars representing boolean values, if a char is in list it's considered as true if it's missing it's considered as false
         c = bat is charging
         s = bat charging is in standby
+        i = brick initalized (just started up, runtimeData is on initial values)
 
     Output json keys:
     s = state is 0 for ok and 1 for failure
     d = delay value for brick to use
-    r = list of values, that are requestet from brick
-        b = bat-voltage is requested
+    p = precision for temp-sensors (int between 9 and 12)
+    r = list of values, that are requestet from brick (as integers for easyer handling on brick)
+        1 = version is requested
+        2 = features are requested
+        3 = bat-voltage is requested
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -161,6 +173,7 @@ class Tempserver(object):
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
+            print(json.dumps(data))
             brick_ip = cherrypy.request.remote.ip
             brick_id = get_deviceid(brick_ip)
             if brick_id not in bricks:
@@ -184,10 +197,17 @@ class Tempserver(object):
             for k in [k for k in process_requests + feature_requests if k]:
                 if k == 'update_delay':
                     result['d'] = brick['delay']
+                elif k == 'update_precision':  # Not used yet
+                    result['p'] = brick['precision']
                 elif k == 'request_bat_voltage':
                     if 'r' not in result:
                         result['r'] = []
-                    result['r'].append('b')
+                    result['r'].append(3)
+                elif k == 'request_version_and_features':
+                    if 'r' not in result:
+                        result['r'] = []
+                    result['r'].append(1)
+                    result['r'].append(2)
 
             # save-back intermediate brick
             bricks[brick_id] = brick

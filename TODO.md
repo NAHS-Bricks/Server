@@ -2,6 +2,7 @@
 
 ## Server
 
+*  Administrationsinterface -> möglichkeit zum setzen von werten zur laufzeit (zB korrekturwerte des sensoren)
 *  Registrieren von Nodes (MAC zuordnung zu namen)
 *  Nur registrierte Nodes erlauben (daten sammeln)
 *  Feedback-Loop (Daten von Server an Node übermitteln)
@@ -17,21 +18,25 @@
 
 ## Brick
 
-*  Config Interface (Initiales Setup speichert Daten in SPIFFS)
-    *  WiFi Config
-    *  Server Config (IP des Tempserver) - bewusst IP da DNS abfragen Zeit kosten dürften
-    *  Temperatursensoren Korrekturwerte
-    *  Identify sensors - helper
-    *  bat-adc kalibrierungs routine
+*  Config Interface (Initiales Setup speichert Daten in LittleFS)
+    *  **erledigt** WiFi Config
+    *  **erledigt** Server Config (IP und Port)
+        *  im hintergrund DNS nach IP auflösen und IP speichern, sollte abfragen schneller machen - oder doch nur ein hinweis in der doku?
+    *  **erledigt** Temperatursensoren Korrekturwerte
+    *  **erledigt** Identify sensors - helper
+    *  **erledigt** bat-adc kalibrierungs routine
 *  Feedback-Loop (Daten von Server annehmen und in RCT-Memory speichern)
-    *  JSON Parser ist hierfür nötig (marke eigenbau)
-*  RTC Memory:
-    *  delay
-    *  präzession
-    *  array der tempsensoren (dann müssen die id's nicht jedesmal abgefragt werden, was ja zeit kostet)
-    *  requests von server, die durchgeführt werden sollen:
-        *  bat-voltage
-*  charging-state abfragen (und übermitteln)
+    *  **erledigt** JSON Parser über ArduinoJson
+    *  setzen der korrekturwerte noch nicht realisiert, ist aber schon alles für vorbereitet nur die struktur der feedback-loop fehlt noch
+*  **erledigt** RTC Memory:
+    *  **erledigt** delay
+    *  **erledigt** präzession
+    *  **erledigt** array der tempsensoren (dann müssen die id's nicht jedesmal abgefragt werden, was ja zeit kostet)
+    *  **erledigt** requests von server, die durchgeführt werden sollen:
+        *  **erledigt** bat-voltage
+        *  **erledigt** version
+        *  **erledigt** features
+*  **erledigt** charging-state abfragen (und übermitteln)
 
 ## Brick und Server
 
