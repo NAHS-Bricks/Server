@@ -109,7 +109,7 @@ def __process_b(brick_new, brick_old):
 def __process_y(brick_new, brick_old):
     if brick_new['initalized']:
         return 'request_version_and_features'
-    if 'bat' in brick_new['features']:
+    if 'bat' in brick_new['features'] and 'bat_charging' in brick_old and 'bat_charging' in brick_new:
         if not brick_new['bat_charging'] and brick_old['bat_charging']:
             return 'request_bat_voltage'
         if not brick_new['bat_charging'] and not brick_new['bat_charging_standby'] and (brick_old['bat_charging'] or brick_old['bat_charging_standby']):
