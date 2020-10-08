@@ -77,7 +77,7 @@ def __store_y(brick, bools):
     if 'bat' in brick['features']:
         brick['bat_charging'] = ('c' in bools)
         brick['bat_charging_standby'] = ('s' in bools)
-        brick['initalized'] = ('i' in bools)
+    brick['initalized'] = ('i' in bools)
 
 
 def __process_t(brick_new, brick_old):
@@ -109,11 +109,16 @@ def __process_b(brick_new, brick_old):
 def __process_y(brick_new, brick_old):
     if brick_new['initalized']:
         return 'request_version_and_features'
+    if 'bat' in brick_new['features']:
+        if not brick_new['bat_charging'] and brick_old['bat_charging']:
+            return 'request_bat_voltage'
+        if not brick_new['bat_charging'] and not brick_new['bat_charging_standby'] and (brick_old['bat_charging'] or brick_old['bat_charging_standby']):
+            return 'request_bat_voltage'
 
 
 def __feature_bat(brick):
     if brick['last_bat_ts']:
-        if datetime.fromtimestamp(brick['last_ts']) > datetime.fromtimestamp(brick['last_bat_ts']) + timedelta(days=1):
+        if datetime.fromtimestamp(brick['last_ts']) > datetime.fromtimestamp(brick['last_bat_ts']) + timedelta(hours=12):
             return 'request_bat_voltage'
     else:
         return 'request_bat_voltage'
@@ -141,7 +146,7 @@ feature = {
 def get_deviceid(ip):
     if ip == '127.0.0.1':
         return 'localhost'
-    r = subprocess.check_output('cat /proc/net/arp | grep ' + str(ip), shell=True)
+    r = subprocess.check_output('cat /proc/net/arp | grep ' + str(ip), shell=True).decode('utf-8')
     return r.strip().split()[3].replace(':', '')
 
 
@@ -173,7 +178,8 @@ class Tempserver(object):
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
-            print(json.dumps(data))
+            print()
+            print("Request: " + json.dumps(data))
             brick_ip = cherrypy.request.remote.ip
             brick_id = get_deviceid(brick_ip)
             if brick_id not in bricks:
@@ -213,6 +219,7 @@ class Tempserver(object):
             bricks[brick_id] = brick
             # and write statefile
             open(statefile, 'w').write(json.dumps(bricks, indent=2))
+        print("Feedback: " + json.dumps(result))
         return result
 
 
