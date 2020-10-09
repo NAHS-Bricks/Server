@@ -107,13 +107,16 @@ def __process_b(brick_new, brick_old):
 
 
 def __process_y(brick_new, brick_old):
+    result = []
     if brick_new['initalized']:
-        return 'request_version_and_features'
+        result.append('request_version')
+        result.append('request_features')
     if 'bat' in brick_new['features'] and 'bat_charging' in brick_old and 'bat_charging' in brick_new:
         if not brick_new['bat_charging'] and brick_old['bat_charging']:
-            return 'request_bat_voltage'
+            result.append('request_bat_voltage')
         if not brick_new['bat_charging'] and not brick_new['bat_charging_standby'] and (brick_old['bat_charging'] or brick_old['bat_charging_standby']):
-            return 'request_bat_voltage'
+            result.append('request_bat_voltage')
+    return result
 
 
 def __feature_bat(brick):
@@ -122,6 +125,20 @@ def __feature_bat(brick):
             return 'request_bat_voltage'
     else:
         return 'request_bat_voltage'
+
+
+def __feature_admin_override(brick):
+    result = []
+    if 'admin_override' in brick:
+        if 'delay' in brick['admin_override']:
+            brick['delay'] = brick['admin_override']['delay']
+            brick['delay_increase_wait'] = 3
+            result.append('update_delay')
+        if 'bat' in brick['features'] and 'bat_voltage' in brick['admin_override'] and brick['admin_override']['bat_voltage']:
+            result.append('request_bat_voltage')
+        brick.pop('admin_override', None)
+    brick['features'].remove('admin_override')
+    return result
 
 
 store = {
@@ -139,7 +156,8 @@ process = {
 }
 
 feature = {
-    'bat': __feature_bat
+    'bat': __feature_bat,
+    'admin_override': __feature_admin_override
 }
 
 
@@ -200,19 +218,27 @@ class Tempserver(object):
             # feature-based processing stage
             feature_requests = [feature[k](brick) for k in brick['features'] if k in feature]
 
-            for k in [k for k in process_requests + feature_requests if k]:
+            """
+            What the sollowing line does:
+            Takes all entrys from process_requests + feature_requests and:
+              - drops None elements
+              - makes non list items to lists with one item aka if type(item) is not list return [item]
+              - passes trough all lists
+            this results in a list of lists, each of this lists is then unpacked in to one big list with all elements
+            with the use of {} duplicate elements are removed
+            """
+            for k in {x for t in [(p if type(p) is list else [p]) for p in process_requests + feature_requests if p] for x in t}:
+                if k.startswith('request_') and 'r' not in result:
+                    result['r'] = []
                 if k == 'update_delay':
                     result['d'] = brick['delay']
                 elif k == 'update_precision':  # Not used yet
                     result['p'] = brick['precision']
                 elif k == 'request_bat_voltage':
-                    if 'r' not in result:
-                        result['r'] = []
                     result['r'].append(3)
-                elif k == 'request_version_and_features':
-                    if 'r' not in result:
-                        result['r'] = []
+                elif k == 'request_version':
                     result['r'].append(1)
+                elif k == 'request_features':
                     result['r'].append(2)
 
             # save-back intermediate brick
@@ -220,6 +246,39 @@ class Tempserver(object):
             # and write statefile
             open(statefile, 'w').write(json.dumps(bricks, indent=2))
         print("Feedback: " + json.dumps(result))
+        return result
+
+    """
+    Admin interface to override some values
+    Usable via set command:
+      delay: integer (set delay to value)
+      bat_voltage: bool (request_bat_voltage if true)
+    """
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def admin(self):
+        result = {'s': 0}
+        if 'json' in dir(cherrypy.request):
+            data = cherrypy.request.json
+            if 'command' in data:
+                command = data['command']
+                if command == 'get_bricks':
+                    result['bricks'] = []
+                    for k in bricks:
+                        result['bricks'].append(k)
+                elif command == 'get_brick' and 'brick' in data:
+                    brick = data['brick']
+                    if brick in bricks:
+                        result['brick'] = bricks[brick]
+                elif command == 'set' and 'brick' in data and 'key' in data and 'value' in data:
+                    if data['brick'] in bricks:
+                        brick = bricks[data['brick']]
+                        if 'admin_override' not in brick['features']:
+                            brick['features'].append('admin_override')
+                        if 'admin_override' not in brick:
+                            brick['admin_override'] = {}
+                        brick['admin_override'][data['key']] = data['value']
         return result
 
 
