@@ -1,168 +1,20 @@
 import cherrypy
 import json
-import subprocess
 import time
 import os
 import sys
 import copy
-from datetime import datetime, timedelta
+from helpers.config import *
+from helpers.store import store, brick_state_defaults
+from helpers.process import process
+from helpers.feature import feature
 
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 4):
     raise Exception('At least Python3.4 required')
 
-config = {'storagedir': '/tmp', 'statefile': 'state.json', 'server_port': 8081}
-if os.path.isfile('config.json'):
-    config.update(json.loads(open('config.json', 'r').read().strip()))
-else:
-    open('config.json', 'w').write(json.dumps(config, indent=2, sort_keys=True))
-storagedir = config['storagedir'] if config['storagedir'].endswith('/') else config['storagedir'] + '/'
-statefile = storagedir + config['statefile']
-
-brick_state_defaults = {
-    'all': {
-        'id': None,
-        'version': None,
-        'features': [],
-        'desc': '',
-        'last_ts': None,
-        'initalized': False
-    },
-    'temp': {
-        'last_temps': {},
-        'presicion': 11,
-        'delay': 60,
-        'delay_increase_wait': 3
-    },
-    'bat': {
-        'last_bat_reading': 0,
-        'last_bat_ts': None,
-        'bat_charging': False,
-        'bat_charging_standby': False
-    }
-}
 bricks = {}
 if os.path.isfile(statefile):
     bricks = json.loads(open(statefile, 'r').read().strip())
-
-
-def __store_v(brick, value):
-    brick['version'] = value
-
-
-def __store_f(brick, value):
-    for feature in [f for f in value if f not in brick['features']]:
-        brick.update(brick_state_defaults[feature])
-        brick['features'].append(feature)
-
-
-def __store_t(brick, temps):
-    if 'temp' not in brick['features']:
-        return
-    for sensor, temp in temps:
-        storagefile = storagedir + brick['id'] + '_' + sensor + '.csv'
-        entryline = str(brick['last_ts']) + ';' + str(temp) + '\n'
-        open(storagefile, 'a').write(entryline)
-        brick['last_temps'][sensor] = temp
-    brick['delay_increase_wait'] -= (0 if brick['delay_increase_wait'] <= 0 else 1)
-
-
-def __store_b(brick, voltage):
-    if 'bat' not in brick['features']:
-        return
-    brick['last_bat_reading'] = voltage
-    brick['last_bat_ts'] = brick['last_ts']
-
-
-def __store_y(brick, bools):
-    if 'bat' in brick['features']:
-        brick['bat_charging'] = ('c' in bools)
-        brick['bat_charging_standby'] = ('s' in bools)
-    brick['initalized'] = ('i' in bools)
-
-
-def __process_t(brick_new, brick_old):
-    if 'temp' in brick_new['features'] and 'temp' in brick_old['features']:
-        max_diff = 0
-        for sensor in [sensor for sensor in brick_new['last_temps'] if sensor in brick_old['last_temps']]:
-            diff = abs(brick_old['last_temps'][sensor] - brick_new['last_temps'][sensor])
-            max_diff = diff if diff > max_diff else max_diff
-        if 'bat' in brick_new['features'] and (brick_new['bat_charging'] or brick_new['bat_charging_charging']):  # If power-cord is connected delay can be 60
-            brick_new['delay'] = 60
-            brick_new['delay_increase_wait'] = 3
-            return 'update_delay'
-        elif max_diff > 0.25 and brick_new['delay'] > 60:  # TODO: eventuell abhaengig von presicion machen
-            brick_new['delay'] = 60
-            brick_new['delay_increase_wait'] = 3
-            return 'update_delay'
-        elif max_diff > 0.25:  # Wenn delay schon auf 60 ist muss kein update gesendet werden, da dies nur unnoetig rechenzeit braucht
-            brick_new['delay_increase_wait'] = 3
-            return None
-        elif brick_new['delay_increase_wait'] <= 0 and brick_new['delay'] < 300:
-            brick_new['delay'] += 60
-            brick_new['delay_increase_wait'] = 3
-            return 'update_delay'
-
-
-def __process_b(brick_new, brick_old):
-    if 'bat' in brick_new['features']:
-        if brick_new['last_bat_reading'] < 3.5:
-            print('Charge bat on ' + brick_new['id'] + ' (' + brick_new['desc'] + ')')
-            # TODO: send telegram message to charge bat
-
-
-def __process_y(brick_new, brick_old):
-    result = []
-    if brick_new['initalized']:
-        result.append('request_version')
-        result.append('request_features')
-    if 'bat' in brick_new['features'] and 'bat_charging' in brick_old and 'bat_charging' in brick_new:
-        if not brick_new['bat_charging'] and brick_old['bat_charging']:
-            result.append('request_bat_voltage')
-        if not brick_new['bat_charging'] and not brick_new['bat_charging_standby'] and (brick_old['bat_charging'] or brick_old['bat_charging_standby']):
-            result.append('request_bat_voltage')
-    return result
-
-
-def __feature_bat(brick):
-    if brick['last_bat_ts']:
-        if datetime.fromtimestamp(brick['last_ts']) > datetime.fromtimestamp(brick['last_bat_ts']) + timedelta(hours=12):
-            return 'request_bat_voltage'
-    else:
-        return 'request_bat_voltage'
-
-
-def __feature_admin_override(brick):
-    result = []
-    if 'admin_override' in brick:
-        if 'delay' in brick['admin_override']:
-            brick['delay'] = brick['admin_override']['delay']
-            brick['delay_increase_wait'] = 3
-            result.append('update_delay')
-        if 'bat' in brick['features'] and 'bat_voltage' in brick['admin_override'] and brick['admin_override']['bat_voltage']:
-            result.append('request_bat_voltage')
-        brick.pop('admin_override', None)
-    brick['features'].remove('admin_override')
-    return result
-
-
-store = {
-    'v': __store_v,
-    'f': __store_f,
-    't': __store_t,
-    'b': __store_b,
-    'y': __store_y
-}
-
-process = {
-    't': __process_t,
-    'b': __process_b,
-    'y': __process_y
-}
-
-feature = {
-    'bat': __feature_bat,
-    'admin_override': __feature_admin_override
-}
 
 
 def get_deviceid(ip):
