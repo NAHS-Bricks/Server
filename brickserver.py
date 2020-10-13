@@ -86,7 +86,11 @@ def __process_t(brick_new, brick_old):
         for sensor in [sensor for sensor in brick_new['last_temps'] if sensor in brick_old['last_temps']]:
             diff = abs(brick_old['last_temps'][sensor] - brick_new['last_temps'][sensor])
             max_diff = diff if diff > max_diff else max_diff
-        if max_diff > 0.25 and brick_new['delay'] > 60:  # TODO: eventuell abhaengig von presicion machen
+        if 'bat' in brick_new['features'] and (brick_new['bat_charging'] or brick_new['bat_charging_charging']):  # If power-cord is connected delay can be 60
+            brick_new['delay'] = 60
+            brick_new['delay_increase_wait'] = 3
+            return 'update_delay'
+        elif max_diff > 0.25 and brick_new['delay'] > 60:  # TODO: eventuell abhaengig von presicion machen
             brick_new['delay'] = 60
             brick_new['delay_increase_wait'] = 3
             return 'update_delay'
