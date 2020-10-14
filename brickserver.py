@@ -99,7 +99,7 @@ class Brickserver(object):
                     result['r'] = []
                 if k == 'update_delay':
                     result['d'] = brick['delay']
-                elif k == 'update_precision':  # Not used yet
+                elif k == 'update_precision':
                     result['p'] = brick['precision']
                 elif k == 'request_bat_voltage':
                     result['r'].append(3)
@@ -155,7 +155,16 @@ class Brickserver(object):
                             brick['features'].append('admin_override')
                         if 'admin_override' not in brick:
                             brick['admin_override'] = {}
-                        brick['admin_override'][data['key']] = data['value']
+                        if data['key'] == 'desc':
+                            brick['desc'] = data['value']
+                        elif data['key'] == 'precision':
+                            if data['value'] in range(9, 13) and 'temp' in brick['features']:
+                                brick['precision'] = data['value']
+                                brick['admin_override'][data['key']] = True
+                            else:
+                                result['s'] = 5  # invalid value range(9, 12) or temp not in features
+                        else:
+                            brick['admin_override'][data['key']] = data['value']
                     else:
                         result['s'] = 1
                 else:

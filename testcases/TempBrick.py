@@ -18,7 +18,7 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['version'], '1.0')
         self.assertIn('temp', response.state['features'])
         self.assertIn('bat', response.state['features'])
-        #self.assertIn('sleep', response.state['features'])
+        self.assertIn('sleep', response.state['features'])
         self.assertEqual(response.state['last_bat_reading'], 0)
         self.assertEqual(response.state['last_bat_ts'], None)
 
@@ -28,11 +28,12 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.json, {'s': 0})
 
         response = self.webapp_request(unknown='something')  # An unknown key shouldn't crash the request
-        self.assertEqual(response.json, {'s': 0})
+        self.assertEqual(response.json['s'], 0)
 
     def test_delay_increase(self):
         response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
-        response = self.webapp_request(b=3.7)
+        response = self.webapp_request(b=3.7, t=[['sensor1', 25]])
+        response = self.webapp_request(t=[['sensor1', 24]])
         self.assertEqual(response.state['delay'], 60)
         self.assertEqual(response.state['delay_increase_wait'], 3)
         response = self.webapp_request(t=[['sensor1', 24]])
@@ -84,8 +85,6 @@ class TestTempBrick(BaseCherryPyTestCase):
         response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
         response = self.webapp_request(b=3.7)
         response = self.webapp_request(t=[['sensor1', 24]])
-        response = self.webapp_request(t=[['sensor1', 24]])
-        response = self.webapp_request(t=[['sensor1', 24]])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 120)
         self.assertEqual(response.state['delay'], 120)
@@ -111,7 +110,6 @@ class TestTempBrick(BaseCherryPyTestCase):
         response = self.webapp_request(b=3.4, t=[['sensor1', 24]])
         self.assertIn('Charge bat on', response.telegram)
         self.assertEqual(response.state['last_bat_reading'], 3.4)
-        self.assertEqual(response.json, {'s': 0})
         self.assertEqual(response.state['bat_charging'], False)
         self.assertEqual(response.state['bat_charging_standby'], False)
         response = self.webapp_request(y=['c'], t=[['sensor1', 24]])
@@ -155,7 +153,6 @@ class TestTempBrick(BaseCherryPyTestCase):
         response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
         response = self.webapp_request(b=3.7, t=[['sensor1', 24]])
         response = self.webapp_request(t=[['sensor1', 24]])
-        self.assertEqual(response.json, {'s': 0})
         response = self.webapp_request(path="/admin", command="set", brick="localhost", key="delay", value=60)
         self.assertIn('admin_override', response.state['features'])
         response = self.webapp_request(t=[['sensor1', 24]])
@@ -178,6 +175,23 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertIn('r', response.json)
         self.assertIn(3, response.json['r'])
         self.assertNotIn('admin_override', response.state['features'])
+        # update precision
+        response = self.webapp_request(path="/admin", command="set", brick="localhost", key="precision", value=9)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(t=[['sensor1', 24]])
+        self.assertEqual(response.json['p'], 9)
+        response = self.webapp_request(path="/admin", command="set", brick="localhost", key="precision", value=12)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(t=[['sensor1', 24]])
+        self.assertEqual(response.json['p'], 12)
+        response = self.webapp_request(path="/admin", command="set", brick="localhost", key="precision", value=8)
+        self.assertEqual(response.json['s'], 5)
+        response = self.webapp_request(t=[['sensor1', 24]])
+        self.assertNotIn('p', response.json)
+        response = self.webapp_request(path="/admin", command="set", brick="localhost", key="precision", value=13)
+        self.assertEqual(response.json['s'], 5)
+        response = self.webapp_request(t=[['sensor1', 24]])
+        self.assertNotIn('p', response.json)
 
     def test_without_features(self):
         response = self.webapp_request(clear_state=True, v='1.0', f=[])

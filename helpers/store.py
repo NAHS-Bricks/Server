@@ -13,14 +13,17 @@ brick_state_defaults = {
     'temp': {
         'last_temps': {},
         'presicion': 11,
-        'delay': 60,
-        'delay_increase_wait': 3
+        'max_temp_diff': 0
     },
     'bat': {
         'last_bat_reading': 0,
         'last_bat_ts': None,
         'bat_charging': False,
         'bat_charging_standby': False
+    },
+    'sleep': {
+        'delay': 60,
+        'delay_increase_wait': 3
     }
 }
 
@@ -44,7 +47,6 @@ def __store_t(brick, temps):
         with open(storagefile, 'a') as f:
             f.write(entryline)
         brick['last_temps'][sensor] = temp
-    brick['delay_increase_wait'] -= (0 if brick['delay_increase_wait'] <= 0 else 1)
 
 
 def __store_b(brick, voltage):

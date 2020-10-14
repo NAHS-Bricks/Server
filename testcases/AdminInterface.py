@@ -38,3 +38,11 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json, {'s': 1})
         response = self.webapp_request(path="/admin", command='set', value='somevalue')
         self.assertEqual(response.json, {'s': 1})
+
+    def test_brick_desc(self):
+        response = self.webapp_request(clear_state=True, v='1.0', f=[])
+        response = self.webapp_request()
+        self.assertEqual(response.json, {'s': 0})
+        response = self.webapp_request(path="/admin", command='set', brick="localhost", key="desc", value='a test host')
+        self.assertEqual(response.json, {'s': 0})
+        self.assertEqual(response.state['desc'], 'a test host')
