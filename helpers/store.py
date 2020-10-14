@@ -30,7 +30,7 @@ def __store_v(brick, value):
 
 
 def __store_f(brick, value):
-    for feature in [f for f in value if f not in brick['features']]:
+    for feature in [f for f in value if f not in brick['features'] and f in brick_state_defaults]:
         brick.update(brick_state_defaults[feature])
         brick['features'].append(feature)
 
@@ -41,7 +41,8 @@ def __store_t(brick, temps):
     for sensor, temp in temps:
         storagefile = storagedir + brick['id'] + '_' + sensor + '.csv'
         entryline = str(brick['last_ts']) + ';' + str(temp) + '\n'
-        open(storagefile, 'a').write(entryline)
+        with open(storagefile, 'a') as f:
+            f.write(entryline)
         brick['last_temps'][sensor] = temp
     brick['delay_increase_wait'] -= (0 if brick['delay_increase_wait'] <= 0 else 1)
 

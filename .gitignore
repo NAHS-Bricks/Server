@@ -2,3 +2,5 @@ venv/
 .envrc
 *.pyc
 config.json
+.coverage
+coverage_html_report/
