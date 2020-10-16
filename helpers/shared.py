@@ -22,8 +22,7 @@ if not os.path.exists(os.path.join(config['storagedir'], config['temp_sensor_dir
 
 bricks = {}
 temp_sensors = {}
-if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):  # pragma: no cover
-    bricks, temp_sensors = json.loads(open(os.path.join(config['storagedir'], config['statefile']), 'r').read().strip())
+cron_data = {}
 
 
 def send_telegram(message):
@@ -41,3 +40,27 @@ def get_deviceid(ip):  # pragma: no cover
         return 'localhost'
     r = subprocess.check_output('cat /proc/net/arp | grep ' + str(ip), shell=True).decode('utf-8')
     return r.strip().split()[3].replace(':', '')
+
+
+def state_save():
+    global bricks
+    global temp_sensors
+    global cron_data
+    with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
+        f.write(json.dumps([bricks, temp_sensors, cron_data], indent=2))
+
+
+def state_load():
+    global bricks
+    global temp_sensors
+    global cron_data
+    if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
+        with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
+            bricks, temp_sensors, cron_data = json.loads(f.read().strip())
+    else:
+        bricks = {}
+        temp_sensors = {}
+        cron_data = {}
+
+
+state_load()

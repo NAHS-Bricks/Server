@@ -4,6 +4,7 @@ import time
 import os
 import sys
 import copy
+from datetime import datetime, timedelta
 from helpers.shared import config, send_telegram, get_deviceid
 import helpers.shared
 from helpers.store import store, brick_state_defaults
@@ -43,12 +44,7 @@ class Brickserver(object):
     def index(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
-                with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
-                    helpers.shared.bricks, helpers.shared.temp_sensors = json.loads(f.read().strip())
-            else:
-                helpers.shared.bricks = {}
-                helpers.shared.temp_sensors = {}
+            helpers.shared.state_load()
             if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
                 os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
 
@@ -106,8 +102,7 @@ class Brickserver(object):
             # save-back intermediate brick
             helpers.shared.bricks[brick_id] = brick
             # and write statefile
-            with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
-                f.write(json.dumps([helpers.shared.bricks, helpers.shared.temp_sensors], indent=2))
+            helpers.shared.state_save()
         if not test_suite:  # pragma: no cover
             print("Feedback: " + json.dumps(result))
         return result
@@ -126,12 +121,7 @@ class Brickserver(object):
     def admin(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
-                with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
-                    helpers.shared.bricks, helpers.shared.temp_sensors = json.loads(f.read().strip())
-            else:
-                helpers.shared.bricks = {}
-                helpers.shared.temp_sensors = {}
+            helpers.shared.state_load()
 
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
@@ -169,9 +159,42 @@ class Brickserver(object):
                     result['s'] = 1
             else:
                 result['s'] = 1
-            with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
-                f.write(json.dumps([helpers.shared.bricks, helpers.shared.temp_sensors], indent=2))
+            helpers.shared.state_save()
         return result
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def cron(self):
+        test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
+        if test_suite:  # pragma: no cover
+            helpers.shared.state_load()
+            if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
+                os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
+
+        dt_now = datetime.now()
+        ts_3_minutes_ago = int(datetime.timestamp(dt_now - timedelta(minutes=3)))
+        ts_1_hour_ago = int(datetime.timestamp(dt_now - timedelta(hours=1)))
+        ts_now = int(datetime.timestamp(dt_now))
+        if 'offline_send' not in helpers.shared.cron_data:
+            helpers.shared.cron_data['offline_send'] = {}
+
+        if 'last_ts' not in helpers.shared.cron_data or helpers.shared.cron_data['last_ts'] < ts_3_minutes_ago:
+            for brick in helpers.shared.bricks:
+                helpers.shared.cron_data['offline_send'][brick] = True
+        else:
+            for brick in [brick for brick in helpers.shared.bricks if brick not in helpers.shared.cron_data['offline_send']]:
+                helpers.shared.cron_data['offline_send'][brick] = True
+
+        for brick in [brick for brick in helpers.shared.bricks if helpers.shared.bricks[brick]['last_ts']]:
+            if helpers.shared.bricks[brick]['last_ts'] > ts_1_hour_ago:  # Has send data within the last hour
+                helpers.shared.cron_data['offline_send'][brick] = False
+            elif not helpers.shared.cron_data['offline_send'][brick]:  # One hour offline and no message send
+                send_telegram("Brick " + brick + " (" + helpers.shared.bricks[brick]['desc'] + ") didn't send any data within the last hour!")
+                helpers.shared.cron_data['offline_send'][brick] = True
+
+        helpers.shared.cron_data['last_ts'] = ts_now
+        helpers.shared.state_save()
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@
     *  **erledigt** Dynamisches Ändern der Präzession der Temperatursensoren
     *  **erledigt** Soll einmal am Tag nach der Akku Spannung fragen
 *  **erledigt** Telegram Brücke
-*  Nachricht per Telegram wenn Brick über längere Zeit keine Messwerte schickt (Akku leer?)
+*  **erledigt** Nachricht per Telegram wenn Brick über längere Zeit keine Messwerte schickt (Akku leer?)
 *  **erledigt** Nachricht per Telegram wenn der Akku unter einem gewissen Level ist (zB 3,5Volt)
 *  **erledigt** temps array statt statischem temp wert für speicherung verwenden
 *  **erledigt** konfiguration in conf.json auslagern (storagedir,...)
