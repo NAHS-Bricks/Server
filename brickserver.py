@@ -12,17 +12,6 @@ from helpers.feature import feature
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 5):  # pragma: no cover
     raise Exception('At least Python3.5 required')
 
-bricks = {}
-if os.path.isfile(statefile):  # pragma: no cover
-    bricks = json.loads(open(statefile, 'r').read().strip())
-
-
-def get_deviceid(ip):  # pragma: no cover
-    if ip == '127.0.0.1':
-        return 'localhost'
-    r = subprocess.check_output('cat /proc/net/arp | grep ' + str(ip), shell=True).decode('utf-8')
-    return r.strip().split()[3].replace(':', '')
-
 
 class Brickserver(object):
     """
@@ -49,15 +38,18 @@ class Brickserver(object):
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def index(self):
+        global bricks
+        global temp_sensors
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            if os.path.isfile(statefile):
-                with open(statefile, 'r') as f:
-                    bricks = json.loads(f.read().strip())
+            if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
+                with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
+                    bricks, temp_sensors = json.loads(f.read().strip())
             else:
                 bricks = {}
-            if os.path.isfile(os.path.join(storagedir, 'telegram_messages')):
-                os.remove(os.path.join(storagedir, 'telegram_messages'))
+                temp_sensors = {}
+            if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
+                os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
 
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
@@ -111,8 +103,8 @@ class Brickserver(object):
             # save-back intermediate brick
             bricks[brick_id] = brick
             # and write statefile
-            with open(statefile, 'w') as f:
-                f.write(json.dumps(bricks, indent=2))
+            with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
+                f.write(json.dumps([bricks, temp_sensors], indent=2))
         if not test_suite:  # pragma: no cover
             print("Feedback: " + json.dumps(result))
         return result
@@ -129,13 +121,16 @@ class Brickserver(object):
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def admin(self):
+        global bricks
+        global temp_sensors
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            if os.path.isfile(statefile):
-                with open(statefile, 'r') as f:
-                    bricks = json.loads(f.read().strip())
+            if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
+                with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
+                    bricks, temp_sensors = json.loads(f.read().strip())
             else:
                 bricks = {}
+                temp_sensors = {}
 
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
@@ -173,8 +168,8 @@ class Brickserver(object):
                     result['s'] = 1
             else:
                 result['s'] = 1
-            with open(statefile, 'w') as f:
-                f.write(json.dumps(bricks, indent=2))
+            with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
+                f.write(json.dumps([bricks, temp_sensors], indent=2))
         return result
 
 

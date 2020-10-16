@@ -77,9 +77,11 @@ class BaseCherryPyTestCase(unittest.TestCase):
                 config = json.loads(f.read().strip())
             if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
                 with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
-                    response.state = json.loads(f.read().strip())['localhost']
+                    response.state, response.temp_sensors = json.loads(f.read().strip())
+                    response.state = response.state['localhost']
             else:
                 response.state = {}
+                response.temp_sensors = {}
             if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
                 with open(os.path.join(config['storagedir'], 'telegram_messages'), 'r') as f:
                     response.telegram = f.read().strip()
@@ -87,6 +89,7 @@ class BaseCherryPyTestCase(unittest.TestCase):
                 response.telegram = ""
         else:
             response.state = {}
+            response.temp_sensors = {}
             response.telegram = ""
 
         return response

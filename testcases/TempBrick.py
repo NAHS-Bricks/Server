@@ -107,6 +107,8 @@ class TestTempBrick(BaseCherryPyTestCase):
 
     def test_charging(self):
         response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+
+        # Test low-bat alarm
         response = self.webapp_request(b=3.7, t=[['sensor1', 24]])
         self.assertNotIn('Charge bat on', response.telegram)
         response = self.webapp_request(b=3.4, t=[['sensor1', 24]])
@@ -114,6 +116,8 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['bat_last_reading'], 3.4)
         self.assertEqual(response.state['bat_charging'], False)
         self.assertEqual(response.state['bat_charging_standby'], False)
+
+        # Test usual charging (charging->standby->pull powercord) delay should allways be 60, bat-voltage requested on each statechange
         response = self.webapp_request(y=['c'], t=[['sensor1', 24]])
         self.assertEqual(response.state['bat_charging'], True)
         self.assertEqual(response.state['bat_charging_standby'], False)
@@ -150,6 +154,46 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['bat_charging_standby'], False)
         self.assertNotIn('d', response.json)
         self.assertNotIn('r', response.json)
+
+        # Test charging interrupt (charging->pull powercord)
+        response = self.webapp_request(y=['c'], t=[['sensor1', 24]])
+        self.assertEqual(response.state['bat_charging'], True)
+        self.assertEqual(response.state['bat_charging_standby'], False)
+        response = self.webapp_request(y=[], t=[['sensor1', 24]])
+        self.assertEqual(response.state['bat_charging'], False)
+        self.assertEqual(response.state['bat_charging_standby'], False)
+        self.assertIn('r', response.json)
+        self.assertIn(3, response.json['r'])
+
+        # Test periodic request_bat_voltage during charging
+        bat_voltage_requests = 0
+        next_with_bat = False
+        for i in range(0, 20):
+            if next_with_bat:
+                response = self.webapp_request(y=['c'], t=[['sensor1', 24]], b=3.7)
+                next_with_bat = False
+            else:
+                response = self.webapp_request(y=['c'], t=[['sensor1', 24]])
+            if 'r' in response.json and 3 in response.json['r']:
+                bat_voltage_requests += 1
+                next_with_bat = True
+        self.assertEqual(bat_voltage_requests, 2)
+
+        # Test if info-messages send during charging
+        response = self.webapp_request(y=['c'], t=[['sensor1', 24]], b=4)
+        response = self.webapp_request(y=['c'], t=[['sensor1', 24]], b=4.05)
+        response = self.webapp_request(y=['c'], t=[['sensor1', 24]], b=4.1)
+        self.assertNotIn('Bat charged over', response.telegram)
+        response = self.webapp_request(y=['c'], t=[['sensor1', 24]], b=4.15)
+        self.assertIn('Bat charged over', response.telegram)  # Inform admin that bat is now over 4.15 Volts
+        response = self.webapp_request(y=['c'], t=[['sensor1', 24]], b=4.15)
+        self.assertNotIn('Bat charged over', response.telegram)  # But do not resend the message (spamming protection)
+        self.assertNotIn('Charging finished', response.telegram)  # The charging is not finished yet
+        response = self.webapp_request(y=['s'], t=[['sensor1', 24]])
+        self.assertIn('Charging finished', response.telegram)  # Inform admin that charging has finished
+        response = self.webapp_request(y=['c'], t=[['sensor1', 24]], b=4.15)
+        response = self.webapp_request(y=[], t=[['sensor1', 24]])
+        self.assertNotIn('Charging finished', response.telegram)  # Do not inform Admin that charging has finished if power-cord is pulled
 
     def test_admin_overrides(self):
         response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)

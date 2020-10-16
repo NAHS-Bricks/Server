@@ -11,7 +11,7 @@ brick_state_defaults = {
         'initalized': False
     },
     'temp': {
-        'temp_last_readings': {},
+        'temp_sensors': [],
         'temp_precision': 11,
         'temp_max_diff': 0
     },
@@ -19,12 +19,19 @@ brick_state_defaults = {
         'bat_last_reading': 0,
         'bat_last_ts': None,
         'bat_charging': False,
-        'bat_charging_standby': False
+        'bat_charging_standby': False,
+        'bat_periodic_voltage_request': 10
     },
     'sleep': {
         'sleep_delay': 60,
         'sleep_increase_wait': 3
     }
+}
+
+temp_sensor_defaults = {
+    'desc': '',
+    'last_reading': None,
+    'prev_reading': None
 }
 
 
@@ -39,14 +46,20 @@ def __store_f(brick, value):
 
 
 def __store_t(brick, temps):
+    global temp_sensors
     if 'temp' not in brick['features']:
         return
     for sensor, temp in temps:
-        storagefile = storagedir + brick['id'] + '_' + sensor + '.csv'
+        storagefile = os.path.join(config['storagedir'], config['temp_sensor_dir'], sensor + '.csv')
         entryline = str(brick['last_ts']) + ';' + str(temp) + '\n'
         with open(storagefile, 'a') as f:
             f.write(entryline)
-        brick['temp_last_readings'][sensor] = temp
+        if sensor not in temp_sensors:
+            temp_sensors[sensor] = temp_sensor_defaults
+        temp_sensors[sensor]['prev_reading'] = temp_sensors[sensor]['last_reading']
+        temp_sensors[sensor]['last_reading'] = temp
+        if sensor not in brick['temp_sensors']:
+            brick['temp_sensors'].append(sensor)
 
 
 def __store_b(brick, voltage):
