@@ -38,8 +38,8 @@ class Brickserver(object):
 
     Output json keys:
     s = state is 0 for ok and 1 for failure
-    d = delay value for brick to use
-    p = precision for temp-sensors (int between 9 and 12)
+    d = sleep_delay value for brick to use
+    p = temp_precision for temp-sensors (int between 9 and 12)
     r = list of values, that are requestet from brick (as integers for easyer handling on brick)
         1 = version is requested
         2 = features are requested
@@ -97,10 +97,10 @@ class Brickserver(object):
             for k in {x for t in [(p if type(p) is list else [p]) for p in process_requests + feature_requests if p] for x in t}:
                 if k.startswith('request_') and 'r' not in result:
                     result['r'] = []
-                if k == 'update_delay':
-                    result['d'] = brick['delay']
-                elif k == 'update_precision':
-                    result['p'] = brick['precision']
+                if k == 'update_sleep_delay':
+                    result['d'] = brick['sleep_delay']
+                elif k == 'update_temp_precision':
+                    result['p'] = brick['temp_precision']
                 elif k == 'request_bat_voltage':
                     result['r'].append(3)
                 elif k == 'request_version':
@@ -120,8 +120,10 @@ class Brickserver(object):
     """
     Admin interface to override some values
     Usable via set command:
-      delay: integer (set delay to value)
+      sleep_delay: integer (set delay to value)
       bat_voltage: bool (request_bat_voltage if true)
+      desc: string (description of brick)
+      temp_precision: integer (temperature sensors precision 9 <= value <= 12)
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -157,9 +159,9 @@ class Brickserver(object):
                             brick['admin_override'] = {}
                         if data['key'] == 'desc':
                             brick['desc'] = data['value']
-                        elif data['key'] == 'precision':
+                        elif data['key'] == 'temp_precision':
                             if data['value'] in range(9, 13) and 'temp' in brick['features']:
-                                brick['precision'] = data['value']
+                                brick['temp_precision'] = data['value']
                                 brick['admin_override'][data['key']] = True
                             else:
                                 result['s'] = 5  # invalid value range(9, 12) or temp not in features

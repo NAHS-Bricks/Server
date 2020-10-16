@@ -11,19 +11,19 @@ brick_state_defaults = {
         'initalized': False
     },
     'temp': {
-        'last_temps': {},
-        'presicion': 11,
-        'max_temp_diff': 0
+        'temp_last_readings': {},
+        'temp_precision': 11,
+        'temp_max_diff': 0
     },
     'bat': {
-        'last_bat_reading': 0,
-        'last_bat_ts': None,
+        'bat_last_reading': 0,
+        'bat_last_ts': None,
         'bat_charging': False,
         'bat_charging_standby': False
     },
     'sleep': {
-        'delay': 60,
-        'delay_increase_wait': 3
+        'sleep_delay': 60,
+        'sleep_increase_wait': 3
     }
 }
 
@@ -46,14 +46,14 @@ def __store_t(brick, temps):
         entryline = str(brick['last_ts']) + ';' + str(temp) + '\n'
         with open(storagefile, 'a') as f:
             f.write(entryline)
-        brick['last_temps'][sensor] = temp
+        brick['temp_last_readings'][sensor] = temp
 
 
 def __store_b(brick, voltage):
     if 'bat' not in brick['features']:
         return
-    brick['last_bat_reading'] = voltage
-    brick['last_bat_ts'] = brick['last_ts']
+    brick['bat_last_reading'] = voltage
+    brick['bat_last_ts'] = brick['last_ts']
 
 
 def __store_y(brick, bools):
