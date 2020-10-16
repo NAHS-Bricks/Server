@@ -4,7 +4,8 @@ import time
 import os
 import sys
 import copy
-from helpers.config import *
+from helpers.shared import config, send_telegram, get_deviceid
+import helpers.shared
 from helpers.store import store, brick_state_defaults
 from helpers.process import process
 from helpers.feature import feature
@@ -17,6 +18,7 @@ class Brickserver(object):
     """
     Input json keys:
     t = list of sensors with temps, where sensor and temp are lists themself (eg: [['s1', t1], ['s2', t2]] )
+    c = list of sensors with corr, where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
     v = bricks software version (as string)
     f = list of bricks features as in brick_state_defaults
     b = bat-voltage as float
@@ -33,21 +35,20 @@ class Brickserver(object):
         1 = version is requested
         2 = features are requested
         3 = bat-voltage is requested
+        4 = temp-sensor correction values are requested
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def index(self):
-        global bricks
-        global temp_sensors
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
             if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
                 with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
-                    bricks, temp_sensors = json.loads(f.read().strip())
+                    helpers.shared.bricks, helpers.shared.temp_sensors = json.loads(f.read().strip())
             else:
-                bricks = {}
-                temp_sensors = {}
+                helpers.shared.bricks = {}
+                helpers.shared.temp_sensors = {}
             if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
                 os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
 
@@ -59,20 +60,20 @@ class Brickserver(object):
                 print("Request: " + json.dumps(data))
             brick_ip = cherrypy.request.remote.ip
             brick_id = get_deviceid(brick_ip)
-            if brick_id not in bricks:
-                bricks[brick_id] = {}
-                bricks[brick_id].update(brick_state_defaults['all'])
-                bricks[brick_id]['id'] = brick_id
+            if brick_id not in helpers.shared.bricks:
+                helpers.shared.bricks[brick_id] = {}
+                helpers.shared.bricks[brick_id].update(brick_state_defaults['all'])
+                helpers.shared.bricks[brick_id]['id'] = brick_id
 
             # create intermediate brick for storing and processing current session
-            brick = copy.deepcopy(bricks[brick_id])
+            brick = copy.deepcopy(helpers.shared.bricks[brick_id])
             brick['last_ts'] = int(time.time())
 
             # storing stage -- just take data and store them to intermediate brick-element
             [store[k](brick, data[k]) for k in data if k in store]
 
             # processing stage -- compare new and old data and do calculations if nesseccary
-            process_requests = [process[k](brick, bricks[brick_id]) for k in data if k in process]
+            process_requests = [process[k](brick, helpers.shared.bricks[brick_id]) for k in data if k in process]
 
             # feature-based processing stage
             feature_requests = [feature[k](brick) for k in brick['features'] if k in feature]
@@ -99,12 +100,14 @@ class Brickserver(object):
                     result['r'].append(1)
                 elif k == 'request_features':
                     result['r'].append(2)
+                elif k == 'request_temp_corr':
+                    result['r'].append(4)
 
             # save-back intermediate brick
-            bricks[brick_id] = brick
+            helpers.shared.bricks[brick_id] = brick
             # and write statefile
             with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
-                f.write(json.dumps([bricks, temp_sensors], indent=2))
+                f.write(json.dumps([helpers.shared.bricks, helpers.shared.temp_sensors], indent=2))
         if not test_suite:  # pragma: no cover
             print("Feedback: " + json.dumps(result))
         return result
@@ -121,16 +124,14 @@ class Brickserver(object):
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def admin(self):
-        global bricks
-        global temp_sensors
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
             if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
                 with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
-                    bricks, temp_sensors = json.loads(f.read().strip())
+                    helpers.shared.bricks, helpers.shared.temp_sensors = json.loads(f.read().strip())
             else:
-                bricks = {}
-                temp_sensors = {}
+                helpers.shared.bricks = {}
+                helpers.shared.temp_sensors = {}
 
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
@@ -139,15 +140,15 @@ class Brickserver(object):
                 command = data['command']
                 if command == 'get_bricks':
                     result['bricks'] = []
-                    for k in bricks:
+                    for k in helpers.shared.bricks:
                         result['bricks'].append(k)
                 elif command == 'get_brick' and 'brick' in data:
                     brick = data['brick']
-                    if brick in bricks:
-                        result['brick'] = bricks[brick]
+                    if brick in helpers.shared.bricks:
+                        result['brick'] = helpers.shared.bricks[brick]
                 elif command == 'set' and 'brick' in data and 'key' in data and 'value' in data:
-                    if data['brick'] in bricks:
-                        brick = bricks[data['brick']]
+                    if data['brick'] in helpers.shared.bricks:
+                        brick = helpers.shared.bricks[data['brick']]
                         if 'admin_override' not in brick['features']:
                             brick['features'].append('admin_override')
                         if 'admin_override' not in brick:
@@ -169,7 +170,7 @@ class Brickserver(object):
             else:
                 result['s'] = 1
             with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
-                f.write(json.dumps([bricks, temp_sensors], indent=2))
+                f.write(json.dumps([helpers.shared.bricks, helpers.shared.temp_sensors], indent=2))
         return result
 
 

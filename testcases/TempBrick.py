@@ -7,13 +7,17 @@ tempbrick_features = ['bat', 'temp', 'sleep']
 
 class TestTempBrick(BaseCherryPyTestCase):
     def test_init(self):
+        # Newly created brick is initilized
         response = self.webapp_request(clear_state=True, y=['i'])
         self.assertIn('r', response.json)
         self.assertIn(1, response.json['r'])
         self.assertIn(2, response.json['r'])
+        self.assertNotIn(3, response.json['r'])
+        self.assertNotIn(4, response.json['r'])
         self.assertEqual(response.state['features'], [])
         self.assertEqual(response.state['version'], None)
 
+        # requested data is send over
         response = self.webapp_request(v='1.0', f=tempbrick_features)
         self.assertIn('r', response.json)
         self.assertIn(3, response.json['r'])
@@ -24,13 +28,23 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['bat_last_reading'], 0)
         self.assertEqual(response.state['bat_last_ts'], None)
 
+        # feature based requested data is send over
         response = self.webapp_request(b=3.7)
         self.assertEqual(response.state['bat_last_reading'], 3.7)
         self.assertNotEqual(response.state['bat_last_ts'], None)
         self.assertEqual(response.json, {'s': 0})
 
-        response = self.webapp_request(unknown='something')  # An unknown key shouldn't crash the request
+        # An unknown key shouldn't crash the request
+        response = self.webapp_request(unknown='something')
         self.assertEqual(response.json['s'], 0)
+
+        # former created brick is initialized
+        response = self.webapp_request(y=['i'])
+        self.assertIn('r', response.json)
+        self.assertIn(1, response.json['r'])
+        self.assertIn(2, response.json['r'])
+        self.assertNotIn(3, response.json['r'])
+        self.assertIn(4, response.json['r'])
 
     def test_sleep_delay_increase(self):
         response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
@@ -142,7 +156,8 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['bat_charging_standby'], True)
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
-        self.assertNotIn('r', response.json)
+        if 'r' in response.json:
+            self.assertNotIn(3, response.json['r'])
         response = self.webapp_request(y=[], t=[['sensor1', 24]])
         self.assertEqual(response.state['bat_charging'], False)
         self.assertEqual(response.state['bat_charging_standby'], False)
@@ -153,7 +168,8 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['bat_charging'], False)
         self.assertEqual(response.state['bat_charging_standby'], False)
         self.assertNotIn('d', response.json)
-        self.assertNotIn('r', response.json)
+        if 'r' in response.json:
+            self.assertNotIn(3, response.json['r'])
 
         # Test charging interrupt (charging->pull powercord)
         response = self.webapp_request(y=['c'], t=[['sensor1', 24]])
@@ -252,11 +268,33 @@ class TestTempBrick(BaseCherryPyTestCase):
             response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
             response = self.webapp_request(b=3.7, t=[['sensor1', 24]])
             response = self.webapp_request(t=[['sensor1', 24]])
-            self.assertNotIn('r', response.json)
+            if 'r' in response.json:
+                self.assertNotIn(3, response.json['r'])
         with freeze_time(time_13_hours_ago):
             response = self.webapp_request(t=[['sensor1', 24]])
-            self.assertNotIn('r', response.json)
+            if 'r' in response.json:
+                self.assertNotIn(3, response.json['r'])
         with freeze_time(time_now):
             response = self.webapp_request(t=[['sensor1', 24]])
             self.assertIn('r', response.json)
             self.assertIn(3, response.json['r'])
+
+    def test_sensor_corr(self):
+        response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+        if 'r' in response.json:
+            self.assertNotIn(4, response.json['r'])
+        response = self.webapp_request(t=[['sensor1', 24], ['sensor2', 25]])
+        self.assertIn('sensor1', response.state['temp_sensors'])
+        self.assertIn('sensor2', response.state['temp_sensors'])
+        self.assertIn('sensor1', response.temp_sensors)
+        self.assertEqual(response.temp_sensors['sensor1']['corr'], None)
+        self.assertIn('sensor2', response.temp_sensors)
+        self.assertEqual(response.temp_sensors['sensor2']['corr'], None)
+        self.assertIn('r', response.json)
+        self.assertIn(4, response.json['r'])
+
+        response = self.webapp_request(c=[['sensor1', 0], ['sensor2', -0.1]])
+        self.assertEqual(response.temp_sensors['sensor1']['corr'], 0)
+        self.assertEqual(response.temp_sensors['sensor2']['corr'], -0.1)
+        if 'r' in response.json:
+            self.assertNotIn(4, response.json['r'])

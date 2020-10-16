@@ -1,13 +1,13 @@
-from helpers.config import *
+from helpers.shared import config, send_telegram
+import helpers.shared
 from datetime import datetime, timedelta
 
 
 def __process_t(brick_new, brick_old):
-    global temp_sensors
     if 'temp' in brick_new['features'] and 'temp' in brick_old['features']:
         max_diff = 0
-        for sensor in [sensor for sensor in brick_new['temp_sensors'] if temp_sensors[sensor]['last_reading'] and temp_sensors[sensor]['prev_reading']]:
-            diff = abs(temp_sensors[sensor]['prev_reading'] - temp_sensors[sensor]['last_reading'])
+        for sensor in [sensor for sensor in brick_new['temp_sensors'] if helpers.shared.temp_sensors[sensor]['last_reading'] and helpers.shared.temp_sensors[sensor]['prev_reading']]:
+            diff = abs(helpers.shared.temp_sensors[sensor]['prev_reading'] - helpers.shared.temp_sensors[sensor]['last_reading'])
             max_diff = diff if diff > max_diff else max_diff
         brick_new['temp_max_diff'] = max_diff
 
@@ -26,6 +26,8 @@ def __process_y(brick_new, brick_old):
     if brick_new['initalized']:
         result.append('request_version')
         result.append('request_features')
+        if 'temp' in brick_new['features']:
+            result.append('request_temp_corr')
     if 'bat' in brick_new['features']:
         if brick_new['bat_charging']:
             brick_new['bat_periodic_voltage_request'] -= 1

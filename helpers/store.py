@@ -1,4 +1,6 @@
-from helpers.config import *
+from helpers.shared import config, send_telegram
+import helpers.shared
+import os
 
 
 brick_state_defaults = {
@@ -31,7 +33,8 @@ brick_state_defaults = {
 temp_sensor_defaults = {
     'desc': '',
     'last_reading': None,
-    'prev_reading': None
+    'prev_reading': None,
+    'corr': None
 }
 
 
@@ -46,7 +49,6 @@ def __store_f(brick, value):
 
 
 def __store_t(brick, temps):
-    global temp_sensors
     if 'temp' not in brick['features']:
         return
     for sensor, temp in temps:
@@ -54,10 +56,11 @@ def __store_t(brick, temps):
         entryline = str(brick['last_ts']) + ';' + str(temp) + '\n'
         with open(storagefile, 'a') as f:
             f.write(entryline)
-        if sensor not in temp_sensors:
-            temp_sensors[sensor] = temp_sensor_defaults
-        temp_sensors[sensor]['prev_reading'] = temp_sensors[sensor]['last_reading']
-        temp_sensors[sensor]['last_reading'] = temp
+        if sensor not in helpers.shared.temp_sensors:
+            helpers.shared.temp_sensors[sensor] = {}
+            helpers.shared.temp_sensors[sensor].update(temp_sensor_defaults)
+        helpers.shared.temp_sensors[sensor]['prev_reading'] = helpers.shared.temp_sensors[sensor]['last_reading']
+        helpers.shared.temp_sensors[sensor]['last_reading'] = temp
         if sensor not in brick['temp_sensors']:
             brick['temp_sensors'].append(sensor)
 
@@ -76,10 +79,16 @@ def __store_y(brick, bools):
     brick['initalized'] = ('i' in bools)
 
 
+def __store_c(brick, corrs):
+    for sensor, corr in [(s, c) for s, c in corrs if s in helpers.shared.temp_sensors]:
+        helpers.shared.temp_sensors[sensor]['corr'] = corr
+
+
 store = {
     'v': __store_v,
     'f': __store_f,
     't': __store_t,
     'b': __store_b,
-    'y': __store_y
+    'y': __store_y,
+    'c': __store_c
 }

@@ -2,32 +2,31 @@
 
 ## Server
 
-*  Administrationsinterface -> möglichkeit zum setzen von werten zur laufzeit (zB korrekturwerte des sensoren)
-*  Registrieren von Nodes (MAC zuordnung zu namen)
-*  Nur registrierte Nodes erlauben (daten sammeln)
-*  Feedback-Loop (Daten von Server an Node übermitteln)
+*  **erledigt** Administrationsinterface -> möglichkeit zum setzen von werten zur laufzeit
+*  **erledigt** Setzen einer Beschreibung für einen Brick (Name/Position)
+*  Setzen einer Beschreibung für einen Sensor (Name/Position)
+*  Brick(s) zu Gruppen zuweisen (Ortsbestimmung/Funktionsgruppen/...)
+*  **erledigt** Feedback-Loop (Daten von Server an Brick übermitteln)
     *  **erledigt** Dynamisches Ändern des Sleep intervall
-    *  Dynamisches Ändern der Präzession der Temperatursensoren
-    *  Dynamisches Ändern der Temperatursensoren Korrekturwerte??? sinnvoll??
+    *  **erledigt** Dynamisches Ändern der Präzession der Temperatursensoren
     *  **erledigt** Soll einmal am Tag nach der Akku Spannung fragen
-*  Telegram Brücke -> Auslagern in eigene Komponente? (Für spätere Integration in NAHS interessant)
-*  Nachricht per Telegram wenn Node über längere Zeit keine Messwerte schickt (Akku leer?)
-*  Nachricht per Telegram wenn der Akku unter einem gewissen Level ist (zB 3,5Volt)
+*  **erledigt** Telegram Brücke
+*  Nachricht per Telegram wenn Brick über längere Zeit keine Messwerte schickt (Akku leer?)
+*  **erledigt** Nachricht per Telegram wenn der Akku unter einem gewissen Level ist (zB 3,5Volt)
 *  **erledigt** temps array statt statischem temp wert für speicherung verwenden
 *  **erledigt** konfiguration in conf.json auslagern (storagedir,...)
 
 ## Brick
 
-*  Config Interface (Initiales Setup speichert Daten in LittleFS)
+*  **erledigt** Config Interface (Initiales Setup speichert Daten in LittleFS)
     *  **erledigt** WiFi Config
     *  **erledigt** Server Config (IP und Port)
         *  im hintergrund DNS nach IP auflösen und IP speichern, sollte abfragen schneller machen - oder doch nur ein hinweis in der doku?
     *  **erledigt** Temperatursensoren Korrekturwerte
     *  **erledigt** Identify sensors - helper
     *  **erledigt** bat-adc kalibrierungs routine
-*  Feedback-Loop (Daten von Server annehmen und in RCT-Memory speichern)
+*  **erledigt** Feedback-Loop (Daten von Server annehmen und in RCT-Memory speichern)
     *  **erledigt** JSON Parser über ArduinoJson
-    *  setzen der korrekturwerte noch nicht realisiert, ist aber schon alles für vorbereitet nur die struktur der feedback-loop fehlt noch
 *  **erledigt** RTC Memory:
     *  **erledigt** delay
     *  **erledigt** präzession

@@ -1,4 +1,5 @@
-from helpers.config import *
+from helpers.shared import config, send_telegram
+import helpers.shared
 from datetime import datetime, timedelta
 
 
@@ -32,6 +33,15 @@ def __feature_sleep(brick):
             return 'update_sleep_delay'
 
 
+def __feature_temp(brick):
+    result = []
+    for sensor in [sensor for sensor in brick['temp_sensors'] if sensor in helpers.shared.temp_sensors]:
+        if helpers.shared.temp_sensors[sensor]['corr'] is None:
+            result.append('request_temp_corr')
+            break
+    return result
+
+
 def __feature_admin_override(brick):
     result = []
     if 'admin_override' in brick:
@@ -51,5 +61,6 @@ def __feature_admin_override(brick):
 feature = {
     'bat': __feature_bat,
     'sleep': __feature_sleep,
+    'temp': __feature_temp,
     'admin_override': __feature_admin_override
 }
