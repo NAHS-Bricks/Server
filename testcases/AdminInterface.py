@@ -24,7 +24,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin", command="get_brick", brick="unknown")
         self.assertNotIn('brick', response.json)
         response = self.webapp_request(path="/admin", command="set", brick="unknown", key='somekey', value='somevalue')
-        self.assertEqual(response.json, {'s': 1})
+        self.assertEqual(response.json, {'s': 3})
 
     def test_forgotten_params(self):
         response = self.webapp_request(clear_state=True, v='1.0', f=[])
@@ -33,11 +33,11 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin")
         self.assertEqual(response.json, {'s': 1})
         response = self.webapp_request(path="/admin", command='set')
-        self.assertEqual(response.json, {'s': 1})
+        self.assertEqual(response.json, {'s': 2})
         response = self.webapp_request(path="/admin", command='set', key='somekey')
-        self.assertEqual(response.json, {'s': 1})
+        self.assertEqual(response.json, {'s': 2})
         response = self.webapp_request(path="/admin", command='set', value='somevalue')
-        self.assertEqual(response.json, {'s': 1})
+        self.assertEqual(response.json, {'s': 2})
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v='1.0', f=[])

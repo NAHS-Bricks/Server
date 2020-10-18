@@ -150,15 +150,15 @@ class Brickserver(object):
                                 brick['temp_precision'] = data['value']
                                 brick['admin_override'][data['key']] = True
                             else:
-                                result['s'] = 5  # invalid value range(9, 12) or temp not in features
+                                result['s'] = 4  # invalid value range(9, 12) or temp not in features
                         else:
                             brick['admin_override'][data['key']] = data['value']
                     else:
-                        result['s'] = 1
+                        result['s'] = 3  # Invalid Brick
                 else:
-                    result['s'] = 1
+                    result['s'] = 2  # Unknown, invalid or incomplete command
             else:
-                result['s'] = 1
+                result['s'] = 1  # Command missing in data
             helpers.shared.state_save()
         return result
 
@@ -195,6 +195,7 @@ class Brickserver(object):
 
         helpers.shared.cron_data['last_ts'] = ts_now
         helpers.shared.state_save()
+        return {'s': 0}
 
 
 if __name__ == '__main__':

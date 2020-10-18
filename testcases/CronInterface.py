@@ -28,3 +28,4 @@ class TestCronInterface(BaseCherryPyTestCase):
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
             self.assertNotIn('send any data within the last hour', response.telegram)
+            self.assertEqual(response.json['s'], 0)

@@ -247,11 +247,11 @@ class TestTempBrick(BaseCherryPyTestCase):
         response = self.webapp_request(t=[['sensor1', 24]])
         self.assertEqual(response.json['p'], 12)
         response = self.webapp_request(path="/admin", command="set", brick="localhost", key="temp_precision", value=8)
-        self.assertEqual(response.json['s'], 5)
+        self.assertEqual(response.json['s'], 4)
         response = self.webapp_request(t=[['sensor1', 24]])
         self.assertNotIn('p', response.json)
         response = self.webapp_request(path="/admin", command="set", brick="localhost", key="temp_precision", value=13)
-        self.assertEqual(response.json['s'], 5)
+        self.assertEqual(response.json['s'], 4)
         response = self.webapp_request(t=[['sensor1', 24]])
         self.assertNotIn('p', response.json)
 

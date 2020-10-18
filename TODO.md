@@ -15,6 +15,8 @@
 *  **erledigt** Nachricht per Telegram wenn der Akku unter einem gewissen Level ist (zB 3,5Volt)
 *  **erledigt** temps array statt statischem temp wert für speicherung verwenden
 *  **erledigt** konfiguration in conf.json auslagern (storagedir,...)
+*  **erledigt** Returnvalue für cron-interface
+*  **erledigt** Verschiedene Returnvalues für admin-Interface Fehler
 
 ## Brick
 
@@ -35,11 +37,14 @@
         *  **erledigt** bat-voltage
         *  **erledigt** version
         *  **erledigt** features
+        *  precision
 *  **erledigt** charging-state abfragen (und übermitteln)
 
 ## Brick und Server
 
 *  **erledigt** map key auf einzelne zeichen beschränken (ist zwar blöd für leserlichkeit verkürzt aber generation und übertragungszeit)
+*  Versionsnummer pro Feature (Interface) und nicht mehr pro Brick
+*  BrickType als int also zB TempBrick = 1
 
 ## PCB:
 
