@@ -44,7 +44,7 @@
 
 *  **erledigt** map key auf einzelne zeichen beschränken (ist zwar blöd für leserlichkeit verkürzt aber generation und übertragungszeit)
 *  Versionsnummer pro Feature (Interface) und nicht mehr pro Brick
-*  BrickType als int also zB TempBrick = 1
+*  **erledigt** BrickType als int also zB TempBrick = 1
 
 ## PCB:
 

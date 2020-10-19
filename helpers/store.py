@@ -6,6 +6,7 @@ import os
 brick_state_defaults = {
     'all': {
         'id': None,
+        'type': None,
         'version': None,
         'features': [],
         'desc': '',
@@ -84,11 +85,16 @@ def __store_c(brick, corrs):
         helpers.shared.temp_sensors[sensor]['corr'] = corr
 
 
+def __store_x(brick, brick_type):
+    brick['type'] = brick_type
+
+
 store = {
     'v': __store_v,
     'f': __store_f,
     't': __store_t,
     'b': __store_b,
     'y': __store_y,
-    'c': __store_c
+    'c': __store_c,
+    'x': __store_x
 }

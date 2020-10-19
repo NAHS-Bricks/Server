@@ -14,14 +14,17 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertIn(2, response.json['r'])
         self.assertNotIn(3, response.json['r'])
         self.assertNotIn(4, response.json['r'])
+        self.assertIn(5, response.json['r'])
         self.assertEqual(response.state['features'], [])
         self.assertEqual(response.state['version'], None)
+        self.assertEqual(response.state['type'], None)
 
         # requested data is send over
-        response = self.webapp_request(v='1.0', f=tempbrick_features)
+        response = self.webapp_request(v='1.0', f=tempbrick_features, x=1)
         self.assertIn('r', response.json)
         self.assertIn(3, response.json['r'])
         self.assertEqual(response.state['version'], '1.0')
+        self.assertEqual(response.state['type'], 1)
         self.assertIn('temp', response.state['features'])
         self.assertIn('bat', response.state['features'])
         self.assertIn('sleep', response.state['features'])

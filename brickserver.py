@@ -27,6 +27,7 @@ class Brickserver(object):
         c = bat is charging
         s = bat charging is in standby
         i = brick initalized (just started up, runtimeData is on initial values)
+    x = bricktype as int (1 = TempBrick)
 
     Output json keys:
     s = state is 0 for ok and 1 for failure
@@ -37,6 +38,7 @@ class Brickserver(object):
         2 = features are requested
         3 = bat-voltage is requested
         4 = temp-sensor correction values are requested
+        5 = brick-type is requested
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -98,6 +100,8 @@ class Brickserver(object):
                     result['r'].append(2)
                 elif k == 'request_temp_corr':
                     result['r'].append(4)
+                elif k == 'request_type':
+                    result['r'].append(5)
 
             # save-back intermediate brick
             helpers.shared.bricks[brick_id] = brick

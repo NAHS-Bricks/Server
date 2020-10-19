@@ -26,6 +26,7 @@ def __process_y(brick_new, brick_old):
     if brick_new['initalized']:
         result.append('request_version')
         result.append('request_features')
+        result.append('request_type')
         if 'temp' in brick_new['features']:
             result.append('request_temp_corr')
     if 'bat' in brick_new['features']:
