@@ -7,7 +7,7 @@ brick_state_defaults = {
     'all': {
         'id': None,
         'type': None,
-        'version': None,
+        'version': {'os': None, 'all': None},
         'features': [],
         'desc': '',
         'last_ts': None,
@@ -39,8 +39,9 @@ temp_sensor_defaults = {
 }
 
 
-def __store_v(brick, value):
-    brick['version'] = value
+def __store_v(brick, versions):
+    for feature, version in versions:
+        brick['version'][feature] = version
 
 
 def __store_f(brick, value):

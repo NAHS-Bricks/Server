@@ -3,6 +3,7 @@ from freezegun import freeze_time
 from datetime import datetime, timedelta
 
 tempbrick_features = ['bat', 'temp', 'sleep']
+tempbrick_versions = [['os', 1.0], ['all', 1.0], ['bat', 1.0], ['temp', 1.0], ['sleep', 1.0]]
 
 
 class TestTempBrick(BaseCherryPyTestCase):
@@ -16,14 +17,26 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertNotIn(4, response.json['r'])
         self.assertIn(5, response.json['r'])
         self.assertEqual(response.state['features'], [])
-        self.assertEqual(response.state['version'], None)
+        self.assertIn('os', response.state['version'])
+        self.assertEqual(response.state['version']['os'], None)
+        self.assertIn('all', response.state['version'])
+        self.assertEqual(response.state['version']['all'], None)
         self.assertEqual(response.state['type'], None)
 
         # requested data is send over
-        response = self.webapp_request(v='1.0', f=tempbrick_features, x=1)
+        response = self.webapp_request(v=tempbrick_versions, f=tempbrick_features, x=1)
         self.assertIn('r', response.json)
         self.assertIn(3, response.json['r'])
-        self.assertEqual(response.state['version'], '1.0')
+        self.assertIn('os', response.state['version'])
+        self.assertEqual(response.state['version']['os'], 1.0)
+        self.assertIn('all', response.state['version'])
+        self.assertEqual(response.state['version']['all'], 1.0)
+        self.assertIn('temp', response.state['version'])
+        self.assertEqual(response.state['version']['temp'], 1.0)
+        self.assertIn('bat', response.state['version'])
+        self.assertEqual(response.state['version']['bat'], 1.0)
+        self.assertIn('sleep', response.state['version'])
+        self.assertEqual(response.state['version']['sleep'], 1.0)
         self.assertEqual(response.state['type'], 1)
         self.assertIn('temp', response.state['features'])
         self.assertIn('bat', response.state['features'])
@@ -50,7 +63,7 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertIn(4, response.json['r'])
 
     def test_sleep_delay_increase(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+        response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=tempbrick_features)
         response = self.webapp_request(b=3.7, t=[['sensor1', 25]])
         response = self.webapp_request(t=[['sensor1', 24]])
         self.assertEqual(response.state['sleep_delay'], 60)
@@ -101,7 +114,7 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 0)
 
     def test_sleep_delay_decrease(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+        response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=tempbrick_features)
         response = self.webapp_request(b=3.7)
         response = self.webapp_request(t=[['sensor1', 24]])
         self.assertIn('d', response.json)
@@ -123,7 +136,7 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
     def test_charging(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+        response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=tempbrick_features)
 
         # Test low-bat alarm
         response = self.webapp_request(b=3.7, t=[['sensor1', 24]])
@@ -215,7 +228,7 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertNotIn('Charging finished', response.telegram)  # Do not inform Admin that charging has finished if power-cord is pulled
 
     def test_admin_overrides(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+        response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=tempbrick_features)
         response = self.webapp_request(b=3.7, t=[['sensor1', 24]])
         response = self.webapp_request(t=[['sensor1', 24]])
         response = self.webapp_request(path="/admin", command="set", brick="localhost", key="sleep_delay", value=60)
@@ -259,7 +272,7 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertNotIn('p', response.json)
 
     def test_without_features(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=[])
+        response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=[])
         response = self.webapp_request(b=3.7, t=[['sensor1', 24]])
         self.assertEqual(response.json, {'s': 0})
 
@@ -268,7 +281,7 @@ class TestTempBrick(BaseCherryPyTestCase):
         time_13_hours_ago = time_now - timedelta(hours=13)
         time_14_hours_ago = time_now - timedelta(hours=14)
         with freeze_time(time_14_hours_ago):
-            response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+            response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=tempbrick_features)
             response = self.webapp_request(b=3.7, t=[['sensor1', 24]])
             response = self.webapp_request(t=[['sensor1', 24]])
             if 'r' in response.json:
@@ -283,7 +296,7 @@ class TestTempBrick(BaseCherryPyTestCase):
             self.assertIn(3, response.json['r'])
 
     def test_sensor_corr(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=tempbrick_features)
+        response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=tempbrick_features)
         if 'r' in response.json:
             self.assertNotIn(4, response.json['r'])
         response = self.webapp_request(t=[['sensor1', 24], ['sensor2', 25]])

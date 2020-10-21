@@ -1,9 +1,11 @@
 from ._wrapper import *
 
+admininterface_versions = [['os', 1.0], ['all', 1.0]]
+
 
 class TestAdminInterface(BaseCherryPyTestCase):
     def test_valid_brick(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
         response = self.webapp_request()
         self.assertEqual(response.json, {'s': 0})
         response = self.webapp_request(path="/admin", command="get_bricks")
@@ -15,7 +17,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['brick']['id'], 'localhost')
 
     def test_invalid_brick(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
         response = self.webapp_request()
         self.assertEqual(response.json, {'s': 0})
         response = self.webapp_request(path="/admin", command="get_bricks")
@@ -27,7 +29,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json, {'s': 3})
 
     def test_forgotten_params(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
         response = self.webapp_request()
         self.assertEqual(response.json, {'s': 0})
         response = self.webapp_request(path="/admin")
@@ -40,7 +42,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json, {'s': 2})
 
     def test_brick_desc(self):
-        response = self.webapp_request(clear_state=True, v='1.0', f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
         response = self.webapp_request()
         self.assertEqual(response.json, {'s': 0})
         response = self.webapp_request(path="/admin", command='set', brick="localhost", key="desc", value='a test host')

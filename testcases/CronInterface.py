@@ -7,7 +7,7 @@ class TestCronInterface(BaseCherryPyTestCase):
     def test_offline_brick(self):
         rolling_time = datetime.now() - timedelta(hours=2)
         with freeze_time(rolling_time):
-            response = self.webapp_request(clear_state=True, v='1.0', f=[])
+            response = self.webapp_request(clear_state=True, v=[['os', 1.0], ['all', 1.0]], f=[])
             response = self.webapp_request(path='/cron')
             self.assertNotIn('send any data within the last hour', response.telegram)
         rolling_time += timedelta(minutes=1)

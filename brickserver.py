@@ -20,7 +20,7 @@ class Brickserver(object):
     Input json keys:
     t = list of sensors with temps, where sensor and temp are lists themself (eg: [['s1', t1], ['s2', t2]] )
     c = list of sensors with corr, where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
-    v = bricks software version (as string)
+    v = list of features with version (as float), where elements are lists themself, allways needs to contain os and all (as this are meta-features) (eg: [['os', 1.0], ['all', 1.0], ['bat', 1.0]] )
     f = list of bricks features as in brick_state_defaults
     b = bat-voltage as float
     y = list of chars representing boolean values, if a char is in list it's considered as true if it's missing it's considered as false
