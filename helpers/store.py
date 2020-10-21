@@ -7,7 +7,7 @@ brick_state_defaults = {
     'all': {
         'id': None,
         'type': None,
-        'version': {'os': None, 'all': None},
+        'version': {'os': 0, 'all': 0},
         'features': [],
         'desc': '',
         'last_ts': None,
@@ -15,7 +15,7 @@ brick_state_defaults = {
     },
     'temp': {
         'temp_sensors': [],
-        'temp_precision': 11,
+        'temp_precision': None,
         'temp_max_diff': 0
     },
     'bat': {
@@ -48,6 +48,8 @@ def __store_f(brick, value):
     for feature in [f for f in value if f not in brick['features'] and f in brick_state_defaults]:
         brick.update(brick_state_defaults[feature])
         brick['features'].append(feature)
+        if feature not in brick['version']:
+            brick['version'][feature] = 0
 
 
 def __store_t(brick, temps):
@@ -90,6 +92,10 @@ def __store_x(brick, brick_type):
     brick['type'] = brick_type
 
 
+def __store_p(brick, precision):
+    brick['temp_precision'] = precision
+
+
 store = {
     'v': __store_v,
     'f': __store_f,
@@ -97,5 +103,6 @@ store = {
     'b': __store_b,
     'y': __store_y,
     'c': __store_c,
-    'x': __store_x
+    'x': __store_x,
+    'p': __store_p
 }

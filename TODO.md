@@ -37,7 +37,7 @@
         *  **erledigt** bat-voltage
         *  **erledigt** version
         *  **erledigt** features
-        *  precision
+        *  **erledigt** precision
 *  **erledigt** charging-state abfragen (und übermitteln)
 
 ## Brick und Server

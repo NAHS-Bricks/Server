@@ -39,6 +39,8 @@ def __feature_temp(brick):
         if helpers.shared.temp_sensors[sensor]['corr'] is None:
             result.append('request_temp_corr')
             break
+    if brick['temp_precision'] is None:
+        result.append('request_temp_precision')
     return result
 
 

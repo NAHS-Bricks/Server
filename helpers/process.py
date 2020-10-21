@@ -29,6 +29,7 @@ def __process_y(brick_new, brick_old):
         result.append('request_type')
         if 'temp' in brick_new['features']:
             result.append('request_temp_corr')
+            result.append('request_temp_precision')
     if 'bat' in brick_new['features']:
         if brick_new['bat_charging']:
             brick_new['bat_periodic_voltage_request'] -= 1
