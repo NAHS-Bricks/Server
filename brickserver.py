@@ -201,6 +201,28 @@ class Brickserver(object):
                 send_telegram("Brick " + brick + " (" + helpers.shared.bricks[brick]['desc'] + ") didn't send any data within the last hour!")
                 helpers.shared.cron_data['offline_send'][brick] = True
 
+        # Create dayly report
+        if dt_now.hour == 20:
+            if 'last_report_ts' not in helpers.shared.cron_data or not datetime.fromtimestamp(helpers.shared.cron_data['last_report_ts']).day == dt_now.day:
+                message = 'Dayly-Report:\n\n'
+                max_bat_val, max_bat_brick, max_bat_desc = (0, None, None)
+                min_bat_val, min_bat_brick, min_bat_desc = (6, None, None)
+                for brick in [helpers.shared.bricks[brick_id] for brick_id in helpers.shared.bricks if 'bat' in helpers.shared.bricks[brick_id]['features']]:
+                    if brick['bat_last_ts'] is None:
+                        continue
+                    if brick['bat_last_reading'] < min_bat_val:
+                        min_bat_val = brick['bat_last_reading']
+                        min_bat_brick = brick['id']
+                        min_bat_desc = brick['desc']
+                    if brick['bat_last_reading'] > max_bat_val:
+                        max_bat_val = brick['bat_last_reading']
+                        max_bat_brick = brick['id']
+                        max_bat_desc = brick['desc']
+                message += 'Lowest Bat: ' + str(min_bat_val) + ' at ' + min_bat_brick + '(' + min_bat_desc + ')\n'
+                message += 'Highest Bat: ' + str(max_bat_val) + ' at ' + max_bat_brick + '(' + max_bat_desc + ')'
+                send_telegram(message)
+                helpers.shared.cron_data['last_report_ts'] = ts_now
+
         helpers.shared.cron_data['last_ts'] = ts_now
         helpers.shared.state_save()
         return {'s': 0}

@@ -9,7 +9,8 @@ config = {
     'statefile': 'state.json',
     'server_port': 8081,
     'telegram_cmd': None,
-    'temp_sensor_dir': 'temp_sensors'
+    'temp_sensor_dir': 'temp_sensors',
+    'bat_level_dir': 'bat_level'
 }
 if os.path.isfile('config.json'):
     config.update(json.loads(open('config.json', 'r').read().strip()))
@@ -19,6 +20,8 @@ if not os.path.exists(config['storagedir']):  # pragma: no cover
     os.mkdir(config['storagedir'])
 if not os.path.exists(os.path.join(config['storagedir'], config['temp_sensor_dir'])):  # pragma: no cover
     os.mkdir(os.path.join(config['storagedir'], config['temp_sensor_dir']))
+if not os.path.exists(os.path.join(config['storagedir'], config['bat_level_dir'])):  # pragma: no cover
+    os.mkdir(os.path.join(config['storagedir'], config['bat_level_dir']))
 
 bricks = {}
 temp_sensors = {}

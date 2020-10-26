@@ -1,6 +1,5 @@
 from helpers.shared import config, send_telegram
 import helpers.shared
-import os
 
 
 brick_state_defaults = {
@@ -56,10 +55,6 @@ def __store_t(brick, temps):
     if 'temp' not in brick['features']:
         return
     for sensor, temp in temps:
-        storagefile = os.path.join(config['storagedir'], config['temp_sensor_dir'], sensor + '.csv')
-        entryline = str(brick['last_ts']) + ';' + str(temp) + '\n'
-        with open(storagefile, 'a') as f:
-            f.write(entryline)
         if sensor not in helpers.shared.temp_sensors:
             helpers.shared.temp_sensors[sensor] = {}
             helpers.shared.temp_sensors[sensor].update(temp_sensor_defaults)

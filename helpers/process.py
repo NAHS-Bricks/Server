@@ -1,9 +1,19 @@
 from helpers.shared import config, send_telegram
 import helpers.shared
 from datetime import datetime, timedelta
+import os
 
 
 def __process_t(brick_new, brick_old):
+    if 'temp' in brick_new['features']:
+        # Store Data to File
+        dt = datetime.fromtimestamp(brick_new['last_ts']).isoformat()
+        for sensor in brick_new['temp_sensors']:
+            storagefile = os.path.join(config['storagedir'], config['temp_sensor_dir'], sensor + '.csv')
+            temp = helpers.shared.temp_sensors[sensor]['last_reading']
+            entryline = dt + ';' + str(brick_new['last_ts']) + ';' + str(temp) + '\n'
+            with open(storagefile, 'a') as f:
+                f.write(entryline)
     if 'temp' in brick_new['features'] and 'temp' in brick_old['features']:
         max_diff = 0
         for sensor in [sensor for sensor in brick_new['temp_sensors'] if helpers.shared.temp_sensors[sensor]['last_reading'] and helpers.shared.temp_sensors[sensor]['prev_reading']]:
@@ -14,6 +24,13 @@ def __process_t(brick_new, brick_old):
 
 def __process_b(brick_new, brick_old):
     if 'bat' in brick_new['features']:
+        # Store Data to File
+        dt = datetime.fromtimestamp(brick_new['last_ts']).isoformat()
+        storagefile = os.path.join(config['storagedir'], config['bat_level_dir'], str(brick_new['id']) + '.csv')
+        entryline = dt + ';' + str(brick_new['last_ts']) + ';' + str(brick_new['bat_charging']) + ';' + str(brick_new['bat_charging_standby']) + ';' + str(brick_new['bat_last_reading']) + '\n'
+        with open(storagefile, 'a') as f:
+            f.write(entryline)
+        # Check for low-bat warning
         if brick_new['bat_last_reading'] < 3.5:
             send_telegram('Charge bat on ' + brick_new['id'] + ' (' + brick_new['desc'] + ') it reads ' + str(brick_new['bat_last_reading']) + ' Volts')
     if 'bat' in brick_new['features'] and 'bat' in brick_old['features']:
