@@ -19,6 +19,7 @@ class Brickserver(object):
     """
     Input json keys:
     t = list of sensors with temps, where sensor and temp are lists themself (eg: [['s1', t1], ['s2', t2]] )
+    l = list of latch states, where the index of a state is the id of the latch input (eg: [0, 1] )
     c = list of sensors with corr, where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
     v = list of features with version (as float), where elements are lists themself, allways needs to contain os and all (as this are meta-features) (eg: [['os', 1.0], ['all', 1.0], ['bat', 1.0]] )
     f = list of bricks features as in brick_state_defaults
@@ -34,7 +35,7 @@ class Brickserver(object):
     s = state is 0 for ok and 1 for failure
     d = sleep_delay value for brick to use
     p = temp_precision for temp-sensors (int between 9 and 12)
-    r = list of values, that are requestet from brick (as integers for easyer handling on brick)
+    r = list of values, that are requestet from brick (as integers for easier handling on brick)
         1 = version is requested
         2 = features are requested
         3 = bat-voltage is requested
