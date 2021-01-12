@@ -42,6 +42,7 @@ class Brickserver(object):
         4 = temp-sensor correction values are requested
         5 = brick-type is requested
         6 = temp_precision is requested
+    t = list of lists where the index of the outerlist is the latch id and the nested lists carry the triggers to enable (eg: [[0, 2], [1, 3]])
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -95,6 +96,8 @@ class Brickserver(object):
                     result['d'] = brick['sleep_delay']
                 elif k == 'update_temp_precision':
                     result['p'] = brick['temp_precision']
+                elif k == 'update_latch_triggers':
+                    result['t'] = brick['latch_triggers']
                 elif k == 'request_version':
                     result['r'].append(1)
                 elif k == 'request_features':
@@ -219,8 +222,8 @@ class Brickserver(object):
                         max_bat_val = brick['bat_last_reading']
                         max_bat_brick = brick['id']
                         max_bat_desc = brick['desc']
-                message += 'Lowest Bat: ' + str(min_bat_val) + ' at ' + min_bat_brick + '(' + min_bat_desc + ')\n'
-                message += 'Highest Bat: ' + str(max_bat_val) + ' at ' + max_bat_brick + '(' + max_bat_desc + ')'
+                message += 'Lowest Bat: ' + str(min_bat_val) + ' at ' + str(min_bat_brick) + '(' + str(min_bat_desc) + ')\n'
+                message += 'Highest Bat: ' + str(max_bat_val) + ' at ' + str(max_bat_brick) + '(' + str(max_bat_desc) + ')'
                 send_telegram(message)
                 helpers.shared.cron_data['last_report_ts'] = ts_now
 

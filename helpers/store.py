@@ -27,6 +27,10 @@ brick_state_defaults = {
     'sleep': {
         'sleep_delay': 60,
         'sleep_increase_wait': 3
+    },
+    'latch': {
+        'latch_states': [],
+        'latch_triggers': []
     }
 }
 
@@ -91,6 +95,10 @@ def __store_p(brick, precision):
     brick['temp_precision'] = precision
 
 
+def __store_l(brick, states):
+    brick['latch_states'] = states
+
+
 store = {
     'v': __store_v,
     'f': __store_f,
@@ -99,5 +107,6 @@ store = {
     'y': __store_y,
     'c': __store_c,
     'x': __store_x,
-    'p': __store_p
+    'p': __store_p,
+    'l': __store_l
 }
