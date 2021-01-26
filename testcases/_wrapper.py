@@ -5,6 +5,7 @@ import json
 import cherrypy
 from cherrypy.lib import httputil
 from brickserver import Brickserver
+from pymongo import MongoClient
 
 local = httputil.Host('127.0.0.1', 50000, '')
 remote = httputil.Host('127.0.0.1', 50001, '')
@@ -35,8 +36,11 @@ class BaseCherryPyTestCase(unittest.TestCase):
         if clear_state and os.path.isfile('config.json'):
             with open('config.json', 'r') as f:
                 config = json.loads(f.read().strip())
-            if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
-                os.remove(os.path.join(config['storagedir'], config['statefile']))
+            mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
+            mongoDB = mongoClient.get_database(config['mongo']['database'])
+            mongoDB.bricks.drop()
+            mongoDB.temp_sensors.drop()
+            mongoDB.util.drop()
 
         headers = [('Host', '127.0.0.1')]
 
@@ -75,13 +79,16 @@ class BaseCherryPyTestCase(unittest.TestCase):
         if os.path.isfile('config.json'):
             with open('config.json', 'r') as f:
                 config = json.loads(f.read().strip())
-            if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
-                with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
-                    response.state, response.temp_sensors, response.cron_data = json.loads(f.read().strip())
-                    response.state = response.state['localhost']
-            else:
+            mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
+            mongoDB = mongoClient.get_database(config['mongo']['database'])
+            response.state = mongoDB.bricks.find_one({'_id': 'localhost'})
+            if response.state is None:
                 response.state = {}
-                response.temp_sensors = {}
+            response.temp_sensors = {}
+            for sensor in mongoDB.temp_sensors.find({}):
+                response.temp_sensors[sensor['_id']] = sensor
+            response.cron_data = mongoDB.util.find_one({'_id': 'cron_data'})
+            if response.cron_data is None:
                 response.cron_data = {}
             if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
                 with open(os.path.join(config['storagedir'], 'telegram_messages'), 'r') as f:
@@ -91,6 +98,7 @@ class BaseCherryPyTestCase(unittest.TestCase):
         else:
             response.state = {}
             response.temp_sensors = {}
+            response.cron_data = {}
             response.telegram = ""
 
         return response

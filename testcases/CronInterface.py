@@ -30,7 +30,7 @@ class TestCronInterface(BaseCherryPyTestCase):
             self.assertNotIn('send any data within the last hour', response.telegram)
             self.assertEqual(response.json['s'], 0)
 
-    def test_dayly_report(self):
+    def test_daily_report(self):
         rolling_time = (datetime.now() - timedelta(days=2)).replace(hour=19, minute=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(clear_state=True, f=['bat'], v=[['os', 1.0], ['all', 1.0], ['bat', 1.0]])
@@ -41,22 +41,22 @@ class TestCronInterface(BaseCherryPyTestCase):
         rolling_time += timedelta(minutes=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertNotIn('Dayly-Report', response.telegram)
+            self.assertNotIn('Daily-Report', response.telegram)
 
         # now we are around 8pm, send a message
         rolling_time += timedelta(hours=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertIn('Dayly-Report', response.telegram)
+            self.assertIn('Daily-Report', response.telegram)
 
         # but don't send it again if allready send
         rolling_time += timedelta(minutes=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertNotIn('Dayly-Report', response.telegram)
+            self.assertNotIn('Daily-Report', response.telegram)
 
         # but the day after, it's send again
         rolling_time += timedelta(days=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertIn('Dayly-Report', response.telegram)
+            self.assertIn('Daily-Report', response.telegram)

@@ -6,11 +6,15 @@ import cherrypy
 
 config = {
     'storagedir': '/tmp/brickserver',
-    'statefile': 'state.json',
     'server_port': 8081,
     'telegram_cmd': None,
     'temp_sensor_dir': 'temp_sensors',
-    'bat_level_dir': 'bat_level'
+    'bat_level_dir': 'bat_level',
+    'mongo': {
+        'server': 'localhost',
+        'port': 27017,
+        'database': 'brickserver'
+    }
 }
 if os.path.isfile('config.json'):
     config.update(json.loads(open('config.json', 'r').read().strip()))
@@ -23,9 +27,45 @@ if not os.path.exists(os.path.join(config['storagedir'], config['temp_sensor_dir
 if not os.path.exists(os.path.join(config['storagedir'], config['bat_level_dir'])):  # pragma: no cover
     os.mkdir(os.path.join(config['storagedir'], config['bat_level_dir']))
 
-bricks = {}
-temp_sensors = {}
-cron_data = {}
+brick_state_defaults = {
+    'all': {
+        'id': None,
+        'type': None,
+        'version': {'os': 0, 'all': 0},
+        'features': [],
+        'desc': '',
+        'last_ts': None,
+        'initalized': False
+    },
+    'temp': {
+        'temp_sensors': [],
+        'temp_precision': None,
+        'temp_max_diff': 0
+    },
+    'bat': {
+        'bat_last_reading': 0,
+        'bat_last_ts': None,
+        'bat_charging': False,
+        'bat_charging_standby': False,
+        'bat_periodic_voltage_request': 10
+    },
+    'sleep': {
+        'sleep_delay': 60,
+        'sleep_increase_wait': 3
+    },
+    'latch': {
+        'latch_states': [],
+        'latch_triggers': []
+    }
+}
+
+temp_sensor_defaults = {
+    '_id': None,
+    'desc': '',
+    'last_reading': None,
+    'prev_reading': None,
+    'corr': None
+}
 
 
 def send_telegram(message):
@@ -43,27 +83,3 @@ def get_deviceid(ip):  # pragma: no cover
         return 'localhost'
     r = subprocess.check_output('cat /proc/net/arp | grep ' + str(ip), shell=True).decode('utf-8')
     return r.strip().split()[3].replace(':', '')
-
-
-def state_save():
-    global bricks
-    global temp_sensors
-    global cron_data
-    with open(os.path.join(config['storagedir'], config['statefile']), 'w') as f:
-        f.write(json.dumps([bricks, temp_sensors, cron_data], indent=2))
-
-
-def state_load():
-    global bricks
-    global temp_sensors
-    global cron_data
-    if os.path.isfile(os.path.join(config['storagedir'], config['statefile'])):
-        with open(os.path.join(config['storagedir'], config['statefile']), 'r') as f:
-            bricks, temp_sensors, cron_data = json.loads(f.read().strip())
-    else:
-        bricks = {}
-        temp_sensors = {}
-        cron_data = {}
-
-
-state_load()

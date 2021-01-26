@@ -1,45 +1,5 @@
-from helpers.shared import config, send_telegram
-import helpers.shared
-
-
-brick_state_defaults = {
-    'all': {
-        'id': None,
-        'type': None,
-        'version': {'os': 0, 'all': 0},
-        'features': [],
-        'desc': '',
-        'last_ts': None,
-        'initalized': False
-    },
-    'temp': {
-        'temp_sensors': [],
-        'temp_precision': None,
-        'temp_max_diff': 0
-    },
-    'bat': {
-        'bat_last_reading': 0,
-        'bat_last_ts': None,
-        'bat_charging': False,
-        'bat_charging_standby': False,
-        'bat_periodic_voltage_request': 10
-    },
-    'sleep': {
-        'sleep_delay': 60,
-        'sleep_increase_wait': 3
-    },
-    'latch': {
-        'latch_states': [],
-        'latch_triggers': []
-    }
-}
-
-temp_sensor_defaults = {
-    'desc': '',
-    'last_reading': None,
-    'prev_reading': None,
-    'corr': None
-}
+from helpers.mongodb import temp_sensor_get, temp_sensor_save
+from helpers.shared import brick_state_defaults
 
 
 def __store_v(brick, versions):
@@ -58,14 +18,13 @@ def __store_f(brick, value):
 def __store_t(brick, temps):
     if 'temp' not in brick['features']:
         return
-    for sensor, temp in temps:
-        if sensor not in helpers.shared.temp_sensors:
-            helpers.shared.temp_sensors[sensor] = {}
-            helpers.shared.temp_sensors[sensor].update(temp_sensor_defaults)
-        helpers.shared.temp_sensors[sensor]['prev_reading'] = helpers.shared.temp_sensors[sensor]['last_reading']
-        helpers.shared.temp_sensors[sensor]['last_reading'] = temp
-        if sensor not in brick['temp_sensors']:
-            brick['temp_sensors'].append(sensor)
+    for sensor_id, temp in temps:
+        sensor = temp_sensor_get(sensor_id)
+        sensor['prev_reading'] = sensor['last_reading']
+        sensor['last_reading'] = temp
+        if sensor_id not in brick['temp_sensors']:
+            brick['temp_sensors'].append(sensor_id)
+        temp_sensor_save(sensor)
 
 
 def __store_b(brick, voltage):
@@ -83,8 +42,9 @@ def __store_y(brick, bools):
 
 
 def __store_c(brick, corrs):
-    for sensor, corr in [(s, c) for s, c in corrs if s in helpers.shared.temp_sensors]:
-        helpers.shared.temp_sensors[sensor]['corr'] = corr
+    for sensor, corr in [(temp_sensor_get(s), c) for s, c in corrs]:
+        sensor['corr'] = corr
+        temp_sensor_save(sensor)
 
 
 def __store_x(brick, brick_type):

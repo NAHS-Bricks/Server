@@ -6,8 +6,8 @@ import sys
 import copy
 from datetime import datetime, timedelta
 from helpers.shared import config, send_telegram, get_deviceid
-import helpers.shared
-from helpers.store import store, brick_state_defaults
+from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save
+from helpers.store import store
 from helpers.process import process
 from helpers.feature import feature
 
@@ -50,7 +50,6 @@ class Brickserver(object):
     def index(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            helpers.shared.state_load()
             if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
                 os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
 
@@ -62,20 +61,17 @@ class Brickserver(object):
                 print("Request: " + json.dumps(data))
             brick_ip = cherrypy.request.remote.ip
             brick_id = get_deviceid(brick_ip)
-            if brick_id not in helpers.shared.bricks:
-                helpers.shared.bricks[brick_id] = {}
-                helpers.shared.bricks[brick_id].update(brick_state_defaults['all'])
-                helpers.shared.bricks[brick_id]['id'] = brick_id
+            brick_old = brick_get(brick_id)
 
             # create intermediate brick for storing and processing current session
-            brick = copy.deepcopy(helpers.shared.bricks[brick_id])
+            brick = copy.deepcopy(brick_old)
             brick['last_ts'] = int(time.time())
 
             # storing stage -- just take data and store them to intermediate brick-element
             [store[k](brick, data[k]) for k in data if k in store]
 
             # processing stage -- compare new and old data and do calculations if nesseccary
-            process_requests = [process[k](brick, helpers.shared.bricks[brick_id]) for k in data if k in process]
+            process_requests = [process[k](brick, brick_old) for k in data if k in process]
 
             # feature-based processing stage
             feature_requests = [feature[k](brick) for k in brick['features'] if k in feature]
@@ -112,9 +108,7 @@ class Brickserver(object):
                     result['r'].append(6)
 
             # save-back intermediate brick
-            helpers.shared.bricks[brick_id] = brick
-            # and write statefile
-            helpers.shared.state_save()
+            brick_save(brick)
         if not test_suite:  # pragma: no cover
             print("Feedback: " + json.dumps(result))
         return result
@@ -132,8 +126,6 @@ class Brickserver(object):
     @cherrypy.tools.json_out()
     def admin(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
-        if test_suite:  # pragma: no cover
-            helpers.shared.state_load()
 
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
@@ -141,16 +133,14 @@ class Brickserver(object):
             if 'command' in data:
                 command = data['command']
                 if command == 'get_bricks':
-                    result['bricks'] = []
-                    for k in helpers.shared.bricks:
-                        result['bricks'].append(k)
+                    result['bricks'] = brick_all_ids()
                 elif command == 'get_brick' and 'brick' in data:
                     brick = data['brick']
-                    if brick in helpers.shared.bricks:
-                        result['brick'] = helpers.shared.bricks[brick]
+                    if brick_exists(brick):
+                        result['brick'] = brick_get(brick)
                 elif command == 'set' and 'brick' in data and 'key' in data and 'value' in data:
-                    if data['brick'] in helpers.shared.bricks:
-                        brick = helpers.shared.bricks[data['brick']]
+                    if brick_exists(data['brick']):
+                        brick = brick_get(data['brick'])
                         if 'admin_override' not in brick['features']:
                             brick['features'].append('admin_override')
                         if 'admin_override' not in brick:
@@ -165,13 +155,13 @@ class Brickserver(object):
                                 result['s'] = 4  # invalid value range(9, 12) or temp not in features
                         else:
                             brick['admin_override'][data['key']] = data['value']
+                        brick_save(brick)
                     else:
                         result['s'] = 3  # Invalid Brick
                 else:
                     result['s'] = 2  # Unknown, invalid or incomplete command
             else:
                 result['s'] = 1  # Command missing in data
-            helpers.shared.state_save()
         return result
 
     @cherrypy.expose
@@ -180,7 +170,6 @@ class Brickserver(object):
     def cron(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            helpers.shared.state_load()
             if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
                 os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
 
@@ -188,47 +177,48 @@ class Brickserver(object):
         ts_3_minutes_ago = int(datetime.timestamp(dt_now - timedelta(minutes=3)))
         ts_1_hour_ago = int(datetime.timestamp(dt_now - timedelta(hours=1)))
         ts_now = int(datetime.timestamp(dt_now))
-        if 'offline_send' not in helpers.shared.cron_data:
-            helpers.shared.cron_data['offline_send'] = {}
+        cron_data = util_get('cron_data')
+        if 'offline_send' not in cron_data:
+            cron_data['offline_send'] = {}
 
-        if 'last_ts' not in helpers.shared.cron_data or helpers.shared.cron_data['last_ts'] < ts_3_minutes_ago:
-            for brick in helpers.shared.bricks:
-                helpers.shared.cron_data['offline_send'][brick] = True
+        if 'last_ts' not in cron_data or cron_data['last_ts'] < ts_3_minutes_ago:
+            for brick in brick_all_ids():
+                cron_data['offline_send'][brick] = True
         else:
-            for brick in [brick for brick in helpers.shared.bricks if brick not in helpers.shared.cron_data['offline_send']]:
-                helpers.shared.cron_data['offline_send'][brick] = True
+            for brick in [brick for brick in brick_all_ids() if brick not in cron_data['offline_send']]:
+                cron_data['offline_send'][brick] = True
 
-        for brick in [brick for brick in helpers.shared.bricks if helpers.shared.bricks[brick]['last_ts']]:
-            if helpers.shared.bricks[brick]['last_ts'] > ts_1_hour_ago:  # Has send data within the last hour
-                helpers.shared.cron_data['offline_send'][brick] = False
-            elif not helpers.shared.cron_data['offline_send'][brick]:  # One hour offline and no message send
-                send_telegram("Brick " + brick + " (" + helpers.shared.bricks[brick]['desc'] + ") didn't send any data within the last hour!")
-                helpers.shared.cron_data['offline_send'][brick] = True
+        for brick in [brick for brick in brick_all() if brick['last_ts']]:
+            if brick['last_ts'] > ts_1_hour_ago:  # Has send data within the last hour
+                cron_data['offline_send'][brick['_id']] = False
+            elif not cron_data['offline_send'][brick['_id']]:  # One hour offline and no message send
+                send_telegram("Brick " + brick['_id'] + " (" + brick['desc'] + ") didn't send any data within the last hour!")
+                cron_data['offline_send'][brick['_id']] = True
 
-        # Create dayly report
+        # Create daily report
         if dt_now.hour == 20:
-            if 'last_report_ts' not in helpers.shared.cron_data or not datetime.fromtimestamp(helpers.shared.cron_data['last_report_ts']).day == dt_now.day:
-                message = 'Dayly-Report:\n\n'
+            if 'last_report_ts' not in cron_data or not datetime.fromtimestamp(cron_data['last_report_ts']).day == dt_now.day:
+                message = 'Daily-Report:\n\n'
                 max_bat_val, max_bat_brick, max_bat_desc = (0, None, None)
                 min_bat_val, min_bat_brick, min_bat_desc = (6, None, None)
-                for brick in [helpers.shared.bricks[brick_id] for brick_id in helpers.shared.bricks if 'bat' in helpers.shared.bricks[brick_id]['features']]:
+                for brick in [brick for brick in brick_all() if 'bat' in brick['features']]:
                     if brick['bat_last_ts'] is None:
                         continue
                     if brick['bat_last_reading'] < min_bat_val:
                         min_bat_val = brick['bat_last_reading']
-                        min_bat_brick = brick['id']
+                        min_bat_brick = brick['_id']
                         min_bat_desc = brick['desc']
                     if brick['bat_last_reading'] > max_bat_val:
                         max_bat_val = brick['bat_last_reading']
-                        max_bat_brick = brick['id']
+                        max_bat_brick = brick['_id']
                         max_bat_desc = brick['desc']
                 message += 'Lowest Bat: ' + str(min_bat_val) + ' at ' + str(min_bat_brick) + '(' + str(min_bat_desc) + ')\n'
                 message += 'Highest Bat: ' + str(max_bat_val) + ' at ' + str(max_bat_brick) + '(' + str(max_bat_desc) + ')'
                 send_telegram(message)
-                helpers.shared.cron_data['last_report_ts'] = ts_now
+                cron_data['last_report_ts'] = ts_now
 
-        helpers.shared.cron_data['last_ts'] = ts_now
-        helpers.shared.state_save()
+        cron_data['last_ts'] = ts_now
+        util_save(cron_data)
         return {'s': 0}
 
 

@@ -13,8 +13,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertIn('localhost', response.json['bricks'])
         response = self.webapp_request(path="/admin", command="get_brick", brick="localhost")
         self.assertIn('brick', response.json)
-        self.assertIn('id', response.json['brick'])
-        self.assertEqual(response.json['brick']['id'], 'localhost')
+        self.assertIn('_id', response.json['brick'])
+        self.assertEqual(response.json['brick']['_id'], 'localhost')
 
     def test_invalid_brick(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])

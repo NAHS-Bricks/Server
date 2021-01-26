@@ -1,5 +1,4 @@
-from helpers.shared import config, send_telegram
-import helpers.shared
+from helpers.mongodb import temp_sensor_get
 from datetime import datetime, timedelta
 
 
@@ -35,8 +34,8 @@ def __feature_sleep(brick):
 
 def __feature_temp(brick):
     result = []
-    for sensor in [sensor for sensor in brick['temp_sensors'] if sensor in helpers.shared.temp_sensors]:
-        if helpers.shared.temp_sensors[sensor]['corr'] is None:
+    for sensor in [temp_sensor_get(sensor) for sensor in brick['temp_sensors']]:
+        if sensor['corr'] is None:
             result.append('request_temp_corr')
             break
     if brick['temp_precision'] is None:
