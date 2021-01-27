@@ -4,5 +4,8 @@ sudo docker run --network some-network --name some-express -e ME_CONFIG_MONGODB_
 
 sudo docker stop some-mongo
 sudo docker rm some-mongo
+sudo rm -rf /media/ramdisk/mongodb
+
+
 sudo docker stop some-express
 sudo docker rm some-express

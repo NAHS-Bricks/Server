@@ -5,14 +5,16 @@ import cherrypy
 
 
 config = {
-    'storagedir': '/tmp/brickserver',
     'server_port': 8081,
     'telegram_cmd': None,
-    'temp_sensor_dir': 'temp_sensors',
-    'bat_level_dir': 'bat_level',
     'mongo': {
         'server': 'localhost',
         'port': 27017,
+        'database': 'brickserver'
+    },
+    'influx': {
+        'server': 'localhost',
+        'port': 8086,
         'database': 'brickserver'
     }
 }
@@ -20,12 +22,6 @@ if os.path.isfile('config.json'):
     config.update(json.loads(open('config.json', 'r').read().strip()))
 else:  # pragma: no cover
     open('config.json', 'w').write(json.dumps(config, indent=2, sort_keys=True))
-if not os.path.exists(config['storagedir']):  # pragma: no cover
-    os.mkdir(config['storagedir'])
-if not os.path.exists(os.path.join(config['storagedir'], config['temp_sensor_dir'])):  # pragma: no cover
-    os.mkdir(os.path.join(config['storagedir'], config['temp_sensor_dir']))
-if not os.path.exists(os.path.join(config['storagedir'], config['bat_level_dir'])):  # pragma: no cover
-    os.mkdir(os.path.join(config['storagedir'], config['bat_level_dir']))
 
 brick_state_defaults = {
     'all': {
@@ -70,7 +66,7 @@ temp_sensor_defaults = {
 
 def send_telegram(message):
     if 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite':
-        with open(os.path.join(config['storagedir'], 'telegram_messages'), 'a') as f:
+        with open('/tmp/telegram_messages', 'a') as f:
             f.write(message + '\n')
     else:  # pragma: no cover
         print('Sending Telegram: ' + message)

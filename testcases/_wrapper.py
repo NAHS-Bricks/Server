@@ -90,8 +90,8 @@ class BaseCherryPyTestCase(unittest.TestCase):
             response.cron_data = mongoDB.util.find_one({'_id': 'cron_data'})
             if response.cron_data is None:
                 response.cron_data = {}
-            if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
-                with open(os.path.join(config['storagedir'], 'telegram_messages'), 'r') as f:
+            if os.path.isfile('/tmp/telegram_messages'):
+                with open('/tmp/telegram_messages', 'r') as f:
                     response.telegram = f.read().strip()
             else:
                 response.telegram = ""

@@ -1,0 +1,11 @@
+sudo docker network create some-network
+sudo docker run --network some-network --name some-influx -v /media/ramdisk/influxdb:/var/lib/influxdb -p 8086:8086 -d influxdb:1.8-alpine
+
+sudo docker stop some-influx
+sudo docker rm some-influx
+sudo rm -rf /media/ramdisk/influxdb
+
+
+sudo docker run --network some-network --name=grafana -p 3000:3000 -d grafana/grafana
+sudo docker stop grafana
+sudo docker rm grafana

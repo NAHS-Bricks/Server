@@ -50,8 +50,8 @@ class Brickserver(object):
     def index(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
-                os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
+            if os.path.isfile('/tmp/telegram_messages'):
+                os.remove('/tmp/telegram_messages')
 
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
@@ -170,8 +170,8 @@ class Brickserver(object):
     def cron(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
         if test_suite:  # pragma: no cover
-            if os.path.isfile(os.path.join(config['storagedir'], 'telegram_messages')):
-                os.remove(os.path.join(config['storagedir'], 'telegram_messages'))
+            if os.path.isfile('/tmp/telegram_messages'):
+                os.remove('/tmp/telegram_messages')
 
         dt_now = datetime.now()
         ts_3_minutes_ago = int(datetime.timestamp(dt_now - timedelta(minutes=3)))
