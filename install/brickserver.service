@@ -1,0 +1,21 @@
+[Unit]
+Description=NAHS-BrickServer
+After=docker.mongodb.service
+Requires=docker.mongodb.service
+After=docker.influxdb.service
+Requires=docker.influxdb.service
+
+[Service]
+Type=simple
+ExecStart=__project_dir__/venv/bin/python __project_dir__/brickserver.py
+KillSignal=SIGINT
+WorkingDirectory=__project_dir__
+RestartSec=5
+Restart=always
+StandardInput=null
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=brickserver
+
+[Install]
+WantedBy=multi-user.target
