@@ -10,6 +10,7 @@ from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, bric
 from helpers.store import store
 from helpers.process import process
 from helpers.feature import feature
+from helpers.admin import admin_commands
 
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 5):  # pragma: no cover
     raise Exception('At least Python3.5 required')
@@ -130,38 +131,14 @@ class Brickserver(object):
         result = {'s': 0}
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
-            if 'command' in data:
-                command = data['command']
-                if command == 'get_bricks':
-                    result['bricks'] = brick_all_ids()
-                elif command == 'get_brick' and 'brick' in data:
-                    brick = data['brick']
-                    if brick_exists(brick):
-                        result['brick'] = brick_get(brick)
-                elif command == 'set' and 'brick' in data and 'key' in data and 'value' in data:
-                    if brick_exists(data['brick']):
-                        brick = brick_get(data['brick'])
-                        if 'admin_override' not in brick['features']:
-                            brick['features'].append('admin_override')
-                        if 'admin_override' not in brick:
-                            brick['admin_override'] = {}
-                        if data['key'] == 'desc':
-                            brick['desc'] = data['value']
-                        elif data['key'] == 'temp_precision':
-                            if data['value'] in range(9, 13) and 'temp' in brick['features']:
-                                brick['temp_precision'] = data['value']
-                                brick['admin_override'][data['key']] = True
-                            else:
-                                result['s'] = 4  # invalid value range(9, 12) or temp not in features
-                        else:
-                            brick['admin_override'][data['key']] = data['value']
-                        brick_save(brick)
-                    else:
-                        result['s'] = 3  # Invalid Brick
-                else:
-                    result['s'] = 2  # Unknown, invalid or incomplete command
-            else:
-                result['s'] = 1  # Command missing in data
+            if 'command' not in data:
+                return {'s': 1, 'm': 'command is missing'}
+            if data['command'] not in admin_commands:
+                return {'s': 2, 'm': 'unknown command'}
+            if 'brick' in data and not brick_exists(data['brick']):
+                return {'s': 3, 'm': 'invalid brick'}
+
+            result.update(admin_commands[data['command']](data))
         return result
 
     @cherrypy.expose
