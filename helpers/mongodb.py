@@ -26,6 +26,14 @@ def brick_save(brick):
     mongoDB.bricks.replace_one({'_id': brick['_id']}, brick, True)
 
 
+def brick_delete(brick_id):
+    """
+    Removes brick from DB
+    """
+    global mongoDB
+    mongoDB.bricks.delete_one({'_id': brick_id})
+
+
 def brick_exists(brick_id):
     """
     Returns True or False whether a brick is stored in DB or not
@@ -75,6 +83,25 @@ def temp_sensor_save(sensor):
     """
     global mongoDB
     mongoDB.temp_sensors.replace_one({'_id': sensor['_id']}, sensor, True)
+
+
+def temp_sensor_delete(sensor_id):
+    """
+    Removes temp_sensor from DB
+    """
+    global mongoDB
+    mongoDB.temp_sensors.delete_one({'_id': sensor_id})
+
+
+def temp_sensor_exists(sensor_id):
+    """
+    Returns True or False whether a temp_sensor is stored in DB or not
+    """
+    global mongoDB
+    sensor = mongoDB.temp_sensors.find_one({'_id': sensor_id})
+    if sensor is not None:
+        return True
+    return False
 
 
 def util_get(util_id):

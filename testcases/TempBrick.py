@@ -1,6 +1,7 @@
 from ._wrapper import *
 from freezegun import freeze_time
 from datetime import datetime, timedelta
+from helpers.mongodb import brick_exists, temp_sensor_exists
 
 tempbrick_features = ['bat', 'temp', 'sleep']
 tempbrick_versions = [['os', 1.0], ['all', 1.0], ['bat', 1.0], ['temp', 1.0], ['sleep', 1.0]]
@@ -286,6 +287,28 @@ class TestTempBrick(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 7)
         response = self.webapp_request(t=[['sensor1', 24]])
         self.assertNotIn('p', response.json)
+
+    def test_admin_delete_brick(self):
+        response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=tempbrick_features)
+        response = self.webapp_request(b=3.7, t=[['sensor1', 24], ['sensor2', 24.1]])
+        self.assertEqual(brick_exists('localhost'), True)
+        self.assertEqual(temp_sensor_exists('sensor1'), True)
+        self.assertEqual(temp_sensor_exists('sensor2'), True)
+        response = self.webapp_request(path="/admin", command="delete_brick", brick="localhost2")  # Invalid Brick (should change nothing)
+        self.assertEqual(response.json['s'], 3)  # Invalid Brick returncode
+        self.assertEqual(brick_exists('localhost'), True)
+        self.assertEqual(temp_sensor_exists('sensor1'), True)
+        self.assertEqual(temp_sensor_exists('sensor2'), True)
+        response = self.webapp_request(path="/admin", command="delete_brick", brick="localhost")
+        self.assertIn('deleted', response.json)
+        self.assertIn('brick', response.json['deleted'])
+        self.assertIn('temp_sensors', response.json['deleted'])
+        self.assertEqual(response.json['deleted']['brick'], 'localhost')
+        self.assertIn('sensor1', response.json['deleted']['temp_sensors'])
+        self.assertIn('sensor2', response.json['deleted']['temp_sensors'])
+        self.assertEqual(brick_exists('localhost'), False)
+        self.assertEqual(temp_sensor_exists('sensor1'), False)
+        self.assertEqual(temp_sensor_exists('sensor2'), False)
 
     def test_without_features(self):
         response = self.webapp_request(clear_state=True, v=tempbrick_versions, f=[])

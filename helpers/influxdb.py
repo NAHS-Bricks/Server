@@ -43,9 +43,24 @@ def temp_store(celsius, sensor_id, ts):
     influxDB.write_points(body, time_precision='s')
 
 
+def temp_delete(sensor_id):
+    """
+    Deletes all temp measurements for a given sensor_id
+    """
+    global influxDB
+    influxDB.delete_series(measurement='temps', tags={'sensor_id': sensor_id})
+
+
 def bat_level_store(voltage, charging, charging_standby, brick_id, ts):
     global influxDB
     # store to 26weeks to bat_levels
-    dt = datetime.fromtimestamp(ts).isoformat(timespec='seconds') + 'Z'
     body = [{'measurement': 'bat_levels', 'tags': {'brick_id': brick_id}, 'time': int(ts), 'fields': {'voltage': float(voltage), 'charging': (1 if charging else 0), 'charging_standby': (1 if charging_standby else 0)}}]
     influxDB.write_points(body, time_precision='s', retention_policy='26weeks')
+
+
+def bat_level_delete(brick_id):
+    """
+    Deletes all bat_level measurements for a given brick_id
+    """
+    global influxDB
+    influxDB.delete_series(measurement='bat_levels', tags={'brick_id': brick_id})
