@@ -1,5 +1,6 @@
 from pymongo import MongoClient
 from helpers.shared import config, brick_state_defaults, temp_sensor_defaults
+import copy
 
 mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
 mongoDB = mongoClient.get_database(config['mongo']['database'])
@@ -13,7 +14,7 @@ def brick_get(brick_id):
     brick = mongoDB.bricks.find_one({'_id': brick_id})
     if brick is None:
         brick = {}
-        brick.update(brick_state_defaults['all'])
+        brick.update(copy.deepcopy(brick_state_defaults['all']))
         brick['_id'] = brick_id
     return brick
 
@@ -72,7 +73,7 @@ def temp_sensor_get(sensor_id):
     sensor = mongoDB.temp_sensors.find_one({'_id': sensor_id})
     if sensor is None:
         sensor = {}
-        sensor.update(temp_sensor_defaults)
+        sensor.update(copy.deepcopy(temp_sensor_defaults))
         sensor['_id'] = sensor_id
     return sensor
 
