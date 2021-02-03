@@ -1,5 +1,6 @@
-from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete
+from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete, temp_sensor_get
 from helpers.influxdb import temp_delete, bat_level_delete
+from helpers.shared import brick_state_defaults
 
 
 def __set_desc(brick, data):
@@ -79,9 +80,21 @@ def __cmd_delete_brick(data):
     return {'deleted': result}
 
 
+def __cmd_get_temp_sensor(data):
+    return {'temp_sensor': temp_sensor_get(data['temp_sensor'])}
+
+
+def __cmd_get_features(data):
+    features = list(brick_state_defaults.keys())
+    features.remove('all')
+    return {'features': features}
+
+
 admin_commands = {
     'get_bricks': __cmd_get_bricks,
     'get_brick': __cmd_get_brick,
     'set': __cmd_set,
-    'delete_brick': __cmd_delete_brick
+    'delete_brick': __cmd_delete_brick,
+    'get_temp_sensor': __cmd_get_temp_sensor,
+    'get_features': __cmd_get_features
 }

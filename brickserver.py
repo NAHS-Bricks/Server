@@ -6,7 +6,7 @@ import sys
 import copy
 from datetime import datetime, timedelta
 from helpers.shared import config, send_telegram, get_deviceid
-from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save
+from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save, temp_sensor_exists
 from helpers.store import store
 from helpers.process import process
 from helpers.feature import feature
@@ -137,6 +137,8 @@ class Brickserver(object):
                 return {'s': 2, 'm': 'unknown command'}
             if 'brick' in data and not brick_exists(data['brick']):
                 return {'s': 3, 'm': 'invalid brick'}
+            if 'temp_sensor' in data and not temp_sensor_exists(data['temp_sensor']):
+                return {'s': 8, 'm': 'invalid temp_sensor'}
 
             result.update(admin_commands[data['command']](data))
         return result
