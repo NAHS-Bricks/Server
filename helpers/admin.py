@@ -1,25 +1,38 @@
-from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete, temp_sensor_get
+from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete, temp_sensor_get, temp_sensor_save
 from helpers.influxdb import temp_delete, bat_level_delete
 from helpers.shared import brick_state_defaults
 
 
-def __set_desc(brick, data):
-    brick['desc'] = data['value']
+def __set_desc(data):
+    if 'brick' in data:
+        brick = brick_get(data['brick'])
+        brick['desc'] = data['value']
+        brick_save(brick)
+    elif 'temp_sensor' in data:
+        sensor = temp_sensor_get(data['temp_sensor'])
+        sensor['desc'] = data['value']
+        temp_sensor_save(sensor)
     return {}
 
 
-def __set_temp_precision(brick, data):
-    if 'temp' not in brick['features']:
-        return {'s': 6, 'm': 'temp not in features of brick'}
-    if data['value'] not in range(9, 13):
-        return {'s': 7, 'm': 'invalid value range(9, 12)'}
-    brick['temp_precision'] = data['value']
-    brick['admin_override'][data['key']] = True
+def __set_temp_precision(data):
+    if 'brick' in data:
+        brick = brick_get(data['brick'])
+        if 'temp' not in brick['features']:
+            return {'s': 6, 'm': 'temp not in features of brick'}
+        if data['value'] not in range(9, 13):
+            return {'s': 7, 'm': 'invalid value range(9, 12)'}
+        brick['temp_precision'] = data['value']
+        brick['admin_override'][data['key']] = True
+        brick_save(brick)
     return {}
 
 
-def __set_default(brick, data):
-    brick['admin_override'][data['key']] = data['value']
+def __set_default(data):
+    if 'brick' in data:
+        brick = brick_get(data['brick'])
+        brick['admin_override'][data['key']] = data['value']
+        brick_save(brick)
     return {}
 
 
@@ -48,21 +61,22 @@ def __cmd_set(data):
         return {'s': 5, 'm': 'value to be set is missing in data'}
 
     result = {}
-    brick = brick_get(data['brick'])
     if data['key'] in _set_direct:
-        result.update(_set_direct[data['key']](brick, data))
+        result.update(_set_direct[data['key']](data))
     else:
-        if 'admin_override' not in brick['features']:
-            brick['features'].append('admin_override')
-        if 'admin_override' not in brick:
-            brick['admin_override'] = {}
+        if 'brick' in data:
+            brick = brick_get(data['brick'])
+            if 'admin_override' not in brick['features']:
+                brick['features'].append('admin_override')
+            if 'admin_override' not in brick:
+                brick['admin_override'] = {}
+            brick_save(brick)
 
         if data['key'] in _set_indirect:
-            result.update(_set_indirect[data['key']](brick, data))
+            result.update(_set_indirect[data['key']](data))
         else:
-            result.update(__set_default(brick, data))
+            result.update(__set_default(data))
 
-    brick_save(brick)
     return result
 
 
