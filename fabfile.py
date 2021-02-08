@@ -7,7 +7,7 @@ project_dir = "/opt/middleware/nahs/brickserver"
 storagedir_mongo = "/var/data/mongodb"
 storagedir_influx = "/var/data/influxdb"
 mongodb_image = 'mongo:4.4'
-influxdb_image = 'influxdb:1.8-alpine'
+influxdb_image = 'influxdb:1.8'
 
 
 def docker_pull(c, image):
@@ -113,7 +113,6 @@ def deploy(c):
     install_docker(c)
     install_apt_package(c, 'python3')
     install_apt_package(c, 'virtualenv')
-    install_apt_package(c, 'systemd-docker')
     create_directorys(c)
     upload_project_files(c)
     setup_virtualenv(c)

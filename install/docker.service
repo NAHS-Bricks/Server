@@ -2,20 +2,17 @@
 Description=__image__ (inside Docker)
 After=docker.service
 Requires=docker.service
- 
+
 [Service]
-Type=simple
 TimeoutStartSec=0
+Restart=always
 ExecStartPre=-/usr/bin/docker stop %n
 ExecStartPre=-/usr/bin/docker rm %n
 ExecStartPre=/usr/bin/docker pull __image__
-ExecStart=/usr/bin/systemd-docker --cgroups name=systemd run --rm --name %n -v __storage__ -p __port__ __image__
-ExecStop=/usr/bin/docker stop %n
-ExecStopPost=-/usr/bin/docker rm %n
-Restart=always
-RestartSec=10s
-Type=notify
-NotifyAccess=all
- 
+ExecStart=/usr/bin/docker run --rm --name %n \
+    -v __storage__ \
+    -p __port__ \
+    __image__
+
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
