@@ -25,7 +25,6 @@ else:  # pragma: no cover
 
 brick_state_defaults = {
     'all': {
-        'id': None,
         'type': None,
         'version': {'os': 0, 'all': 0},
         'features': [],
