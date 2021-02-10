@@ -110,6 +110,7 @@ def deploy(c):
     systemctl_stop(c, 'docker.mongodb.service')
     systemctl_stop(c, 'docker.influxdb.service')
     install_apt_package(c, 'curl')
+    install_apt_package(c, 'rsync')
     install_docker(c)
     install_apt_package(c, 'python3')
     install_apt_package(c, 'virtualenv')
