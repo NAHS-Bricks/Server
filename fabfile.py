@@ -15,6 +15,11 @@ def docker_pull(c, image):
     c.run(f"docker pull {image}")
 
 
+def docker_prune(c):
+    print("Removing all outdated docker images")
+    c.run("docker image prune -f")
+
+
 def systemctl_stop(c, service):
     if c.run(f"systemctl is-active {service}", warn=True, hide=True).ok:
         print(f"Stop Service {service}")
@@ -105,15 +110,19 @@ def install_docker(c):
 def deploy(c):
     c.run('hostname')
     c.run('uname -a')
-    systemctl_stop(c, 'cron')
-    systemctl_stop(c, 'brickserver')
-    systemctl_stop(c, 'docker.mongodb.service')
-    systemctl_stop(c, 'docker.influxdb.service')
     install_apt_package(c, 'curl')
     install_apt_package(c, 'rsync')
     install_docker(c)
     install_apt_package(c, 'python3')
     install_apt_package(c, 'virtualenv')
+    systemctl_start(c, 'docker')
+    docker_pull(c, mongodb_image)
+    docker_pull(c, influxdb_image)
+    # Timecritical stuff (when service allready runs) - start
+    systemctl_stop(c, 'cron')
+    systemctl_stop(c, 'brickserver')
+    systemctl_stop(c, 'docker.mongodb.service')
+    systemctl_stop(c, 'docker.influxdb.service')
     create_directorys(c)
     upload_project_files(c)
     setup_virtualenv(c)
@@ -124,10 +133,9 @@ def deploy(c):
     install_rsyslog(c)
     install_cron(c)
     install_logrotate(c)
-    systemctl_start(c, 'docker')
-    docker_pull(c, mongodb_image)
-    docker_pull(c, influxdb_image)
     systemctl_start(c, 'docker.mongodb.service')
     systemctl_start(c, 'docker.influxdb.service')
     systemctl_start(c, 'brickserver')
     systemctl_start(c, 'cron')
+    # Timecritical stuff (when service allready runs) - end
+    docker_prune(c)

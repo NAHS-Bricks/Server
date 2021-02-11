@@ -36,10 +36,17 @@ def setup_database():
 setup_database()
 
 
-def temp_store(celsius, sensor_id, ts):
+def temp_store(celsius, sensor_id, ts, sensor_desc=None, brick_id=None, brick_desc=None):
     global influxDB
     # store to default (8weeks) to temps
-    body = [{'measurement': 'temps', 'tags': {'sensor_id': sensor_id}, 'time': int(ts), 'fields': {'celsius': float(celsius)}}]
+    body = {'measurement': 'temps', 'tags': {'sensor_id': sensor_id}, 'time': int(ts), 'fields': {'celsius': float(celsius)}}
+    if sensor_desc is not None and not sensor_desc == '':
+        body['tags']['sensor_desc'] = sensor_desc
+    if brick_id is not None and not brick_id == '':
+        body['tags']['brick_id'] = brick_id
+    if brick_desc is not None and not brick_desc == '':
+        body['tags']['brick_desc'] = brick_desc
+    body = [body]
     influxDB.write_points(body, time_precision='s')
 
 
@@ -51,10 +58,13 @@ def temp_delete(sensor_id):
     influxDB.delete_series(measurement='temps', tags={'sensor_id': sensor_id})
 
 
-def bat_level_store(voltage, charging, charging_standby, brick_id, ts):
+def bat_level_store(voltage, charging, charging_standby, brick_id, ts, brick_desc=None):
     global influxDB
     # store to 26weeks to bat_levels
-    body = [{'measurement': 'bat_levels', 'tags': {'brick_id': brick_id}, 'time': int(ts), 'fields': {'voltage': float(voltage), 'charging': (1 if charging else 0), 'charging_standby': (1 if charging_standby else 0)}}]
+    body = {'measurement': 'bat_levels', 'tags': {'brick_id': brick_id}, 'time': int(ts), 'fields': {'voltage': float(voltage), 'charging': (1 if charging else 0), 'charging_standby': (1 if charging_standby else 0)}}
+    if brick_desc is not None and not brick_desc == '':
+        body['tags']['brick_desc'] = brick_desc
+    body = [body]
     influxDB.write_points(body, time_precision='s', retention_policy='26weeks')
 
 

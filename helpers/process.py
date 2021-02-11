@@ -9,7 +9,7 @@ def __process_t(brick_new, brick_old):
     if 'temp' in brick_new['features']:
         # Store Data to File
         for sensor in [temp_sensor_get(sensor) for sensor in brick_new['temp_sensors']]:
-            temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'])
+            temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
     if 'temp' in brick_new['features'] and 'temp' in brick_old['features']:
         max_diff = 0
         for sensor in [sensor for sensor in [temp_sensor_get(s) for s in brick_new['temp_sensors']] if sensor['last_reading'] and sensor['prev_reading']]:
@@ -21,7 +21,7 @@ def __process_t(brick_new, brick_old):
 def __process_b(brick_new, brick_old):
     if 'bat' in brick_new['features']:
         # Store Data to InfluxDB
-        bat_level_store(brick_new['bat_last_reading'], brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['_id'], brick_new['last_ts'])
+        bat_level_store(brick_new['bat_last_reading'], brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
         # Check for low-bat warning
         if brick_new['bat_last_reading'] < 3.5:
             send_telegram('Charge bat on ' + brick_new['_id'] + ' (' + brick_new['desc'] + ') it reads ' + str(brick_new['bat_last_reading']) + ' Volts')
