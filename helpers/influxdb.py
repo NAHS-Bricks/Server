@@ -56,6 +56,7 @@ def temp_delete(sensor_id):
     """
     global influxDB
     influxDB.delete_series(measurement='temps', tags={'sensor_id': sensor_id})
+    influxDB.delete_series(measurement='temps_downsampled', tags={'sensor_id': sensor_id})
 
 
 def bat_level_store(voltage, charging, charging_standby, brick_id, ts, brick_desc=None):
