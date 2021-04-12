@@ -31,19 +31,22 @@ class Brickserver(object):
         i = brick initalized (just started up, runtimeData is on initial values)
     x = bricktype as int (1 = TempBrick)
     p = temp_precision for temp-sensors as int
+    s = signal_count (number of signal outputs available on brick)
 
     Output json keys:
     s = state is 0 for ok and 1 for failure
     d = sleep_delay value for brick to use
     p = temp_precision for temp-sensors (int between 9 and 12)
-    r = list of values, that are requestet from brick (as integers for easier handling on brick)
+    r = list of values, that are requested from brick (as integers for easier handling on brick)
         1 = version is requested
         2 = features are requested
         3 = bat-voltage is requested
         4 = temp-sensor correction values are requested
         5 = brick-type is requested
         6 = temp_precision is requested
+        7 = signal_count is requested
     t = list of lists where the index of the outerlist is the latch id and the nested lists carry the triggers to enable (eg: [[0, 2], [1, 3]])
+    o = list of signal output states where 0 is output off (low) and 1 is output on (high) length of list equals signal_count
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
