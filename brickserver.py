@@ -4,13 +4,16 @@ import time
 import os
 import sys
 import copy
+import argparse
 from datetime import datetime, timedelta
+from helpers.current_version import current_brickserver_version
 from helpers.shared import config, send_telegram, get_deviceid
 from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save, temp_sensor_exists
-from helpers.store import store
-from helpers.process import process
-from helpers.feature import feature
+from helpers.store_stage import store as store_stage
+from helpers.process_stage import process as process_stage
+from helpers.feature_stage import feature as feature_stage
 from helpers.admin import admin_commands
+from helpers.migrations import exec_migrate
 
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 5):  # pragma: no cover
     raise Exception('At least Python3.5 required')
@@ -38,8 +41,7 @@ class Brickserver(object):
     d = sleep_delay value for brick to use
     p = temp_precision for temp-sensors (int between 9 and 12)
     r = list of values, that are requested from brick (as integers for easier handling on brick)
-        1 = version is requested
-        2 = features are requested
+        1 = features/versions are requested
         3 = bat-voltage is requested
         4 = temp-sensor correction values are requested
         5 = brick-type is requested
@@ -72,16 +74,19 @@ class Brickserver(object):
             brick['last_ts'] = int(time.time())
 
             # storing stage -- just take data and store them to intermediate brick-element
-            [store[k](brick, data[k]) for k in data if k in store]
+            [store_stage[k](brick, data[k]) for k in data if k in store_stage]
 
             # processing stage -- compare new and old data and do calculations if nesseccary
-            process_requests = [process[k](brick, brick_old) for k in data if k in process]
+            process_requests = [process_stage[k](brick, brick_old) for k in data if k in process_stage]
 
             # feature-based processing stage
-            feature_requests = [feature[k](brick) for k in brick['features'] if k in feature]
+            feature_requests = [feature_stage[k](brick) for k in brick['features'] if k in feature_stage]
+
+            # remove admin_override form features if present (processing allready done, so it's no longer needed)
+            brick['features'].pop('admin_override', None)
 
             """
-            What the sollowing line does:
+            What the following line does:
             Takes all entrys from process_requests + feature_requests and:
               - drops None elements
               - makes non list items to lists with one item aka if type(item) is not list return [item]
@@ -98,10 +103,8 @@ class Brickserver(object):
                     result['p'] = brick['temp_precision']
                 elif k == 'update_latch_triggers':
                     result['t'] = brick['latch_triggers']
-                elif k == 'request_version':
+                elif k == 'request_versions':
                     result['r'].append(1)
-                elif k == 'request_features':
-                    result['r'].append(2)
                 elif k == 'request_bat_voltage':
                     result['r'].append(3)
                 elif k == 'request_temp_corr':
@@ -205,5 +208,18 @@ class Brickserver(object):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="NAHS-BrickServer")
+    parser.add_argument('--version', '-v', dest='version', action='store_true', help='Prints version of BrickServer')
+    parser.add_argument('--migrate', '-m', dest='migrate', action='store_true', help='Executes migrations')
+    args = parser.parse_args()
+
+    if args.version:
+        print(current_brickserver_version)
+        sys.exit(0)
+
+    if args.migrate:
+        exec_migrate(current_brickserver_version)
+        sys.exit(0)
+
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': config['server_port'], })
     cherrypy.quickstart(Brickserver())

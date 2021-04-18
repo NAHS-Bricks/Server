@@ -8,7 +8,6 @@ TimeoutStartSec=0
 Restart=always
 ExecStartPre=-/usr/bin/docker stop %n
 ExecStartPre=-/usr/bin/docker rm %n
-ExecStartPre=/usr/bin/docker pull __image__
 ExecStart=/usr/bin/docker run --rm --name %n \
     -v __storage__ \
     -p __port__ \

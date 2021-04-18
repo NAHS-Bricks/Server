@@ -1,6 +1,8 @@
 from fabric import task
 import patchwork.transfers
 import os
+import subprocess
+import time
 
 apt_update_run = False
 project_dir = "/opt/middleware/nahs/brickserver"
@@ -38,6 +40,17 @@ def systemctl_start(c, service):
         c.run(f"systemctl start {service}", hide=True)
 
 
+def systemctl_start_docker(c):
+    if not c.run(f"systemctl is-enabled docker", warn=True, hide=True).ok:
+        print(f"Enable Service docker")
+        c.run(f"systemctl enable docker", hide=True)
+    if c.run(f"systemctl is-active docker", warn=True, hide=True).ok:
+        print(f"Service docker allready running")
+    else:
+        print(f"Start Service docker")
+        c.run(f"systemctl start docker", hide=True)
+
+
 def systemctl_install_service(c, local_file, remote_file, replace_macros):
     print(f"Installing Service {remote_file}")
     c.put(os.path.join('install', local_file), remote=os.path.join('/etc/systemd/system', remote_file))
@@ -63,11 +76,26 @@ def install_logrotate(c):
     c.run("chmod 644 /etc/logrotate.d/brickserver")
 
 
+def execute_migrations(c):
+    print("Executing BrickServer migrations")
+    binary = os.path.join(project_dir, 'venv/bin/python')
+    executeable = os.path.join(project_dir, 'brickserver.py')
+    c.run(f'{binary} {executeable} -m')
+
+
 def setup_virtualenv(c):
     print("Setup virtualenv for brickserver")
     c.run(f"virtualenv -p /usr/bin/python3 {os.path.join(project_dir, 'venv')}")
     print("Installing python requirements for brickserver")
     c.run(f"{os.path.join(project_dir, 'venv/bin/pip')} install -r {os.path.join(project_dir, 'requirements.txt')}")
+
+
+def write_brickserver_version(c):
+    print("Writing BrickServer version")
+    version_file = os.path.join(project_dir, 'helpers', 'current_version.py')
+    version = subprocess.check_output('git describe', shell=True).decode('UTF-8').strip().split('-', 1)[0].replace('v', '')
+    current_version = f"current_brickserver_version = '{version}'"
+    c.run(f'echo "{current_version}" > {version_file}')
 
 
 def upload_project_files(c):
@@ -106,6 +134,28 @@ def install_docker(c):
         print('Docker allready installed')
 
 
+def wait_for_mongodb(c):
+    print("Waiting for MongoDB to be started")
+    while(True):
+        if c.run('ss -tulpen | grep 8086', warn=True, hide=True).ok:
+            print("MongoDB started ... continue")
+            break
+        else:
+            print("MongoDB pending ... waiting")
+            time.sleep(1)
+
+
+def wait_for_influxdb(c):
+    print("Waiting for InfluxDB to be started")
+    while(True):
+        if c.run('ss -tulpen | grep 27017', warn=True, hide=True).ok:
+            print("InfluxDB started ... continue")
+            break
+        else:
+            print("InfluxDB pending ... waiting")
+            time.sleep(1)
+
+
 @task
 def deploy(c):
     c.run('hostname')
@@ -115,7 +165,7 @@ def deploy(c):
     install_docker(c)
     install_apt_package(c, 'python3')
     install_apt_package(c, 'virtualenv')
-    systemctl_start(c, 'docker')
+    systemctl_start_docker(c)
     docker_pull(c, mongodb_image)
     docker_pull(c, influxdb_image)
     # Timecritical stuff (when service allready runs) - start
@@ -125,6 +175,7 @@ def deploy(c):
     systemctl_stop(c, 'docker.influxdb.service')
     create_directorys(c)
     upload_project_files(c)
+    write_brickserver_version(c)
     setup_virtualenv(c)
     systemctl_install_service(c, 'brickserver.service', 'brickserver.service', [('__project_dir__', project_dir)])
     systemctl_install_service(c, 'docker.service', 'docker.mongodb.service', [('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
@@ -135,6 +186,9 @@ def deploy(c):
     install_logrotate(c)
     systemctl_start(c, 'docker.mongodb.service')
     systemctl_start(c, 'docker.influxdb.service')
+    wait_for_mongodb(c)
+    wait_for_influxdb(c)
+    execute_migrations(c)
     systemctl_start(c, 'brickserver')
     systemctl_start(c, 'cron')
     # Timecritical stuff (when service allready runs) - end

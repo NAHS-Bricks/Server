@@ -1,5 +1,5 @@
 from ._wrapper import *
-from helpers.shared import brick_state_defaults
+from helpers.feature_versioning import features_available
 
 admininterface_versions = [['os', 1.0], ['all', 1.0]]
 
@@ -10,7 +10,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 2)
 
     def test_valid_brick(self):
-        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
         response = self.webapp_request()
         self.assertEqual(response.json, {'s': 0})
         response = self.webapp_request(path="/admin", command="get_bricks")
@@ -22,7 +22,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['brick']['_id'], 'localhost')
 
     def test_invalid_brick(self):
-        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
         response = self.webapp_request()
         self.assertEqual(response.json['s'], 0)
         response = self.webapp_request(path="/admin", command="get_bricks")
@@ -34,7 +34,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 3)
 
     def test_forgotten_params(self):
-        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
         response = self.webapp_request()
         self.assertEqual(response.json['s'], 0)
         response = self.webapp_request(path="/admin")
@@ -47,7 +47,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 4)
 
     def test_brick_desc(self):
-        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=[])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
         response = self.webapp_request()
         self.assertEqual(response.json['s'], 0)
         response = self.webapp_request(path="/admin", command='set', brick="localhost", key="desc", value='a test host')
@@ -55,7 +55,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.state['desc'], 'a test host')
 
     def test_temp_sensor_desc_and_get_temp_sensor(self):
-        response = self.webapp_request(clear_state=True, v=admininterface_versions, f=['temp'], t=[['s1', 24], ['s2', 25]])
+        response = self.webapp_request(clear_state=True, v=admininterface_versions + [['temp', 1.0]], t=[['s1', 24], ['s2', 25]])
         self.assertEqual(response.json['s'], 0)
 
         # All sensors do not have a desc
@@ -91,7 +91,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
     def test_get_features(self):
         response = self.webapp_request(path="/admin", command='get_features')
         self.assertEqual(response.json['s'], 0)
-        self.assertEqual(len(response.json['features']), len(brick_state_defaults.keys()) - 1)
+        self.assertEqual(len(response.json['features']), len(features_available()) - 2)
         self.assertIn('temp', response.json['features'])
         self.assertIn('bat', response.json['features'])
         self.assertIn('sleep', response.json['features'])

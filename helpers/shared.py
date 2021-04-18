@@ -23,37 +23,6 @@ if os.path.isfile('config.json'):
 else:  # pragma: no cover
     open('config.json', 'w').write(json.dumps(config, indent=2, sort_keys=True))
 
-brick_state_defaults = {
-    'all': {
-        'type': None,
-        'version': {'os': 0, 'all': 0},
-        'features': [],
-        'desc': '',
-        'last_ts': None,
-        'initalized': False
-    },
-    'temp': {
-        'temp_sensors': [],
-        'temp_precision': None,
-        'temp_max_diff': 0
-    },
-    'bat': {
-        'bat_last_reading': 0,
-        'bat_last_ts': None,
-        'bat_charging': False,
-        'bat_charging_standby': False,
-        'bat_periodic_voltage_request': 10
-    },
-    'sleep': {
-        'sleep_delay': 60,
-        'sleep_increase_wait': 3
-    },
-    'latch': {
-        'latch_states': [],
-        'latch_triggers': []
-    }
-}
-
 temp_sensor_defaults = {
     '_id': None,
     'desc': '',
@@ -78,3 +47,49 @@ def get_deviceid(ip):  # pragma: no cover
         return 'localhost'
     r = subprocess.check_output('cat /proc/net/arp | grep ' + str(ip), shell=True).decode('utf-8')
     return r.strip().split()[3].replace(':', '')
+
+
+def version_less_than(a, b):
+    """
+    executes a < b
+    up to three dots are valid: major.minor.patch.fix
+    _version_less_than('1.0', '1.0.1') => True
+    _version_less_than('1.0', '1.0') => False
+    _version_less_than('1.0.1', '1.0') => False
+    """
+    a = a.split('.')
+    while len(a) < 4:
+        a.append('0')
+    b = b.split('.')
+    while len(b) < 4:
+        b.append('0')
+    for i in range(4):
+        if int(a[i]) > int(b[i]):
+            return False
+        if int(a[i]) < int(b[i]):
+            return True
+        if i == 3:
+            if int(a[i]) == int(b[i]):
+                return False
+            else:
+                return True
+
+
+def version_greater_or_equal_than(a, b):
+    """
+    executes a >= b
+    up to three dots are valid: major.minor.patch.fix
+    _version_greater_or_equal_than('1.0', '1.0.1') => False
+    _version_greater_or_equal_than('1.0', '1.0') => True
+    _version_greater_or_equal_than('1.0.1', '1.0') => True
+    """
+    a = a.split('.')
+    while len(a) < 4:
+        a.append('0')
+    b = b.split('.')
+    while len(b) < 4:
+        b.append('0')
+    for i in range(4):
+        if int(a[i]) < int(b[i]):
+            return False
+    return True

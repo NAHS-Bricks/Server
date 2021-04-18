@@ -1,6 +1,6 @@
 from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete, temp_sensor_get, temp_sensor_save
 from helpers.influxdb import temp_delete, bat_level_delete
-from helpers.shared import brick_state_defaults
+from helpers.feature_versioning import features_available
 
 
 def __set_desc(data):
@@ -67,7 +67,7 @@ def __cmd_set(data):
         if 'brick' in data:
             brick = brick_get(data['brick'])
             if 'admin_override' not in brick['features']:
-                brick['features'].append('admin_override')
+                brick['features']['admin_override'] = 0
             if 'admin_override' not in brick:
                 brick['admin_override'] = {}
             brick_save(brick)
@@ -99,8 +99,11 @@ def __cmd_get_temp_sensor(data):
 
 
 def __cmd_get_features(data):
-    features = list(brick_state_defaults.keys())
-    features.remove('all')
+    features = features_available()
+    if 'all' in features:
+        features.remove('all')
+    if 'os' in features:
+        features.remove('os')
     return {'features': features}
 
 

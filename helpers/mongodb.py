@@ -1,5 +1,6 @@
 from pymongo import MongoClient
-from helpers.shared import config, brick_state_defaults, temp_sensor_defaults
+from helpers.shared import config, temp_sensor_defaults
+from helpers.feature_versioning import feature_update
 import copy
 
 mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
@@ -14,7 +15,7 @@ def brick_get(brick_id):
     brick = mongoDB.bricks.find_one({'_id': brick_id})
     if brick is None:
         brick = {}
-        brick.update(copy.deepcopy(brick_state_defaults['all']))
+        feature_update(brick, 'all', 0, 0)
         brick['_id'] = brick_id
     return brick
 

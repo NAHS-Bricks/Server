@@ -55,7 +55,6 @@ def __feature_admin_override(brick):
         if 'temp' in brick['features'] and 'temp_precision' in brick['admin_override']:
             result.append('update_temp_precision')
         brick.pop('admin_override', None)
-    brick['features'].remove('admin_override')
     return result
 
 

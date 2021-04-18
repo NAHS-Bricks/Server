@@ -1,19 +1,14 @@
 from helpers.mongodb import temp_sensor_get, temp_sensor_save
-from helpers.shared import brick_state_defaults
+from helpers.feature_versioning import feature_update
 import copy
 
 
 def __store_v(brick, versions):
     for feature, version in versions:
-        brick['version'][feature] = version
-
-
-def __store_f(brick, value):
-    for feature in [f for f in value if f not in brick['features'] and f in brick_state_defaults]:
-        brick.update(copy.deepcopy(brick_state_defaults[feature]))
-        brick['features'].append(feature)
-        if feature not in brick['version']:
-            brick['version'][feature] = 0
+        if feature not in brick['features']:
+            brick['features'][feature] = 0
+        feature_update(brick, feature, brick['features'][feature], version)
+        brick['features'][feature] = version
 
 
 def __store_t(brick, temps):
@@ -62,7 +57,6 @@ def __store_l(brick, states):
 
 store = {
     'v': __store_v,
-    'f': __store_f,
     't': __store_t,
     'b': __store_b,
     'y': __store_y,
