@@ -73,6 +73,10 @@ class Brickserver(object):
             brick = copy.deepcopy(brick_old)
             brick['last_ts'] = int(time.time())
 
+            # ensure some structures are present in data with their defaults
+            if 'y' not in data:
+                data['y'] = list()
+
             # storing stage -- just take data and store them to intermediate brick-element
             [store_stage[k](brick, data[k]) for k in data if k in store_stage]
 

@@ -12,7 +12,7 @@ def __store_v(brick, versions):
 
 
 def __store_t(brick, temps):
-    if 'temp' not in brick['features']:
+    if 'temp' not in brick['features']:  # pragma: no cover
         return
     for sensor_id, temp in temps:
         sensor = temp_sensor_get(sensor_id)
@@ -24,7 +24,7 @@ def __store_t(brick, temps):
 
 
 def __store_b(brick, voltage):
-    if 'bat' not in brick['features']:
+    if 'bat' not in brick['features']:  # pragma: no cover
         return
     brick['bat_last_reading'] = voltage
     brick['bat_last_ts'] = brick['last_ts']
@@ -38,8 +38,12 @@ def __store_y(brick, bools):
 
 
 def __store_c(brick, corrs):
+    if 'temp' not in brick['features']:  # pragma: no cover
+        return
     for sensor, corr in [(temp_sensor_get(s), c) for s, c in corrs]:
         sensor['corr'] = corr
+        if sensor['_id'] not in brick['temp_sensors']:
+            brick['temp_sensors'].append(sensor['_id'])
         temp_sensor_save(sensor)
 
 

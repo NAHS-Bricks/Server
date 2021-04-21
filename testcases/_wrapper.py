@@ -6,9 +6,32 @@ import cherrypy
 from cherrypy.lib import httputil
 from brickserver import Brickserver
 from pymongo import MongoClient
+from parameterized import parameterized_class
+import copy
 
 local = httputil.Host('127.0.0.1', 50000, '')
 remote = httputil.Host('127.0.0.1', 50001, '')
+
+
+def getVersionParameter(myFeature, forbiddenCombinations=None):
+    f = {
+        'sleep': ['sleep', 1],
+        'bat': ['bat', 1],
+        'temp': ['temp', 1]
+    }
+    if forbiddenCombinations is None:
+        forbiddenCombinations = list()
+    r = list()
+    if not isinstance(myFeature, list):
+        myFeature = list([myFeature])
+    v = list([['all', 1], ['os', 1]])
+    v += [f[my] for my in myFeature if my in f]
+    r.append({'name': 'standalone', 'v': v})
+    for k in [k for k in f if k not in myFeature and k not in forbiddenCombinations]:
+        v2 = copy.deepcopy(v)
+        v2.append(f[k])
+        r.append({'name': 'with_' + k, 'v': v2})
+    return r
 
 
 def setUpModule():

@@ -1,6 +1,7 @@
 from ._wrapper import *
 
 
+@parameterized_class(getVersionParameter('all'))
 class TestFeatureAll(BaseCherryPyTestCase):
     def test_new_brick_without_init(self):
         # Newly created brick without any info
@@ -16,8 +17,9 @@ class TestFeatureAll(BaseCherryPyTestCase):
 
     def test_new_brick_without_init_but_versions(self):
         # Newly created brick without information, that it is initalized but with version info present
-        response = self.webapp_request(clear_state=True, v=[['all', 1], ['os', 1]])
-        self.assertNotIn('r', response.json)
+        response = self.webapp_request(clear_state=True, v=self.v)
+        if 'temp' not in response.state['features'] and 'bat' not in response.state['features']:
+            self.assertNotIn('r', response.json)
 
         self.assertIn('os', response.state['features'])
         self.assertEqual(response.state['features']['os'], 1)
@@ -40,8 +42,9 @@ class TestFeatureAll(BaseCherryPyTestCase):
 
     def test_new_brick_without_init_but_versions_and_bricktype(self):
         # Newly created brick without information, that it is initalized but with version info and bricktype present
-        response = self.webapp_request(clear_state=True, v=[['all', 1], ['os', 1]], x=1)
-        self.assertNotIn('r', response.json)
+        response = self.webapp_request(clear_state=True, v=self.v, x=1)
+        if 'temp' not in response.state['features'] and 'bat' not in response.state['features']:
+            self.assertNotIn('r', response.json)
 
         self.assertIn('os', response.state['features'])
         self.assertEqual(response.state['features']['os'], 1)
@@ -67,9 +70,8 @@ class TestFeatureAll(BaseCherryPyTestCase):
 
     def test_new_brick_with_init_and_versions(self):
         # Newly created brick is initilized, with version info but without bricktype present
-        response = self.webapp_request(clear_state=True, y=['i'], v=[['all', 1], ['os', 1]])
+        response = self.webapp_request(clear_state=True, y=['i'], v=self.v)
         self.assertIn('r', response.json)
-        self.assertEqual(len(response.json['r']), 2)
         self.assertIn(1, response.json['r'])
         self.assertIn(5, response.json['r'])
 
@@ -84,7 +86,6 @@ class TestFeatureAll(BaseCherryPyTestCase):
         # Newly created brick is initilized, with bricktype but without version info present
         response = self.webapp_request(clear_state=True, y=['i'], x=1)
         self.assertIn('r', response.json)
-        self.assertEqual(len(response.json['r']), 2)
         self.assertIn(1, response.json['r'])
         self.assertIn(5, response.json['r'])
 
@@ -97,9 +98,8 @@ class TestFeatureAll(BaseCherryPyTestCase):
 
     def test_new_brick_with_init_and_versions_and_bricktype(self):
         # Newly created brick is initilized, with version info and bricktype present
-        response = self.webapp_request(clear_state=True, y=['i'], v=[['all', 1], ['os', 1]], x=1)
+        response = self.webapp_request(clear_state=True, y=['i'], v=self.v, x=1)
         self.assertIn('r', response.json)
-        self.assertEqual(len(response.json['r']), 2)
         self.assertIn(1, response.json['r'])
         self.assertIn(5, response.json['r'])
 

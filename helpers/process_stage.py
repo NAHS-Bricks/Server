@@ -9,7 +9,8 @@ def __process_t(brick_new, brick_old):
     if 'temp' in brick_new['features']:
         # Store Data to File
         for sensor in [temp_sensor_get(sensor) for sensor in brick_new['temp_sensors']]:
-            temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
+            if sensor['last_reading'] is not None:
+                temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
     if 'temp' in brick_new['features'] and 'temp' in brick_old['features']:
         max_diff = 0
         for sensor in [sensor for sensor in [temp_sensor_get(s) for s in brick_new['temp_sensors']] if sensor['last_reading'] and sensor['prev_reading']]:
