@@ -18,7 +18,7 @@ def __feature_sleep(brick):
         brick['sleep_increase_wait'] = 3
         return 'update_sleep_delay'
     elif 'temp' in brick['features']:
-        if brick['temp_max_diff'] > 0.25 and brick['sleep_delay'] > 60:  # TODO: eventuell abhaengig von temp_precision machen
+        if brick['temp_max_diff'] > 0.25 and brick['sleep_delay'] > 60:
             brick['sleep_delay'] = 60
             brick['sleep_increase_wait'] = 3
             return 'update_sleep_delay'
@@ -30,6 +30,9 @@ def __feature_sleep(brick):
             brick['sleep_delay'] += 60
             brick['sleep_increase_wait'] = 3
             return 'update_sleep_delay'
+    elif 'latch' in brick['features']:
+        brick['sleep_delay'] = 900
+        return 'update_sleep_delay'
 
 
 def __feature_temp(brick):
@@ -54,6 +57,8 @@ def __feature_admin_override(brick):
             result.append('request_bat_voltage')
         if 'temp' in brick['features'] and 'temp_precision' in brick['admin_override']:
             result.append('update_temp_precision')
+        if 'latch' in brick['features'] and 'latch_triggers' in brick['admin_override']:
+            result.append('update_latch_triggers')
         brick.pop('admin_override', None)
     return result
 

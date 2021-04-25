@@ -5,3 +5,4 @@ from .FeatureAll import *
 from .FeatureSleep import *
 from .FeatureBat import *
 from .FeatureTemp import *
+from .FeatureLatch import *

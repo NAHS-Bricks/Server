@@ -31,6 +31,16 @@ temp_sensor_defaults = {
     'corr': None
 }
 
+latch_defaults = {
+    '_id': None,
+    'desc': None,
+    'last_state': None,
+    'last_ts': None,
+    'prev_state': None,
+    'prev_ts': None,
+    'triggers': list()
+}
+
 
 def send_telegram(message):
     if 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite':

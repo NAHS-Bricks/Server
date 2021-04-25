@@ -8,7 +8,7 @@ import argparse
 from datetime import datetime, timedelta
 from helpers.current_version import current_brickserver_version
 from helpers.shared import config, send_telegram, get_deviceid
-from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save, temp_sensor_exists
+from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save, temp_sensor_exists, latch_exists, latch_get
 from helpers.store_stage import store as store_stage
 from helpers.process_stage import process as process_stage
 from helpers.feature_stage import feature as feature_stage
@@ -40,6 +40,8 @@ class Brickserver(object):
     s = state is 0 for ok and 1 for failure
     d = sleep_delay value for brick to use
     p = temp_precision for temp-sensors (int between 9 and 12)
+    t = list of lists where the index of the outerlist is the latch id and the nested lists carry the triggers to enable (eg: [[0, 2], [1, 3]])
+    o = list of signal output states where 0 is output off (low) and 1 is output on (high) length of list equals signal_count
     r = list of values, that are requested from brick (as integers for easier handling on brick)
         1 = features/versions are requested
         3 = bat-voltage is requested
@@ -47,8 +49,6 @@ class Brickserver(object):
         5 = brick-type is requested
         6 = temp_precision is requested
         7 = signal_count is requested
-    t = list of lists where the index of the outerlist is the latch id and the nested lists carry the triggers to enable (eg: [[0, 2], [1, 3]])
-    o = list of signal output states where 0 is output off (low) and 1 is output on (high) length of list equals signal_count
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -106,7 +106,9 @@ class Brickserver(object):
                 elif k == 'update_temp_precision':
                     result['p'] = brick['temp_precision']
                 elif k == 'update_latch_triggers':
-                    result['t'] = brick['latch_triggers']
+                    result['t'] = list()
+                    for i in range(0, brick['latch_count']):
+                        result['t'].append(sorted(latch_get(brick['_id'], i)['triggers']))
                 elif k == 'request_versions':
                     result['r'].append(1)
                 elif k == 'request_bat_voltage':
@@ -117,6 +119,11 @@ class Brickserver(object):
                     result['r'].append(5)
                 elif k == 'request_temp_precision':
                     result['r'].append(6)
+
+            # special-case: feature sleep is present and requests are made: override delay to 60
+            if 'sleep' in brick['features'] and 'r' in result:
+                brick['sleep_delay'] = 60
+                result['d'] = 60
 
             # save-back intermediate brick
             brick_save(brick)
@@ -149,6 +156,10 @@ class Brickserver(object):
                 return {'s': 3, 'm': 'invalid brick'}
             if 'temp_sensor' in data and not temp_sensor_exists(data['temp_sensor']):
                 return {'s': 8, 'm': 'invalid temp_sensor'}
+            if 'latch' in data:
+                brick_id, latch_id = data['latch'].split('_')
+                if not latch_exists(brick_id, latch_id):
+                    return {'s': 9, 'm': 'invalid latch'}
 
             result.update(admin_commands[data['command']](data))
         return result

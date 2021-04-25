@@ -44,10 +44,8 @@ def _sleep_initial(brick):
 
 
 def _latch_initial(brick):
-    if 'latch_states' not in brick:
-        brick['latch_states'] = list()
-    if 'latch_triggers' not in brick:
-        brick['latch_triggers'] = list()
+    if 'latch_count' not in brick:
+        brick['latch_count'] = 0
 
 
 _feature_updates = {

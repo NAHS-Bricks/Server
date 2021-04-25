@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from helpers.shared import config, temp_sensor_defaults
+from helpers.shared import config, temp_sensor_defaults, latch_defaults
 from helpers.feature_versioning import feature_update
 import copy
 
@@ -102,6 +102,49 @@ def temp_sensor_exists(sensor_id):
     global mongoDB
     sensor = mongoDB.temp_sensors.find_one({'_id': sensor_id})
     if sensor is not None:
+        return True
+    return False
+
+
+def latch_get(brick_id, latch_id):
+    """
+    Returns a latch from DB or a newly created it if doesn't exist in DB
+    """
+    global mongoDB
+    lid = brick_id + '_' + str(latch_id)
+    latch = mongoDB.latches.find_one({'_id': lid})
+    if latch is None:
+        latch = dict()
+        latch.update(copy.deepcopy(latch_defaults))
+        latch['_id'] = lid
+    return latch
+
+
+def latch_save(latch):
+    """
+    Saves latch to DB
+    """
+    global mongoDB
+    mongoDB.latches.replace_one({'_id': latch['_id']}, latch, True)
+
+
+def latch_delete(brick_id, latch_id):
+    """
+    Removes latch from DB
+    """
+    global mongoDB
+    lid = brick_id + '_' + str(latch_id)
+    latch = mongoDB.latches.delete_one({'_id': lid})
+
+
+def latch_exists(brick_id, latch_id):
+    """
+    Returns True or False whether a latch is stored in DB or not
+    """
+    global mongoDB
+    lid = brick_id + '_' + str(latch_id)
+    latch = mongoDB.latches.find_one({'_id': lid})
+    if latch is not None:
         return True
     return False
 

@@ -59,15 +59,6 @@ def __process_y(brick_new, brick_old):
     return result
 
 
-def __process_l(brick_new, brick_old):
-    result = []
-    if len(brick_new['latch_triggers']) < len(brick_new['latch_states']):
-        for i in range(len(brick_new['latch_triggers']), len(brick_new['latch_states'])):
-            brick_new['latch_triggers'].append([])
-        result.append('update_latch_triggers')
-    return result
-
-
 process = {
     't': __process_t,
     'b': __process_b,

@@ -1,4 +1,4 @@
-from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete, temp_sensor_get, temp_sensor_save
+from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete, temp_sensor_get, temp_sensor_save, latch_get, latch_save
 from helpers.influxdb import temp_delete, bat_level_delete
 from helpers.feature_versioning import features_available
 
@@ -12,6 +12,11 @@ def __set_desc(data):
         sensor = temp_sensor_get(data['temp_sensor'])
         sensor['desc'] = data['value']
         temp_sensor_save(sensor)
+    elif 'latch' in data:
+        brick_id, latch_id = data['latch'].split('_')
+        latch = latch_get(brick_id, latch_id)
+        latch['desc'] = data['value']
+        latch_save(latch)
     return {}
 
 
@@ -24,6 +29,40 @@ def __set_temp_precision(data):
             return {'s': 7, 'm': 'invalid value range(9, 12)'}
         brick['temp_precision'] = data['value']
         brick['admin_override'][data['key']] = True
+        brick_save(brick)
+    return {}
+
+
+def __set_add_trigger(data):
+    if 'latch' in data:
+        brick_id, latch_id = data['latch'].split('_')
+        brick = brick_get(brick_id)
+        if 'latch' not in brick['features']:
+            return {'s': 10, 'm': 'latch not in features of brick'}
+        if int(data['value']) not in range(0, 4):
+            return {'s': 7, 'm': 'invalid value range(0, 3)'}
+        brick['admin_override']['latch_triggers'] = True
+        latch = latch_get(brick_id, latch_id)
+        if int(data['value']) not in latch['triggers']:
+            latch['triggers'].append(int(data['value']))
+        latch_save(latch)
+        brick_save(brick)
+    return {}
+
+
+def __set_del_trigger(data):
+    if 'latch' in data:
+        brick_id, latch_id = data['latch'].split('_')
+        brick = brick_get(brick_id)
+        if 'latch' not in brick['features']:
+            return {'s': 10, 'm': 'latch not in features of brick'}
+        if int(data['value']) not in range(0, 4):
+            return {'s': 7, 'm': 'invalid value range(0, 3)'}
+        brick['admin_override']['latch_triggers'] = True
+        latch = latch_get(brick_id, latch_id)
+        if int(data['value']) in latch['triggers']:
+            latch['triggers'].remove(int(data['value']))
+        latch_save(latch)
         brick_save(brick)
     return {}
 
@@ -42,7 +81,9 @@ _set_direct = {
 
 
 _set_indirect = {
-    'temp_precision': __set_temp_precision
+    'temp_precision': __set_temp_precision,
+    'add_trigger': __set_add_trigger,
+    'del_trigger': __set_del_trigger
 }
 
 
@@ -64,8 +105,11 @@ def __cmd_set(data):
     if data['key'] in _set_direct:
         result.update(_set_direct[data['key']](data))
     else:
-        if 'brick' in data:
-            brick = brick_get(data['brick'])
+        if 'brick' in data or 'latch' in data:
+            if 'latch' in data:
+                brick = brick_get(data['latch'].split('_')[0])
+            else:
+                brick = brick_get(data['brick'])
             if 'admin_override' not in brick['features']:
                 brick['features']['admin_override'] = 0
             if 'admin_override' not in brick:

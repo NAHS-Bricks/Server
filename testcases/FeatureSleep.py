@@ -1,7 +1,7 @@
 from ._wrapper import *
 
 
-@parameterized_class(getVersionParameter('sleep', ['temp']))
+@parameterized_class(getVersionParameter('sleep', ['temp', 'latch', 'bat']))
 class TestFeatureSleep(BaseCherryPyTestCase):
     def test_inactiv_by_its_own(self):
         response = self.webapp_request(clear_state=True, v=self.v)
@@ -56,7 +56,7 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
 @parameterized_class(getVersionParameter(['sleep', 'temp']))
 class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
     def test_delay_increase_on_stable_temp(self):
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         self.assertNotIn('d', response.json)
         self.assertIn('sleep_increase_wait', response.state)
         self.assertEqual(response.state['sleep_increase_wait'], 2)
@@ -80,7 +80,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
                 self.assertEqual(response.state['sleep_increase_wait'], wait)
 
     def test_no_delay_decrease_on_positive_point25_change(self):
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 120)
@@ -88,7 +88,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertNotIn('d', response.json)
         self.assertEqual(response.state['sleep_delay'], 120)
 
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 180)
@@ -97,7 +97,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_delay'], 180)
 
     def test_no_delay_decrease_on_negative_point25_change(self):
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 120)
@@ -105,7 +105,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertNotIn('d', response.json)
         self.assertEqual(response.state['sleep_delay'], 120)
 
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 180)
@@ -114,7 +114,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_delay'], 180)
 
     def test_delay_decrease_on_positive_point26_change(self):
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 120)
@@ -123,7 +123,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertEqual(response.json['d'], 60)
         self.assertEqual(response.state['sleep_delay'], 60)
 
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 180)
@@ -133,7 +133,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_delay'], 60)
 
     def test_delay_decrease_on_negative_point26_change(self):
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 120)
@@ -142,7 +142,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertEqual(response.json['d'], 60)
         self.assertEqual(response.state['sleep_delay'], 60)
 
-        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]])
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
         self.assertEqual(response.state['sleep_delay'], 180)
@@ -150,3 +150,36 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
         self.assertEqual(response.state['sleep_delay'], 60)
+
+
+@parameterized_class(getVersionParameter(['sleep', 'latch'], ['temp']))
+class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
+    def test_static_delay_after_requests_done(self):
+        response = self.webapp_request(clear_state=True, v=self.v, y=['i'], b=4)  # b for getting rid of bat_voltage request with feature bat
+        self.assertIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 60)
+
+        response = self.webapp_request(x=2)
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 900)
+
+        for i in range(0, 5):  # should keep at 900 ...
+            with self.subTest(i=i):
+                response = self.webapp_request()
+                self.assertNotIn('r', response.json)
+                self.assertIn('d', response.json)
+                self.assertEqual(response.json['d'], 900)
+
+        response = self.webapp_request(y=['i'])  # ... except there is an request ...
+        self.assertIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 60)
+
+        for i in range(5, 9):  # ... back to 900
+            with self.subTest(i=i):
+                response = self.webapp_request()
+                self.assertNotIn('r', response.json)
+                self.assertIn('d', response.json)
+                self.assertEqual(response.json['d'], 900)

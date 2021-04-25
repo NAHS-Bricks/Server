@@ -17,7 +17,8 @@ def getVersionParameter(myFeature, forbiddenCombinations=None):
     f = {
         'sleep': ['sleep', 1],
         'bat': ['bat', 1],
-        'temp': ['temp', 1]
+        'temp': ['temp', 1],
+        'latch': ['latch', 1]
     }
     if forbiddenCombinations is None:
         forbiddenCombinations = list()
@@ -63,6 +64,7 @@ class BaseCherryPyTestCase(unittest.TestCase):
             mongoDB = mongoClient.get_database(config['mongo']['database'])
             mongoDB.bricks.drop()
             mongoDB.temp_sensors.drop()
+            mongoDB.latches.drop()
             mongoDB.util.drop()
 
         headers = [('Host', '127.0.0.1')]
@@ -110,6 +112,9 @@ class BaseCherryPyTestCase(unittest.TestCase):
             response.temp_sensors = {}
             for sensor in mongoDB.temp_sensors.find({}):
                 response.temp_sensors[sensor['_id']] = sensor
+            response.latches = {}
+            for latch in mongoDB.latches.find({}):
+                response.latches[latch['_id']] = latch
             response.cron_data = mongoDB.util.find_one({'_id': 'cron_data'})
             if response.cron_data is None:
                 response.cron_data = {}

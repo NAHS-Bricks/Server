@@ -1,4 +1,4 @@
-from helpers.mongodb import temp_sensor_get, temp_sensor_save
+from helpers.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save
 from helpers.feature_versioning import feature_update
 import copy
 
@@ -56,7 +56,14 @@ def __store_p(brick, precision):
 
 
 def __store_l(brick, states):
-    brick['latch_states'] = states
+    for i in range(0, len(states)):
+        latch = latch_get(brick['_id'], i)
+        latch['prev_state'] = latch['last_state']
+        latch['prev_ts'] = latch['last_ts']
+        latch['last_state'] = states[i]
+        latch['last_ts'] = brick['last_ts']
+        latch_save(latch)
+    brick['latch_count'] = len(states)
 
 
 store = {
