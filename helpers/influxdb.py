@@ -77,10 +77,11 @@ def bat_level_delete(brick_id):
     influxDB.delete_series(measurement='bat_levels', tags={'brick_id': brick_id})
 
 
-def latch_store(state, latch_id, brick_id, ts, latch_desc=None, brick_desc=None):
+def latch_store(state, latch_id, ts, latch_desc=None, brick_desc=None):
     global influxDB
     # store to 26weeks to latches
-    body = {'measurement': 'latches', 'tags': {'latch_id': int(latch_id), 'brick_id': brick_id}, 'time': int(ts), 'fields': {'state': int(state)}}
+    brick_id, lid = latch_id.split('_')
+    body = {'measurement': 'latches', 'tags': {'latch_id': str(int(lid)), 'brick_id': brick_id}, 'time': int(ts), 'fields': {'state': int(state)}}
     if latch_desc is not None and not latch_desc == '':
         body['tags']['latch_desc'] = latch_desc
     if brick_desc is not None and not brick_desc == '':
@@ -89,12 +90,9 @@ def latch_store(state, latch_id, brick_id, ts, latch_desc=None, brick_desc=None)
     influxDB.write_points(body, time_precision='s', retention_policy='26weeks')
 
 
-def latch_delete(brick_id, latch_id=None):
+def latch_delete(brick_id, latch_id):
     """
-    Deletes all latches measurements of a given brick_id or one explicit latch
+    Deletes all latches measurements of a given latch
     """
     global influxDB
-    if latch_id is None:
-        influxDB.delete_series(measurement='latches', tags={'brick_id': brick_id})
-    else:
-        influxDB.delete_series(measurement='latches', tags={'brick_id': brick_id, 'latch_id': int(latch_id)})
+    influxDB.delete_series(measurement='latches', tags={'brick_id': brick_id, 'latch_id': str(int(latch_id))})

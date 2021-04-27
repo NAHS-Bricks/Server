@@ -25,7 +25,7 @@ else:  # pragma: no cover
 
 temp_sensor_defaults = {
     '_id': None,
-    'desc': '',
+    'desc': None,
     'last_reading': None,
     'prev_reading': None,
     'corr': None
@@ -63,9 +63,9 @@ def version_less_than(a, b):
     """
     executes a < b
     up to three dots are valid: major.minor.patch.fix
-    _version_less_than('1.0', '1.0.1') => True
-    _version_less_than('1.0', '1.0') => False
-    _version_less_than('1.0.1', '1.0') => False
+    version_less_than('1.0', '1.0.1') => True
+    version_less_than('1.0', '1.0') => False
+    version_less_than('1.0.1', '1.0') => False
     """
     a = a.split('.')
     while len(a) < 4:
@@ -78,20 +78,16 @@ def version_less_than(a, b):
             return False
         if int(a[i]) < int(b[i]):
             return True
-        if i == 3:
-            if int(a[i]) == int(b[i]):
-                return False
-            else:
-                return True
+    return False
 
 
 def version_greater_or_equal_than(a, b):
     """
     executes a >= b
     up to three dots are valid: major.minor.patch.fix
-    _version_greater_or_equal_than('1.0', '1.0.1') => False
-    _version_greater_or_equal_than('1.0', '1.0') => True
-    _version_greater_or_equal_than('1.0.1', '1.0') => True
+    version_greater_or_equal_than('1.0', '1.0.1') => False
+    version_greater_or_equal_than('1.0', '1.0') => True
+    version_greater_or_equal_than('1.0.1', '1.0') => True
     """
     a = a.split('.')
     while len(a) < 4:

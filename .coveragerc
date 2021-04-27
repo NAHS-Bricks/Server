@@ -7,6 +7,8 @@ omit =
     # omit testfile's themself
     test.py
     testcases/*
+    # omit migrations as they are not testable (i guess)
+    helpers/migrations.py
 
 [report]
 # Regexes for lines to exclude from consideration

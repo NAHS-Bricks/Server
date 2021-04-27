@@ -19,6 +19,19 @@ class TestFeatureSleep(BaseCherryPyTestCase):
                 self.assertNotIn('d', response.json)
                 self.assertEqual(response.state['sleep_increase_wait'], 0)
 
+    def test_admin_override_delay(self):
+        response = self.webapp_request(clear_state=True, v=self.v)
+        self.assertNotIn('d', response.json)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 2)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        response = self.webapp_request()
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 30)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)
+
 
 @parameterized_class(getVersionParameter(['sleep', 'bat']))
 class TestFeatureSleepWithBat(BaseCherryPyTestCase):
@@ -51,6 +64,34 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
                 self.assertEqual(response.json['d'], 60)
                 self.assertIn('sleep_increase_wait', response.state)
                 self.assertEqual(response.state['sleep_increase_wait'], 3)
+
+    def test_admin_override_delay_charging(self):
+        response = self.webapp_request(clear_state=True, v=self.v, y=['c'])
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 60)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        response = self.webapp_request(y=['c'])
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 30)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)
+
+    def test_admin_override_delay_standby(self):
+        response = self.webapp_request(clear_state=True, v=self.v, y=['s'])
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 60)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        response = self.webapp_request(y=['s'])
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 30)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)
 
 
 @parameterized_class(getVersionParameter(['sleep', 'temp']))
@@ -151,6 +192,19 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertEqual(response.json['d'], 60)
         self.assertEqual(response.state['sleep_delay'], 60)
 
+    def test_admin_override_delay(self):
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4)  # b for getting rid of bat_voltage request with feature bat
+        for i in range(0, 4):
+            response = self.webapp_request(t=[['s1', 24]])
+        self.assertEqual(response.state['sleep_delay'], 120)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        response = self.webapp_request(t=[['s1', 24]])
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 30)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)
+
 
 @parameterized_class(getVersionParameter(['sleep', 'latch'], ['temp']))
 class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
@@ -183,3 +237,21 @@ class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
                 self.assertNotIn('r', response.json)
                 self.assertIn('d', response.json)
                 self.assertEqual(response.json['d'], 900)
+
+    def test_admin_override_delay(self):
+        response = self.webapp_request(clear_state=True, v=self.v, y=['i'], b=4)  # b for getting rid of bat_voltage request with feature bat
+        self.assertIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 60)
+
+        response = self.webapp_request(x=2)
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 900)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        response = self.webapp_request()
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 30)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)

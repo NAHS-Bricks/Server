@@ -117,3 +117,13 @@ class TestFeatureBat(BaseCherryPyTestCase):
 
         response = self.webapp_request(y=['s'])
         self.assertIn('Charging finished on localhost ()', response.telegram)
+
+    def test_admin_override_voltage_request(self):
+        response = self.webapp_request(clear_state=True, v=self.v, b=3.6)
+        if 'r' in response.json:
+            self.assertNotIn(3, response.json['r'])
+
+        self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_voltage', value=True)
+        response = self.webapp_request()
+        self.assertIn('r', response.json)
+        self.assertIn(3, response.json['r'])

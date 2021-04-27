@@ -61,6 +61,11 @@ class TestFeatureLatch(BaseCherryPyTestCase):
         self.assertIn('t', response.json)
         self.assertEqual(response.json['t'], [[0, 2, 3], [0, 1]])  # triggers should be sorted
 
+        self.webapp_request(path='/admin', command='set', latch='localhost_0', key='add_trigger', value=3)
+        response = self.webapp_request()
+        self.assertIn('t', response.json)
+        self.assertEqual(response.json['t'], [[0, 2, 3], [0, 1]])  # adding a trigger twice should not change anything
+
         response = self.webapp_request()
         self.assertNotIn('t', response.json)  # triggers should not be retransmitted, just once after a change
 
@@ -98,6 +103,36 @@ class TestFeatureLatch(BaseCherryPyTestCase):
         self.assertIn('t', response.json)
         self.assertEqual(response.json['t'], [[], [0]])  # but transmitt them after an init
 
+    def test_add_trigger_valid_values(self):
+        response = self.webapp_request(clear_state=True, v=self.v, l=[0])
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='add_trigger', value=-1)
+        self.assertEqual(response.json['s'], 7)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='add_trigger', value=0)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='add_trigger', value=1)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='add_trigger', value=2)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='add_trigger', value=3)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='add_trigger', value=4)
+        self.assertEqual(response.json['s'], 7)
+
+    def test_del_trigger_valid_values(self):
+        response = self.webapp_request(clear_state=True, v=self.v, l=[0])
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='del_trigger', value=-1)
+        self.assertEqual(response.json['s'], 7)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='del_trigger', value=0)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='del_trigger', value=1)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='del_trigger', value=2)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='del_trigger', value=3)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_0', key='del_trigger', value=4)
+        self.assertEqual(response.json['s'], 7)
+
     def test_latch_desc_is_stored(self):
         response = self.webapp_request(clear_state=True, v=self.v, l=[0, 0])
         self.assertIsNone(response.latches['localhost_0']['desc'])
@@ -117,3 +152,16 @@ class TestFeatureLatch(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 0)
         self.assertEqual(response.latches['localhost_0']['desc'], 'latchX')
         self.assertEqual(response.latches['localhost_1']['desc'], 'latch2')
+
+    def test_delete_brick_with_latches(self):
+        response = self.webapp_request(clear_state=True, v=self.v, l=[1, 2])
+        self.assertNotEqual(response.state, {})
+        self.assertIn('localhost_0', response.latches)
+        self.assertIn('localhost_1', response.latches)
+        response = self.webapp_request(path="/admin", command='delete_brick', brick='localhost')
+        self.assertIn('deleted', response.json)
+        self.assertEqual(response.json['deleted']['brick'], 'localhost')
+        self.assertIn('localhost_0', response.json['deleted']['latches'])
+        self.assertIn('localhost_1', response.json['deleted']['latches'])
+        self.assertEqual(response.state, {})
+        self.assertEqual(response.latches, {})

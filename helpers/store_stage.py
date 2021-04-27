@@ -4,11 +4,17 @@ import copy
 
 
 def __store_v(brick, versions):
+    tmp_feature_list = list()
     for feature, version in versions:
+        tmp_feature_list.append(feature)
         if feature not in brick['features']:
             brick['features'][feature] = 0
         feature_update(brick, feature, brick['features'][feature], version)
         brick['features'][feature] = version
+
+    # remove all features from brick, that hove not been submitted
+    for feature in [feature for feature in brick['features'].keys() if feature not in tmp_feature_list]:
+        brick['features'].pop(feature, None)
 
 
 def __store_t(brick, temps):

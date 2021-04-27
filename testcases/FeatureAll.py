@@ -109,3 +109,43 @@ class TestFeatureAll(BaseCherryPyTestCase):
         self.assertEqual(response.state['features']['all'], 1)
         self.assertIn('type', response.state)
         self.assertEqual(response.state['type'], 1)
+
+
+class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
+    def test_adding_feature(self):  # a brick migth change over time
+        response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0]])
+        self.assertEqual(len(response.state['features']), 2)
+        self.assertIn('all', response.state['features'])
+        self.assertIn('os', response.state['features'])
+
+        response = self.webapp_request(v=[['all', '1.0'], ['os', 1.0], ['sleep', 1.0]])  # add a new feature without deleting brick beforehand
+        self.assertEqual(len(response.state['features']), 3)
+        self.assertIn('all', response.state['features'])
+        self.assertIn('os', response.state['features'])
+        self.assertIn('sleep', response.state['features'])
+
+    def test_deleting_feature(self):  # a brick migth change over time
+        response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0], ['sleep', 1.0]])
+        self.assertEqual(len(response.state['features']), 3)
+        self.assertIn('all', response.state['features'])
+        self.assertIn('os', response.state['features'])
+        self.assertIn('sleep', response.state['features'])
+
+        response = self.webapp_request(v=[['all', '1.0'], ['os', 1.0]])  # delete a feature without deleting brick beforehand
+        self.assertEqual(len(response.state['features']), 2)
+        self.assertIn('all', response.state['features'])
+        self.assertIn('os', response.state['features'])
+
+    def test_add_and_delete_feature_at_once(self):  # a brick migth change over time
+        response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0], ['sleep', 1.0]])
+        self.assertEqual(len(response.state['features']), 3)
+        self.assertIn('all', response.state['features'])
+        self.assertIn('os', response.state['features'])
+        self.assertIn('sleep', response.state['features'])
+
+        response = self.webapp_request(v=[['all', '1.0'], ['os', 1.0], ['bat', 1.0]])  # delete sleep and add bat
+        self.assertEqual(len(response.state['features']), 3)
+        self.assertIn('all', response.state['features'])
+        self.assertIn('os', response.state['features'])
+        self.assertIn('bat', response.state['features'])
+        self.assertNotIn('sleep', response.state['features'])

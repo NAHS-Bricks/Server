@@ -1,5 +1,4 @@
 from ._wrapper import *
-from helpers.feature_versioning import features_available
 
 admininterface_versions = [['os', 1.0], ['all', 1.0]]
 
@@ -9,33 +8,29 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin", command="bullshit")
         self.assertEqual(response.json['s'], 2)
 
-    def test_valid_brick(self):
-        response = self.webapp_request(clear_state=True, v=admininterface_versions)
-        response = self.webapp_request()
-        self.assertEqual(response.json, {'s': 0})
-        response = self.webapp_request(path="/admin", command="get_bricks")
-        self.assertIn('bricks', response.json)
-        self.assertIn('localhost', response.json['bricks'])
-        response = self.webapp_request(path="/admin", command="get_brick", brick="localhost")
-        self.assertIn('brick', response.json)
-        self.assertIn('_id', response.json['brick'])
-        self.assertEqual(response.json['brick']['_id'], 'localhost')
-
     def test_invalid_brick(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
-        response = self.webapp_request()
         self.assertEqual(response.json['s'], 0)
-        response = self.webapp_request(path="/admin", command="get_bricks")
-        self.assertIn('bricks', response.json)
-        self.assertNotIn('unknown', response.json['bricks'])
         response = self.webapp_request(path="/admin", command="get_brick", brick="unknown")
+        self.assertEqual(response.json['s'], 3)
         self.assertNotIn('brick', response.json)
         response = self.webapp_request(path="/admin", command="set", brick="unknown", key='somekey', value='somevalue')
         self.assertEqual(response.json['s'], 3)
 
+    def test_invalid_temp_sensor(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path="/admin", command="set", temp_sensor="unknown", key='somekey', value='somevalue')
+        self.assertEqual(response.json['s'], 8)
+
+    def test_invalid_latch(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path="/admin", command="set", latch="unknown_0", key='somekey', value='somevalue')
+        self.assertEqual(response.json['s'], 9)
+
     def test_forgotten_params(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
-        response = self.webapp_request()
         self.assertEqual(response.json['s'], 0)
         response = self.webapp_request(path="/admin")
         self.assertEqual(response.json['s'], 1)
@@ -45,53 +40,74 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 5)
         response = self.webapp_request(path="/admin", command='set', value='somevalue')
         self.assertEqual(response.json['s'], 4)
+        response = self.webapp_request(path="/admin", command='set', key='temp_precision', value=11)  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(path="/admin", command='set', key='sleep_delay', value=40)  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(path="/admin", command='get_brick')  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(path="/admin", command='delete_brick')  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(path="/admin", command='get_temp_sensor')  # temp_sensor is missing in data
+        self.assertEqual(response.json['s'], 12)
+        response = self.webapp_request(path="/admin", command='set', key='add_trigger', value=0)  # latch is missing in data
+        self.assertEqual(response.json['s'], 13)
+        response = self.webapp_request(path="/admin", command='set', key='del_trigger', value=0)  # latch is missing in data
+        self.assertEqual(response.json['s'], 13)
+        response = self.webapp_request(path="/admin", command='set', key='desc', value='not used')  # no object given for setting desc
+        self.assertEqual(response.json['s'], 14)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
-        response = self.webapp_request()
         self.assertEqual(response.json['s'], 0)
         response = self.webapp_request(path="/admin", command='set', brick="localhost", key="desc", value='a test host')
         self.assertEqual(response.json['s'], 0)
         self.assertEqual(response.state['desc'], 'a test host')
 
-    def test_temp_sensor_desc_and_get_temp_sensor(self):
-        response = self.webapp_request(clear_state=True, v=admininterface_versions + [['temp', 1.0]], t=[['s1', 24], ['s2', 25]])
-        self.assertEqual(response.json['s'], 0)
+    def test_get_brick(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        response = self.webapp_request(path="/admin", command='get_brick', brick='localhost')
+        self.assertIn('brick', response.json)
+        self.assertEqual(response.json['brick']['_id'], 'localhost')
 
-        # All sensors do not have a desc
-        response = self.webapp_request(path="/admin", command='get_temp_sensor', temp_sensor='s1')
-        self.assertEqual(response.json['temp_sensor']['_id'], 's1')
-        self.assertEqual(response.json['temp_sensor']['desc'], '')
-        response = self.webapp_request(path="/admin", command='get_temp_sensor', temp_sensor='s2')
-        self.assertEqual(response.json['temp_sensor']['_id'], 's2')
-        self.assertEqual(response.json['temp_sensor']['desc'], '')
+    def test_get_all_bricks(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        response = self.webapp_request(path="/admin", command='get_bricks')
+        self.assertEqual(response.json['bricks'], ['localhost'])
 
-        # set desc of s1
-        response = self.webapp_request(path="/admin", command='set', temp_sensor='s1', key='desc', value='s1 desc')
+    def test_delete_brick(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        self.assertNotEqual(response.state, {})
+        response = self.webapp_request(path="/admin", command='delete_brick', brick='localhost')
+        self.assertIn('deleted', response.json)
+        self.assertEqual(response.json['deleted'], {'brick': 'localhost'})
+        self.assertEqual(response.state, {})
 
-        # Only s1 has a desc
-        response = self.webapp_request(path="/admin", command='get_temp_sensor', temp_sensor='s1')
-        self.assertEqual(response.json['temp_sensor']['_id'], 's1')
-        self.assertEqual(response.json['temp_sensor']['desc'], 's1 desc')
-        response = self.webapp_request(path="/admin", command='get_temp_sensor', temp_sensor='s2')
-        self.assertEqual(response.json['temp_sensor']['_id'], 's2')
-        self.assertEqual(response.json['temp_sensor']['desc'], '')
+    def test_set_temp_precision_without_feature_temp(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        response = self.webapp_request(path="/admin", command='set', brick='localhost', key='temp_precision', value=11)
+        self.assertEqual(response.json['s'], 6)
 
-        # fire a tempreading, to also send sensor desc to influx
-        response = self.webapp_request(t=[['s1', 24], ['s2', 25]])
+    def test_set_add_trigger_without_feature_latch(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions + [['latch', 1.0]], l=[0])  # indirectly create latch object, to be able to find latch object by adminInterface later on
+        response = self.webapp_request(v=admininterface_versions)  # now remove the feature from brick
+        self.assertNotIn('latch', response.state['features'])
+        self.assertIn('localhost_0', response.latches)
+        response = self.webapp_request(path="/admin", command='set', latch='localhost_0', key='add_trigger', value=0)
+        self.assertEqual(response.json['s'], 10)
 
-        # invalid temp_sensor on set desc
-        response = self.webapp_request(path="/admin", command='set', temp_sensor='s3', key='desc', value='s3 desc')
-        self.assertEqual(response.json['s'], 8)
-
-        # invalid temp_sensor on get sensor
-        response = self.webapp_request(path="/admin", command='get_temp_sensor', temp_sensor='s3')
-        self.assertEqual(response.json['s'], 8)
+    def test_set_del_trigger_without_feature_latch(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions + [['latch', 1.0]], l=[0])  # indirectly create latch object, to be able to find latch object by adminInterface later on
+        response = self.webapp_request(v=admininterface_versions)  # now remove the feature from brick
+        self.assertNotIn('latch', response.state['features'])
+        self.assertIn('localhost_0', response.latches)
+        response = self.webapp_request(path="/admin", command='set', latch='localhost_0', key='del_trigger', value=0)
+        self.assertEqual(response.json['s'], 10)
 
     def test_get_features(self):
         response = self.webapp_request(path="/admin", command='get_features')
         self.assertEqual(response.json['s'], 0)
-        self.assertEqual(len(response.json['features']), len(features_available()) - 2)
+        self.assertEqual(len(response.json['features']), 4)
         self.assertIn('temp', response.json['features'])
         self.assertIn('bat', response.json['features'])
         self.assertIn('sleep', response.json['features'])

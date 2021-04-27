@@ -9,25 +9,25 @@ class TestCronInterface(BaseCherryPyTestCase):
         with freeze_time(rolling_time):
             response = self.webapp_request(clear_state=True, v=[['os', 1.0], ['all', 1.0]], f=[])
             response = self.webapp_request(path='/cron')
-            self.assertNotIn('send any data within the last hour', response.telegram)
+            self.assertNotIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
         rolling_time += timedelta(minutes=1)
         for i in range(0, 29):
             with freeze_time(rolling_time):
                 response = self.webapp_request(path='/cron')
                 self.assertEqual(response.cron_data['offline_send']['localhost'], False)
-                self.assertNotIn('send any data within the last hour', response.telegram)
+                self.assertNotIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
             rolling_time += timedelta(minutes=2)
         rolling_time += timedelta(minutes=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertIn('send any data within the last hour', response.telegram)
+            self.assertIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
             self.assertEqual(response.cron_data['offline_send']['localhost'], True)
 
         # Test message is not send again
         rolling_time += timedelta(minutes=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertNotIn('send any data within the last hour', response.telegram)
+            self.assertNotIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
             self.assertEqual(response.json['s'], 0)
 
     def test_daily_report(self):

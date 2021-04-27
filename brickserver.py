@@ -86,9 +86,6 @@ class Brickserver(object):
             # feature-based processing stage
             feature_requests = [feature_stage[k](brick) for k in brick['features'] if k in feature_stage]
 
-            # remove admin_override form features if present (processing allready done, so it's no longer needed)
-            brick['features'].pop('admin_override', None)
-
             """
             What the following line does:
             Takes all entrys from process_requests + feature_requests and:
@@ -120,10 +117,14 @@ class Brickserver(object):
                 elif k == 'request_temp_precision':
                     result['r'].append(6)
 
-            # special-case: feature sleep is present and requests are made: override delay to 60
-            if 'sleep' in brick['features'] and 'r' in result:
+            # special-case: feature sleep is present and requests are made: override delay to 60 -- except admin_override for sleep_delay is present
+            if 'sleep' in brick['features'] and 'r' in result and ('admin_override' not in brick or 'sleep_delay' not in brick['admin_override']):
                 brick['sleep_delay'] = 60
                 result['d'] = 60
+
+            # remove admin_override form brick if present (processing done, so it's no longer needed)
+            brick['features'].pop('admin_override', None)
+            brick.pop('admin_override', None)
 
             # save-back intermediate brick
             brick_save(brick)
@@ -192,7 +193,7 @@ class Brickserver(object):
             if brick['last_ts'] > ts_1_hour_ago:  # Has send data within the last hour
                 cron_data['offline_send'][brick['_id']] = False
             elif not cron_data['offline_send'][brick['_id']]:  # One hour offline and no message send
-                send_telegram("Brick " + brick['_id'] + " (" + brick['desc'] + ") didn't send any data within the last hour!")
+                send_telegram("Brick " + brick['_id'] + " (" + ('' if brick['desc'] is None else brick['desc']) + ") didn't send any data within the last hour!")
                 cron_data['offline_send'][brick['_id']] = True
 
         # Create daily report
@@ -202,7 +203,7 @@ class Brickserver(object):
                 max_bat_val, max_bat_brick, max_bat_desc = (0, None, None)
                 min_bat_val, min_bat_brick, min_bat_desc = (6, None, None)
                 for brick in [brick for brick in brick_all() if 'bat' in brick['features']]:
-                    if brick['bat_last_ts'] is None:
+                    if brick['bat_last_ts'] is None:  # pragma: no cover
                         continue
                     if brick['bat_last_reading'] < min_bat_val:
                         min_bat_val = brick['bat_last_reading']
@@ -212,8 +213,8 @@ class Brickserver(object):
                         max_bat_val = brick['bat_last_reading']
                         max_bat_brick = brick['_id']
                         max_bat_desc = brick['desc']
-                message += 'Lowest Bat: ' + str(min_bat_val) + ' at ' + str(min_bat_brick) + '(' + str(min_bat_desc) + ')\n'
-                message += 'Highest Bat: ' + str(max_bat_val) + ' at ' + str(max_bat_brick) + '(' + str(max_bat_desc) + ')'
+                message += 'Lowest Bat: ' + str(min_bat_val) + ' at ' + str(min_bat_brick) + '(' + ('' if min_bat_desc is None else min_bat_desc) + ')\n'
+                message += 'Highest Bat: ' + str(max_bat_val) + ' at ' + str(max_bat_brick) + '(' + ('' if max_bat_desc is None else max_bat_desc) + ')'
                 send_telegram(message)
                 cron_data['last_report_ts'] = ts_now
 

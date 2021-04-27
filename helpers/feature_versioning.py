@@ -7,7 +7,7 @@ def _all_initial(brick):
         brick['features']['all'] = 0
         brick['features']['os'] = 0
     if 'desc' not in brick:
-        brick['desc'] = ''
+        brick['desc'] = None
     if 'last_ts' not in brick:
         brick['last_ts'] = None
     if 'initalized' not in brick:

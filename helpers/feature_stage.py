@@ -48,18 +48,18 @@ def __feature_temp(brick):
 
 def __feature_admin_override(brick):
     result = []
-    if 'admin_override' in brick:
-        if 'sleep_delay' in brick['admin_override']:
-            brick['sleep_delay'] = brick['admin_override']['sleep_delay']
-            brick['sleep_increase_wait'] = 3
-            result.append('update_sleep_delay')
-        if 'bat' in brick['features'] and 'bat_voltage' in brick['admin_override'] and brick['admin_override']['bat_voltage']:
-            result.append('request_bat_voltage')
-        if 'temp' in brick['features'] and 'temp_precision' in brick['admin_override']:
-            result.append('update_temp_precision')
-        if 'latch' in brick['features'] and 'latch_triggers' in brick['admin_override']:
-            result.append('update_latch_triggers')
-        brick.pop('admin_override', None)
+    if 'admin_override' not in brick:  # pragma: no cover
+        return result
+    if 'sleep_delay' in brick['admin_override']:
+        brick['sleep_delay'] = brick['admin_override']['sleep_delay']
+        brick['sleep_increase_wait'] = 3
+        result.append('update_sleep_delay')
+    if 'bat' in brick['features'] and 'bat_voltage' in brick['admin_override'] and brick['admin_override']['bat_voltage']:
+        result.append('request_bat_voltage')
+    if 'temp' in brick['features'] and 'temp_precision' in brick['admin_override']:
+        result.append('update_temp_precision')
+    if 'latch' in brick['features'] and 'latch_triggers' in brick['admin_override']:
+        result.append('update_latch_triggers')
     return result
 
 

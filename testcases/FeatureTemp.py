@@ -108,6 +108,21 @@ class TestFeatureTemp(BaseCherryPyTestCase):
         response = self.webapp_request()
         self.assertNotIn('p', response.json)
 
+    def test_valid_values_for_temp_precision(self):  # via admin override
+        response = self.webapp_request(clear_state=True, v=self.v)
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='temp_precision', value=8)
+        self.assertEqual(response.json['s'], 7)
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='temp_precision', value=9)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='temp_precision', value=10)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='temp_precision', value=11)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='temp_precision', value=12)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='temp_precision', value=13)
+        self.assertEqual(response.json['s'], 7)
+
     def test_max_temp_diff(self):
         response = self.webapp_request(clear_state=True, v=self.v)
         self.assertIn('temp_max_diff', response.state)
@@ -133,3 +148,53 @@ class TestFeatureTemp(BaseCherryPyTestCase):
 
         response = self.webapp_request(t=[['s1', 26], ['s2', 23]])
         self.assertEqual(response.state['temp_max_diff'], 0)
+
+    def test_get_temp_sensor(self):  # via AdminInterface
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 24], ['s2', 25]])
+
+        response = self.webapp_request(path='/admin', command='get_temp_sensor', temp_sensor='s1')
+        self.assertIn('temp_sensor', response.json)
+        self.assertIn('_id', response.json['temp_sensor'])
+        self.assertEqual(response.json['temp_sensor']['_id'], 's1')
+        self.assertIn('last_reading', response.json['temp_sensor'])
+        self.assertEqual(response.json['temp_sensor']['last_reading'], 24)
+
+        response = self.webapp_request(path='/admin', command='get_temp_sensor', temp_sensor='s2')
+        self.assertIn('temp_sensor', response.json)
+        self.assertIn('_id', response.json['temp_sensor'])
+        self.assertEqual(response.json['temp_sensor']['_id'], 's2')
+        self.assertIn('last_reading', response.json['temp_sensor'])
+        self.assertEqual(response.json['temp_sensor']['last_reading'], 25)
+
+    def test_delete_brick_with_sensors(self):
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 24], ['s2', 25]])
+        self.assertNotEqual(response.state, {})
+        self.assertIn('s1', response.temp_sensors)
+        self.assertIn('s2', response.temp_sensors)
+        response = self.webapp_request(path="/admin", command='delete_brick', brick='localhost')
+        self.assertIn('deleted', response.json)
+        self.assertEqual(response.json['deleted']['brick'], 'localhost')
+        self.assertIn('s1', response.json['deleted']['temp_sensors'])
+        self.assertIn('s2', response.json['deleted']['temp_sensors'])
+        self.assertEqual(response.state, {})
+        self.assertEqual(response.temp_sensors, {})
+
+    def test_temp_sensor_desc_is_stored(self):
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 24], ['s2', 25]])
+        self.assertIsNone(response.temp_sensors['s1']['desc'])
+        self.assertIsNone(response.temp_sensors['s2']['desc'])
+
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='desc', value='sensor1')
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.temp_sensors['s1']['desc'], 'sensor1')
+        self.assertIsNone(response.temp_sensors['s2']['desc'])
+
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s2', key='desc', value='sensor2')
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.temp_sensors['s1']['desc'], 'sensor1')
+        self.assertEqual(response.temp_sensors['s2']['desc'], 'sensor2')
+
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='desc', value='sensorX')
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.temp_sensors['s1']['desc'], 'sensorX')
+        self.assertEqual(response.temp_sensors['s2']['desc'], 'sensor2')
