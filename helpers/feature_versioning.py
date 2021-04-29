@@ -46,6 +46,8 @@ def _sleep_initial(brick):
 def _latch_initial(brick):
     if 'latch_count' not in brick:
         brick['latch_count'] = 0
+    if 'latch_triggerstate_received' not in brick:
+        brick['latch_triggerstate_received'] = False
 
 
 _feature_updates = {

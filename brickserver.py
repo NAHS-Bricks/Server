@@ -119,8 +119,8 @@ class Brickserver(object):
 
             # special-case: feature sleep is present and requests are made: override delay to 60 -- except admin_override for sleep_delay is present
             if 'sleep' in brick['features'] and 'r' in result and ('admin_override' not in brick or 'sleep_delay' not in brick['admin_override']):
-                brick['sleep_delay'] = 60
-                result['d'] = 60
+                brick['sleep_delay'] = 10
+                result['d'] = 10
 
             # remove admin_override form brick if present (processing done, so it's no longer needed)
             brick['features'].pop('admin_override', None)

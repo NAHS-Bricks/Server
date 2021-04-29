@@ -6,3 +6,6 @@ curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "brick":
 curl -X POST -H "Content-Type: application/json" -d '{"command": "get_brick", "brick": "807d3a6ea229"}' http://localhost:8081/admin
 curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "brick": "807d3a6ea229", "key": "delay", "value": 60}' http://localhost:8081/admin
 curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "brick": "807d3a6ea229", "key": "bat_voltage", "value": true}' http://localhost:8081/admin
+
+curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "latch": "807d3a6ea260_0", "key": "add_trigger", "value": 0}' http://localhost:8081/admin
+

@@ -36,7 +36,7 @@ class TestFeatureSleep(BaseCherryPyTestCase):
 @parameterized_class(getVersionParameter(['sleep', 'bat']))
 class TestFeatureSleepWithBat(BaseCherryPyTestCase):
     def test_charging(self):
-        response = self.webapp_request(clear_state=True, v=self.v, y=['c'])
+        response = self.webapp_request(clear_state=True, v=self.v, b=4, p=11, y=['c'])  # p for getting rid of precision request on temp
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
         self.assertIn('sleep_increase_wait', response.state)
@@ -44,14 +44,17 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
 
         for i in range(0, 20):
             with self.subTest(i=i):
-                response = self.webapp_request(y=['c'])
+                response = self.webapp_request(b=4, y=['c'])
                 self.assertIn('d', response.json)
-                self.assertEqual(response.json['d'], 60)
+                if i % 10 == 8:
+                    self.assertEqual(response.json['d'], 10)  # every 10 times the battery voltage is requested, so delay is set to 10 for these ones
+                else:
+                    self.assertEqual(response.json['d'], 60)
                 self.assertIn('sleep_increase_wait', response.state)
                 self.assertEqual(response.state['sleep_increase_wait'], 3)
 
     def test_charging_standby(self):
-        response = self.webapp_request(clear_state=True, v=self.v, y=['s'])
+        response = self.webapp_request(clear_state=True, v=self.v, b=4.2, p=11, y=['s'])  # p for getting rid of precision request on temp
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
         self.assertIn('sleep_increase_wait', response.state)
@@ -66,7 +69,7 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
                 self.assertEqual(response.state['sleep_increase_wait'], 3)
 
     def test_admin_override_delay_charging(self):
-        response = self.webapp_request(clear_state=True, v=self.v, y=['c'])
+        response = self.webapp_request(clear_state=True, v=self.v, b=4.2, p=11, y=['c'])  # p for getting rid of precision request on temp
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
         self.assertIn('sleep_increase_wait', response.state)
@@ -80,7 +83,7 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
     def test_admin_override_delay_standby(self):
-        response = self.webapp_request(clear_state=True, v=self.v, y=['s'])
+        response = self.webapp_request(clear_state=True, v=self.v, b=4.2, p=11, y=['s'])  # p for getting rid of precision request on temp
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
         self.assertIn('sleep_increase_wait', response.state)
@@ -212,7 +215,7 @@ class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
         response = self.webapp_request(clear_state=True, v=self.v, y=['i'], b=4)  # b for getting rid of bat_voltage request with feature bat
         self.assertIn('r', response.json)
         self.assertIn('d', response.json)
-        self.assertEqual(response.json['d'], 60)
+        self.assertEqual(response.json['d'], 10)
 
         response = self.webapp_request(x=2)
         self.assertNotIn('r', response.json)
@@ -229,7 +232,7 @@ class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
         response = self.webapp_request(y=['i'])  # ... except there is an request ...
         self.assertIn('r', response.json)
         self.assertIn('d', response.json)
-        self.assertEqual(response.json['d'], 60)
+        self.assertEqual(response.json['d'], 10)
 
         for i in range(5, 9):  # ... back to 900
             with self.subTest(i=i):
@@ -238,11 +241,36 @@ class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
                 self.assertIn('d', response.json)
                 self.assertEqual(response.json['d'], 900)
 
+    def test_short_delay_after_triggerstate_receivement(self):
+        response = self.webapp_request(clear_state=True, v=self.v, l=[0, 1], b=4)  # b for getting rid of bat_voltage request with feature bat
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 900)
+
+        for i in range(0, 5):  # should keep at 900 ...
+            with self.subTest(i=i):
+                response = self.webapp_request(l=[0, 1])
+                self.assertNotIn('r', response.json)
+                self.assertIn('d', response.json)
+                self.assertEqual(response.json['d'], 900)
+
+        response = self.webapp_request(l=[2, 1])  # ... except there is an triggerstate ...
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 20)
+
+        for i in range(5, 9):  # ... back to 900
+            with self.subTest(i=i):
+                response = self.webapp_request(l=[1, 0])
+                self.assertNotIn('r', response.json)
+                self.assertIn('d', response.json)
+                self.assertEqual(response.json['d'], 900)
+
     def test_admin_override_delay(self):
         response = self.webapp_request(clear_state=True, v=self.v, y=['i'], b=4)  # b for getting rid of bat_voltage request with feature bat
         self.assertIn('r', response.json)
         self.assertIn('d', response.json)
-        self.assertEqual(response.json['d'], 60)
+        self.assertEqual(response.json['d'], 10)
 
         response = self.webapp_request(x=2)
         self.assertNotIn('r', response.json)

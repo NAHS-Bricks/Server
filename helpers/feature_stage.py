@@ -18,12 +18,11 @@ def __feature_sleep(brick):
         brick['sleep_increase_wait'] = 3
         return 'update_sleep_delay'
     elif 'temp' in brick['features']:
-        if brick['temp_max_diff'] > 0.25 and brick['sleep_delay'] > 60:
+        if (brick['temp_max_diff'] > 0.25 and brick['sleep_delay'] > 60) or brick['sleep_delay'] < 60:
             brick['sleep_delay'] = 60
             brick['sleep_increase_wait'] = 3
             return 'update_sleep_delay'
-        # If sleep_delay is allready 60 we don't need to send an update, as this just consumes processing power
-        elif brick['temp_max_diff'] > 0.25:
+        elif brick['temp_max_diff'] > 0.25:  # If sleep_delay is allready 60 we don't need to send an update
             brick['sleep_increase_wait'] = 3
             return None
         elif brick['sleep_increase_wait'] <= 0 and brick['sleep_delay'] < 300:
@@ -31,7 +30,10 @@ def __feature_sleep(brick):
             brick['sleep_increase_wait'] = 3
             return 'update_sleep_delay'
     elif 'latch' in brick['features']:
-        brick['sleep_delay'] = 900
+        if brick['latch_triggerstate_received']:
+            brick['sleep_delay'] = 20
+        else:
+            brick['sleep_delay'] = 900
         return 'update_sleep_delay'
 
 

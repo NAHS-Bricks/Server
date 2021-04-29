@@ -33,8 +33,11 @@ def __process_b(brick_new, brick_old):
 def __process_l(brick_new, brick_old):
     if 'latch' not in brick_new['features']:  # pragma: no cover
         return
+    brick_new['latch_triggerstate_received'] = False
     for latch in [latch for latch in [latch_get(brick_new['_id'], lid) for lid in range(0, brick_new['latch_count'])] if latch['last_state'] is not None]:
         latch_store(latch['last_state'], latch['_id'], brick_new['last_ts'], latch['desc'], brick_new['desc'])
+        if latch['last_state'] > 1:
+            brick_new['latch_triggerstate_received'] = True
 
 
 def __process_y(brick_new, brick_old):
