@@ -50,12 +50,18 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(path="/admin", command='get_temp_sensor')  # temp_sensor is missing in data
         self.assertEqual(response.json['s'], 12)
+        response = self.webapp_request(path="/admin", command='get_latch')  # latch is missing in data
+        self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='set', key='add_trigger', value=0)  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='set', key='del_trigger', value=0)  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='set', key='desc', value='not used')  # no object given for setting desc
         self.assertEqual(response.json['s'], 14)
+        response = self.webapp_request(path="/admin", command='set', key='state_desc', value='not used')  # state is missing in data
+        self.assertEqual(response.json['s'], 15)
+        response = self.webapp_request(path="/admin", command='set', key='state_desc', state=0, value='not used')  # latch is missing in data
+        self.assertEqual(response.json['s'], 13)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)

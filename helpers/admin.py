@@ -22,6 +22,20 @@ def __set_desc(data):
     return {}
 
 
+def __set_state_desc(data):
+    if 'state' not in data:
+        return {'s': 15, 'm': 'state is missing in data'}
+    if 'latch' not in data:
+        return {'s': 13, 'm': 'latch is missing in data'}
+    if data['state'] not in range(0, 6):
+        return {'s': 7, 'm': 'invalid state range(0, 5)'}
+    brick_id, latch_id = data['latch'].split('_')
+    latch = latch_get(brick_id, latch_id)
+    latch['states_desc'][data['state']] = data['value']
+    latch_save(latch)
+    return {}
+
+
 def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -82,7 +96,8 @@ def __set_default(data):
 
 
 _set_direct = {
-    'desc': __set_desc
+    'desc': __set_desc,
+    'state_desc': __set_state_desc
 }
 
 
@@ -160,6 +175,13 @@ def __cmd_get_temp_sensor(data):
     return {'temp_sensor': temp_sensor_get(data['temp_sensor'])}
 
 
+def __cmd_get_latch(data):
+    if 'latch' not in data:
+        return {'s': 13, 'm': 'latch is missing in data'}
+    brick_id, latch_id = data['latch'].split('_')
+    return {'latch': latch_get(brick_id, latch_id)}
+
+
 def __cmd_get_features(data):
     features = features_available()
     features.remove('all')
@@ -173,5 +195,6 @@ admin_commands = {
     'set': __cmd_set,
     'delete_brick': __cmd_delete_brick,
     'get_temp_sensor': __cmd_get_temp_sensor,
+    'get_latch': __cmd_get_latch,
     'get_features': __cmd_get_features
 }

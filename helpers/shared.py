@@ -38,7 +38,8 @@ latch_defaults = {
     'last_ts': None,
     'prev_state': None,
     'prev_ts': None,
-    'triggers': list()
+    'triggers': list(),
+    'states_desc': list(['low', 'high', 'falling-edge', 'rising-edge', 'rising-bump', 'falling-bump'])
 }
 
 
