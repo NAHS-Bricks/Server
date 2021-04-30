@@ -4,30 +4,57 @@ from datetime import datetime, timedelta
 
 
 class TestCronInterface(BaseCherryPyTestCase):
-    def test_offline_brick(self):
+    def test_offline_brick_without_desc(self):
         rolling_time = datetime.now() - timedelta(hours=2)
         with freeze_time(rolling_time):
             response = self.webapp_request(clear_state=True, v=[['os', 1.0], ['all', 1.0]], f=[])
             response = self.webapp_request(path='/cron')
-            self.assertNotIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
+            self.assertNotIn("Brick localhost didn't send any data within the last hour!", response.telegram)
         rolling_time += timedelta(minutes=1)
         for i in range(0, 29):
             with freeze_time(rolling_time):
                 response = self.webapp_request(path='/cron')
                 self.assertEqual(response.cron_data['offline_send']['localhost'], False)
-                self.assertNotIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
+                self.assertNotIn("Brick localhost didn't send any data within the last hour!", response.telegram)
             rolling_time += timedelta(minutes=2)
         rolling_time += timedelta(minutes=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
+            self.assertIn("Brick localhost didn't send any data within the last hour!", response.telegram)
             self.assertEqual(response.cron_data['offline_send']['localhost'], True)
 
         # Test message is not send again
         rolling_time += timedelta(minutes=1)
         with freeze_time(rolling_time):
             response = self.webapp_request(path='/cron')
-            self.assertNotIn("Brick localhost () didn't send any data within the last hour!", response.telegram)
+            self.assertNotIn("Brick localhost didn't send any data within the last hour!", response.telegram)
+            self.assertEqual(response.json['s'], 0)
+
+    def test_offline_brick_with_desc(self):
+        rolling_time = datetime.now() - timedelta(hours=2)
+        with freeze_time(rolling_time):
+            response = self.webapp_request(clear_state=True, v=[['os', 1.0], ['all', 1.0]], f=[])
+            self.webapp_request(path='/admin', command='set', brick='localhost', key='desc', value='somebrick')
+            response = self.webapp_request(path='/cron')
+            self.assertNotIn("Brick somebrick didn't send any data within the last hour!", response.telegram)
+        rolling_time += timedelta(minutes=1)
+        for i in range(0, 29):
+            with freeze_time(rolling_time):
+                response = self.webapp_request(path='/cron')
+                self.assertEqual(response.cron_data['offline_send']['localhost'], False)
+                self.assertNotIn("Brick somebrick didn't send any data within the last hour!", response.telegram)
+            rolling_time += timedelta(minutes=2)
+        rolling_time += timedelta(minutes=1)
+        with freeze_time(rolling_time):
+            response = self.webapp_request(path='/cron')
+            self.assertIn("Brick somebrick didn't send any data within the last hour!", response.telegram)
+            self.assertEqual(response.cron_data['offline_send']['localhost'], True)
+
+        # Test message is not send again
+        rolling_time += timedelta(minutes=1)
+        with freeze_time(rolling_time):
+            response = self.webapp_request(path='/cron')
+            self.assertNotIn("Brick somebrick didn't send any data within the last hour!", response.telegram)
             self.assertEqual(response.json['s'], 0)
 
     def test_daily_report(self):

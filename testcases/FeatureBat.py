@@ -104,19 +104,35 @@ class TestFeatureBat(BaseCherryPyTestCase):
                     self.assertNotIn(3, response.json['r'])
                 self.assertEqual(response.state['bat_periodic_voltage_request'], 10)
 
-    def test_telegram_messages_are_send(self):
-        response = self.webapp_request(clear_state=True, v=self.v, b=3.4)
-        self.assertIn('Charge bat on localhost () it reads 3.4 Volts', response.telegram)
+    def test_telegram_messages_are_send_without_desc(self):
+        response = self.webapp_request(clear_state=True, v=self.v, b=3.35)
+        self.assertIn('Charge bat on localhost it reads 3.35 Volts', response.telegram)
 
         response = self.webapp_request(y=['c'], b=4.13)
         self.assertNotIn('Bat charged over 4.15Volts', response.telegram)
         response = self.webapp_request(y=['c'], b=4.14)
         self.assertNotIn('Bat charged over 4.15Volts', response.telegram)
         response = self.webapp_request(y=['c'], b=4.15)
-        self.assertIn('Bat charged over 4.15Volts on localhost ()', response.telegram)
+        self.assertIn('Bat charged over 4.15Volts on localhost', response.telegram)
 
         response = self.webapp_request(y=['s'])
-        self.assertIn('Charging finished on localhost ()', response.telegram)
+        self.assertIn('Charging finished on localhost', response.telegram)
+
+    def test_telegram_messages_are_send_with_desc(self):
+        response = self.webapp_request(clear_state=True, v=self.v, b=3.35)
+        self.webapp_request(path='/admin', command='set', brick='localhost', key='desc', value='somebrick')
+        response = self.webapp_request(b=3.35)
+        self.assertIn('Charge bat on somebrick it reads 3.35 Volts', response.telegram)
+
+        response = self.webapp_request(y=['c'], b=4.13)
+        self.assertNotIn('Bat charged over 4.15Volts', response.telegram)
+        response = self.webapp_request(y=['c'], b=4.14)
+        self.assertNotIn('Bat charged over 4.15Volts', response.telegram)
+        response = self.webapp_request(y=['c'], b=4.15)
+        self.assertIn('Bat charged over 4.15Volts on somebrick', response.telegram)
+
+        response = self.webapp_request(y=['s'])
+        self.assertIn('Charging finished on somebrick', response.telegram)
 
     def test_admin_override_voltage_request(self):
         response = self.webapp_request(clear_state=True, v=self.v, b=3.6)

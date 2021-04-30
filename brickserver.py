@@ -64,7 +64,7 @@ class Brickserver(object):
             data = cherrypy.request.json
             if not test_suite:  # pragma: no cover
                 print()
-                print("Request: " + json.dumps(data))
+                print("Deliver: " + json.dumps(data))
             brick_ip = cherrypy.request.remote.ip
             brick_id = get_deviceid(brick_ip)
             brick_old = brick_get(brick_id)
@@ -193,7 +193,7 @@ class Brickserver(object):
             if brick['last_ts'] > ts_1_hour_ago:  # Has send data within the last hour
                 cron_data['offline_send'][brick['_id']] = False
             elif not cron_data['offline_send'][brick['_id']]:  # One hour offline and no message send
-                send_telegram("Brick " + brick['_id'] + " (" + ('' if brick['desc'] is None else brick['desc']) + ") didn't send any data within the last hour!")
+                send_telegram("Brick " + (brick['_id'] if brick['desc'] is None or brick['desc'] == '' else brick['desc']) + " didn't send any data within the last hour!")
                 cron_data['offline_send'][brick['_id']] = True
 
         # Create daily report
@@ -213,8 +213,8 @@ class Brickserver(object):
                         max_bat_val = brick['bat_last_reading']
                         max_bat_brick = brick['_id']
                         max_bat_desc = brick['desc']
-                message += 'Lowest Bat: ' + str(min_bat_val) + ' at ' + str(min_bat_brick) + '(' + ('' if min_bat_desc is None else min_bat_desc) + ')\n'
-                message += 'Highest Bat: ' + str(max_bat_val) + ' at ' + str(max_bat_brick) + '(' + ('' if max_bat_desc is None else max_bat_desc) + ')'
+                message += 'Lowest Bat: ' + str(round(min_bat_val, 3)) + ' at ' + (min_bat_brick if min_bat_desc is None or min_bat_desc == '' else min_bat_desc) + '\n'
+                message += 'Highest Bat: ' + str(round(max_bat_val, 3)) + ' at ' + (max_bat_brick if max_bat_desc is None or max_bat_desc == '' else max_bat_desc)
                 send_telegram(message)
                 cron_data['last_report_ts'] = ts_now
 

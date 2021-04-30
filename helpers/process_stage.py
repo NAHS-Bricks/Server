@@ -23,11 +23,11 @@ def __process_b(brick_new, brick_old):
         # Store Data to InfluxDB
         bat_level_store(brick_new['bat_last_reading'], brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
         # Check for low-bat warning
-        if brick_new['bat_last_reading'] < 3.5:
-            send_telegram('Charge bat on ' + brick_new['_id'] + ' (' + ('' if brick_new['desc'] is None else brick_new['desc']) + ') it reads ' + str(brick_new['bat_last_reading']) + ' Volts')
+        if brick_new['bat_last_reading'] < 3.4:
+            send_telegram('Charge bat on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']) + ' it reads ' + str(round(brick_new['bat_last_reading'], 3)) + ' Volts')
     if 'bat' in brick_new['features'] and 'bat' in brick_old['features']:
         if brick_new['bat_charging'] and brick_new['bat_last_reading'] >= 4.15 and brick_old['bat_last_reading'] < 4.15:
-            send_telegram('Bat charged over 4.15Volts on ' + brick_new['_id'] + ' (' + ('' if brick_new['desc'] is None else brick_new['desc']) + ')')
+            send_telegram('Bat charged over 4.15Volts on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']))
 
 
 def __process_l(brick_new, brick_old):
@@ -61,7 +61,7 @@ def __process_y(brick_new, brick_old):
             brick_new['bat_periodic_voltage_request'] = 10
             result.append('request_bat_voltage')
         if not brick_new['bat_charging'] and brick_old['bat_charging'] and brick_new['bat_charging_standby']:
-            send_telegram('Charging finished on ' + brick_new['_id'] + ' (' + ('' if brick_new['desc'] is None else brick_new['desc']) + ')')
+            send_telegram('Charging finished on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']))
         if not brick_new['bat_charging'] and not brick_new['bat_charging_standby'] and (brick_old['bat_charging'] or brick_old['bat_charging_standby']):
             brick_new['bat_periodic_voltage_request'] = 10
             result.append('request_bat_voltage')
