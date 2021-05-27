@@ -51,6 +51,23 @@ class TestFeatureBat(BaseCherryPyTestCase):
             self.assertIn('r', response.json)
             self.assertIn(3, response.json['r'])
 
+    def test_voltageRequest_after_init(self):
+        response = self.webapp_request(clear_state=True, v=self.v, b=3.5)
+
+        # voltage allready delivered, should not be requested for now
+        if 'r' in response.json:
+            self.assertNotIn(3, response.json['r'])
+
+        # init is send over (e.g. because bat was changed) the voltage should now be requested
+        response = self.webapp_request(y=['i'])
+        self.assertIn('r', response.json)
+        self.assertIn(3, response.json['r'])
+
+        # but not rerequested if not send over
+        response = self.webapp_request()
+        if 'r' in response.json:
+            self.assertNotIn(3, response.json['r'])
+
     def test_bat_charging_is_stored(self):
         response = self.webapp_request(clear_state=True, v=self.v)
         self.assertFalse(response.state['bat_charging'])

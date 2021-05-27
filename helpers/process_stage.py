@@ -50,6 +50,8 @@ def __process_y(brick_new, brick_old):
             result.append('request_temp_precision')
         if 'latch' in brick_new['features']:
             result.append('update_latch_triggers')
+        if 'bat' in brick_new['features']:
+            result.append('request_bat_voltage')
     if 'bat' in brick_new['features']:
         if brick_new['bat_charging']:
             brick_new['bat_periodic_voltage_request'] -= 1
