@@ -98,6 +98,18 @@ def write_brickserver_version(c):
     c.run(f'echo "{current_version}" > {version_file}')
 
 
+def upload_deploy_helpers(c):
+    print("Creating deploy helpers")
+    c.run("mkdir -p /tmp/brickserver-deploy")
+    c.put("install/wait_for_mongodb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_mongodb.py"))
+    c.put("install/wait_for_influxdb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_influxdb.py"))
+
+
+def cleanup_deploy_helpers(c):
+    print("Removing deploy helpers")
+    c.run("rm -rf /tmp/brickserver-deploy")
+
+
 def upload_project_files(c):
     for f in ["brickserver.py", "requirements.txt"]:
         print(f"Uploading {f}")
@@ -136,24 +148,12 @@ def install_docker(c):
 
 def wait_for_mongodb(c):
     print("Waiting for MongoDB to be started")
-    while(True):
-        if c.run('ss -tulpen | grep 8086', warn=True, hide=True).ok:
-            print("MongoDB started ... continue")
-            break
-        else:
-            print("MongoDB pending ... waiting")
-            time.sleep(1)
+    c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_mongodb.py")
 
 
 def wait_for_influxdb(c):
     print("Waiting for InfluxDB to be started")
-    while(True):
-        if c.run('ss -tulpen | grep 27017', warn=True, hide=True).ok:
-            print("InfluxDB started ... continue")
-            break
-        else:
-            print("InfluxDB pending ... waiting")
-            time.sleep(1)
+    c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_influxdb.py")
 
 
 @task
@@ -168,6 +168,7 @@ def deploy(c):
     systemctl_start_docker(c)
     docker_pull(c, mongodb_image)
     docker_pull(c, influxdb_image)
+    upload_deploy_helpers(c)
     # Timecritical stuff (when service allready runs) - start
     systemctl_stop(c, 'cron')
     systemctl_stop(c, 'brickserver')
@@ -192,4 +193,5 @@ def deploy(c):
     systemctl_start(c, 'brickserver')
     systemctl_start(c, 'cron')
     # Timecritical stuff (when service allready runs) - end
+    cleanup_deploy_helpers(c)
     docker_prune(c)
