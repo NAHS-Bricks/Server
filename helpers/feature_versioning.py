@@ -55,14 +55,14 @@ _feature_updates = {
         0.00: _all_initial
     },
     'os': {},
-    'temp': {
-        0.00: _temp_initial
+    'sleep': {
+        0.00: _sleep_initial
     },
     'bat': {
         0.00: _bat_initial
     },
-    'sleep': {
-        0.00: _sleep_initial
+    'temp': {
+        0.00: _temp_initial
     },
     'latch': {
         0.00: _latch_initial
