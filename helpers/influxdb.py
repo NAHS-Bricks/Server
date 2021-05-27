@@ -79,7 +79,7 @@ def bat_level_delete(brick_id):
 
 def latch_store(state, latch_id, ts, latch_desc=None, brick_desc=None):
     global influxDB
-    # store to 26weeks to latches
+    # store to default (8weeks) to latches
     brick_id, lid = latch_id.split('_')
     body = {'measurement': 'latches', 'tags': {'latch_id': str(int(lid)), 'brick_id': brick_id}, 'time': int(ts), 'fields': {'state': int(state)}}
     if latch_desc is not None and not latch_desc == '':
@@ -87,7 +87,7 @@ def latch_store(state, latch_id, ts, latch_desc=None, brick_desc=None):
     if brick_desc is not None and not brick_desc == '':
         body['tags']['brick_desc'] = brick_desc
     body = [body]
-    influxDB.write_points(body, time_precision='s', retention_policy='26weeks')
+    influxDB.write_points(body, time_precision='s')
 
 
 def latch_delete(brick_id, latch_id):
