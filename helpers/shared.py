@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import cherrypy
+from datetime import datetime, timedelta
 
 
 config = {
@@ -100,3 +101,37 @@ def version_greater_or_equal_than(a, b):
         if int(a[i]) < int(b[i]):
             return False
     return True
+
+
+prediction_ref = list()
+for line in open('bat_prediction_reference.dat', 'r').read().strip().split('\n'):
+    ts, v = line.split(';')
+    prediction_ref.append((int(ts), float(v)))
+
+
+def calculate_bat_prediction(brick=None, init_ts=None, init_voltage=None, last_ts=None, last_voltage=None):
+    if brick is not None:
+        init_ts = brick['bat_init_ts']
+        init_voltage = brick['bat_init_voltage']
+        last_ts = brick['bat_last_ts']
+        last_voltage = brick['bat_last_reading']
+    if init_ts is None or init_voltage is None:
+        return None
+    if last_voltage >= init_voltage or init_ts == last_ts:
+        return None
+    ref_init_ts = None
+    ref_last_ts = None
+    for ref_ts, ref_voltage in prediction_ref:
+        if ref_init_ts is None and init_voltage >= ref_voltage:
+            ref_init_ts = ref_ts
+            continue
+        if last_voltage > ref_voltage:
+            if ref_last_ts is None:
+                ref_last_ts = ref_ts
+            break
+        else:
+            ref_last_ts = ref_ts
+
+    factor = (datetime.fromtimestamp(prediction_ref[-1][0]) - datetime.fromtimestamp(ref_last_ts)).total_seconds() / (datetime.fromtimestamp(ref_last_ts) - datetime.fromtimestamp(ref_init_ts)).total_seconds()
+    prediction = (datetime.fromtimestamp(last_ts) - datetime.fromtimestamp(init_ts)).total_seconds() * factor
+    return (prediction / 60 / 60 / 24)

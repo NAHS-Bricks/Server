@@ -121,6 +121,23 @@ class TestFeatureBat(BaseCherryPyTestCase):
                     self.assertNotIn(3, response.json['r'])
                 self.assertEqual(response.state['bat_periodic_voltage_request'], 10)
 
+    def test_bat_runtime_prediction_is_calculated(self):
+        dt_now = datetime.now()
+
+        with freeze_time(dt_now - timedelta(hours=24)):
+            response = self.webapp_request(clear_state=True, v=self.v, b=4)
+            self.assertIsNone(response.state['bat_runtime_prediction'])
+
+        with freeze_time(dt_now - timedelta(hours=12)):
+            response = self.webapp_request(b=3.9)
+            self.assertIsNotNone(response.state['bat_runtime_prediction'])
+            brp = response.state['bat_runtime_prediction']
+
+        with freeze_time(dt_now):
+            response = self.webapp_request(b=3.7)
+            self.assertIsNotNone(response.state['bat_runtime_prediction'])
+            self.assertNotEqual(response.state['bat_runtime_prediction'], brp)
+
     def test_telegram_messages_are_send_without_desc(self):
         response = self.webapp_request(clear_state=True, v=self.v, b=3.35)
         self.assertIn('Charge bat on localhost it reads 3.35 Volts', response.telegram)

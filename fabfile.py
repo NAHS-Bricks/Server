@@ -111,7 +111,7 @@ def cleanup_deploy_helpers(c):
 
 
 def upload_project_files(c):
-    for f in ["brickserver.py", "requirements.txt"]:
+    for f in ["brickserver.py", "requirements.txt", "bat_prediction_reference.dat"]:
         print(f"Uploading {f}")
         c.put(f, remote=os.path.join(project_dir, f))
     for d in ["helpers"]:

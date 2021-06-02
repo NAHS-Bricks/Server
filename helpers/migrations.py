@@ -22,6 +22,12 @@ def _migrate_from_010():
 
 def _migrate_from_030():
     influxDB.delete_series(measurement='latches')
+    for brick in brick_all():
+        if 'bat' in brick['features']:
+            brick['bat_init_ts'] = None
+            brick['bat_init_voltage'] = None
+            brick['bat_runtime_prediction'] = None
+            brick_save(brick)
 
 
 _migrations = {

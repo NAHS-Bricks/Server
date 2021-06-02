@@ -1,4 +1,4 @@
-from helpers.shared import send_telegram
+from helpers.shared import send_telegram, calculate_bat_prediction
 from helpers.mongodb import temp_sensor_get, latch_get
 from helpers.influxdb import temp_store, bat_level_store, latch_store
 from datetime import datetime, timedelta
@@ -20,11 +20,13 @@ def __process_t(brick_new, brick_old):
 
 def __process_b(brick_new, brick_old):
     if 'bat' in brick_new['features']:
-        # Store Data to InfluxDB
-        bat_level_store(brick_new['bat_last_reading'], brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
         # Check for low-bat warning
         if brick_new['bat_last_reading'] < 3.4:
             send_telegram('Charge bat on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']) + ' it reads ' + str(round(brick_new['bat_last_reading'], 3)) + ' Volts')
+        # Calculate bat_runtime_prediction
+        brick_new['bat_runtime_prediction'] = calculate_bat_prediction(brick_new)
+        # Store Data to InfluxDB
+        bat_level_store(brick_new['bat_last_reading'], brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['bat_runtime_prediction'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
     if 'bat' in brick_new['features'] and 'bat' in brick_old['features']:
         if brick_new['bat_charging'] and brick_new['bat_last_reading'] >= 4.15 and brick_old['bat_last_reading'] < 4.15:
             send_telegram('Bat charged over 4.15Volts on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']))
@@ -52,6 +54,8 @@ def __process_y(brick_new, brick_old):
             result.append('update_latch_triggers')
         if 'bat' in brick_new['features']:
             result.append('request_bat_voltage')
+            brick_new['bat_init_ts'] = None
+            brick_new['bat_init_voltage'] = None
     if 'bat' in brick_new['features']:
         if brick_new['bat_charging']:
             brick_new['bat_periodic_voltage_request'] -= 1

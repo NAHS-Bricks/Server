@@ -34,6 +34,12 @@ def _bat_initial(brick):
         brick['bat_charging_standby'] = False
     if 'bat_periodic_voltage_request' not in brick:
         brick['bat_periodic_voltage_request'] = 10
+    if 'bat_init_ts' not in brick:
+        brick['bat_init_ts'] = None
+    if 'bat_init_voltage' not in brick:
+        brick['bat_init_voltage'] = None
+    if 'bat_runtime_prediction' not in brick:
+        brick['bat_runtime_prediction'] = None
 
 
 def _sleep_initial(brick):

@@ -213,8 +213,8 @@ class Brickserver(object):
                         max_bat_val = brick['bat_last_reading']
                         max_bat_brick = brick['_id']
                         max_bat_desc = brick['desc']
-                message += 'Lowest Bat: ' + str(round(min_bat_val, 3)) + ' at ' + (min_bat_brick if min_bat_desc is None or min_bat_desc == '' else min_bat_desc) + '\n'
-                message += 'Highest Bat: ' + str(round(max_bat_val, 3)) + ' at ' + (max_bat_brick if max_bat_desc is None or max_bat_desc == '' else max_bat_desc)
+                message += 'Lowest Bat: ' + str(round(min_bat_val, 3)) + ' at ' + str(min_bat_brick if min_bat_desc is None or min_bat_desc == '' else min_bat_desc) + '\n'
+                message += 'Highest Bat: ' + str(round(max_bat_val, 3)) + ' at ' + str(max_bat_brick if max_bat_desc is None or max_bat_desc == '' else max_bat_desc)
                 send_telegram(message)
                 cron_data['last_report_ts'] = ts_now
 

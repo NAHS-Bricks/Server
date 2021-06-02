@@ -34,6 +34,9 @@ def __store_b(brick, voltage):
         return
     brick['bat_last_reading'] = voltage
     brick['bat_last_ts'] = brick['last_ts']
+    if brick['bat_init_ts'] is None or brick['bat_init_voltage'] <= voltage:
+        brick['bat_init_ts'] = brick['last_ts']
+        brick['bat_init_voltage'] = voltage
 
 
 def __store_y(brick, bools):
