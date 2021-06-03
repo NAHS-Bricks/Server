@@ -78,9 +78,9 @@ def install_logrotate(c):
 
 def execute_migrations(c):
     print("Executing BrickServer migrations")
-    binary = os.path.join(project_dir, 'venv/bin/python')
-    executeable = os.path.join(project_dir, 'brickserver.py')
-    c.run(f'{binary} {executeable} -m')
+    binary = 'venv/bin/python'
+    executeable = 'brickserver.py'
+    c.run(f'cd {project_dir}; {binary} {executeable} -m')
 
 
 def setup_virtualenv(c):
