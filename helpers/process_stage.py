@@ -24,7 +24,7 @@ def __process_b(brick_new, brick_old):
         if brick_new['bat_last_reading'] < 3.4:
             send_telegram('Charge bat on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']) + ' it reads ' + str(round(brick_new['bat_last_reading'], 3)) + ' Volts')
         # Calculate bat_runtime_prediction
-        brick_new['bat_runtime_prediction'] = calculate_bat_prediction(brick_new)
+        brick_new['bat_runtime_prediction'] = (None if brick_new['bat_charging'] or brick_new['bat_charging_standby'] else calculate_bat_prediction(brick_new))
         # Store Data to InfluxDB
         voltage_diff = ((brick_old['bat_last_reading'] - brick_new['bat_last_reading']) if 'bat_last_reading' in brick_old and brick_old['bat_last_reading'] else None)
         bat_level_store(brick_new['bat_last_reading'], brick_new['bat_charging'], brick_new['bat_charging_standby'], voltage_diff, brick_new['bat_runtime_prediction'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])

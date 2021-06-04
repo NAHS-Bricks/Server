@@ -48,3 +48,24 @@ class TestSharedFunctions(BaseCherryPyTestCase):
         dtl = int(datetime.strptime("2021-05-31T17:27:48Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
         rl = 3.38
         self.assertEqual(int(calculate_bat_prediction(None, dti, ri, dtl, rl)), 0)
+
+        # rl > ri -- return None
+        dti = int(datetime.strptime("2021-05-10T03:03:46Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
+        ri = 3.9
+        dtl = int(datetime.strptime("2021-05-31T17:27:48Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
+        rl = 3.99
+        self.assertIsNone(calculate_bat_prediction(None, dti, ri, dtl, rl))
+
+        # rl == ri -- return None
+        dti = int(datetime.strptime("2021-05-10T03:03:46Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
+        ri = 3.9
+        dtl = int(datetime.strptime("2021-05-31T17:27:48Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
+        rl = 3.9
+        self.assertIsNone(calculate_bat_prediction(None, dti, ri, dtl, rl))
+
+        # dti == dtl -- return None
+        dti = int(datetime.strptime("2021-05-10T03:03:46Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
+        ri = 3.9
+        dtl = int(datetime.strptime("2021-05-10T03:03:46Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
+        rl = 3.8
+        self.assertIsNone(calculate_bat_prediction(None, dti, ri, dtl, rl))
