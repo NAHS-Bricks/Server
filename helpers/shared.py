@@ -126,11 +126,10 @@ def calculate_bat_prediction(brick=None, init_ts=None, init_voltage=None, last_t
             ref_init_ts = ref_ts
             continue
         if last_voltage > ref_voltage:
-            if ref_last_ts is None:
-                ref_last_ts = ref_ts
-            break
-        else:
             ref_last_ts = ref_ts
+            break
+    if ref_last_ts is None:
+        ref_last_ts = prediction_ref[-1][0]
 
     factor = (datetime.fromtimestamp(prediction_ref[-1][0]) - datetime.fromtimestamp(ref_last_ts)).total_seconds() / (datetime.fromtimestamp(ref_last_ts) - datetime.fromtimestamp(ref_init_ts)).total_seconds()
     prediction = (datetime.fromtimestamp(last_ts) - datetime.fromtimestamp(init_ts)).total_seconds() * factor
