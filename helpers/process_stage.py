@@ -8,7 +8,7 @@ import os
 def __process_t(brick_new, brick_old):
     if 'temp' not in brick_new['features']:  # pragma: no cover
         return
-    for sensor in [sensor for sensor in [temp_sensor_get(sensor) for sensor in brick_new['temp_sensors']] if sensor['last_reading'] is not None]:
+    for sensor in [sensor for sensor in [temp_sensor_get(sensor) for sensor in brick_new['temp_sensors']] if sensor['last_reading'] is not None and 'metric' not in sensor['disables']]:
         temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
     if 'temp' in brick_old['features']:
         max_diff = 0
@@ -37,7 +37,7 @@ def __process_l(brick_new, brick_old):
     if 'latch' not in brick_new['features']:  # pragma: no cover
         return
     brick_new['latch_triggerstate_received'] = False
-    for latch in [latch for latch in [latch_get(brick_new['_id'], lid) for lid in range(0, brick_new['latch_count'])] if latch['last_state'] is not None]:
+    for latch in [latch for latch in [latch_get(brick_new['_id'], lid) for lid in range(0, brick_new['latch_count'])] if latch['last_state'] is not None and 'metric' not in latch['disables']]:
         latch_store(latch['last_state'], latch['_id'], brick_new['last_ts'], latch['desc'], brick_new['desc'])
         if latch['last_state'] > 1:
             brick_new['latch_triggerstate_received'] = True

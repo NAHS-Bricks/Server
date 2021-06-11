@@ -198,3 +198,42 @@ class TestFeatureTemp(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 0)
         self.assertEqual(response.temp_sensors['s1']['desc'], 'sensorX')
         self.assertEqual(response.temp_sensors['s2']['desc'], 'sensor2')
+
+    def test_valid_values_for_disables(self):
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 24], ['s2', 25]])
+        # add disable
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='add_disable', value='ui')
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='add_disable', value='metric')
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='add_disable', value='invalid')
+        self.assertEqual(response.json['s'], 7)
+        # del disable
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='del_disable', value='ui')
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='del_disable', value='metric')
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='del_disable', value='invalid')
+        self.assertEqual(response.json['s'], 7)
+
+    def test_disables_are_stored(self):
+        response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 24], ['s2', 25]])
+        self.assertEqual(len(response.temp_sensors['s1']['disables']), 0)
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='add_disable', value='ui')
+        self.assertEqual(len(response.temp_sensors['s1']['disables']), 1)
+        self.assertIn('ui', response.temp_sensors['s1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='add_disable', value='ui')  # no change allready in list
+        self.assertEqual(len(response.temp_sensors['s1']['disables']), 1)
+        self.assertIn('ui', response.temp_sensors['s1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='add_disable', value='metric')
+        self.assertEqual(len(response.temp_sensors['s1']['disables']), 2)
+        self.assertIn('ui', response.temp_sensors['s1']['disables'])
+        self.assertIn('metric', response.temp_sensors['s1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='del_disable', value='ui')
+        self.assertEqual(len(response.temp_sensors['s1']['disables']), 1)
+        self.assertIn('metric', response.temp_sensors['s1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='del_disable', value='ui')  # no change allready removed
+        self.assertEqual(len(response.temp_sensors['s1']['disables']), 1)
+        self.assertIn('metric', response.temp_sensors['s1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s1', key='del_disable', value='metric')
+        self.assertEqual(len(response.temp_sensors['s1']['disables']), 0)

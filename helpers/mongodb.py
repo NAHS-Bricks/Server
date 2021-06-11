@@ -106,6 +106,14 @@ def temp_sensor_exists(sensor_id):
     return False
 
 
+def temp_sensor_all():
+    """
+    Returns an interator to all temp_sensors in DB
+    """
+    global mongoDB
+    return mongoDB.temp_sensors.find({})
+
+
 def latch_get(brick_id, latch_id):
     """
     Returns a latch from DB or a newly created it if doesn't exist in DB
@@ -147,6 +155,14 @@ def latch_exists(brick_id, latch_id):
     if latch is not None:
         return True
     return False
+
+
+def latch_all():
+    """
+    Returns an interator to all latches in DB
+    """
+    global mongoDB
+    return mongoDB.latches.find({})
 
 
 def util_get(util_id):

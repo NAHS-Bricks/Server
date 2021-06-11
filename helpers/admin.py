@@ -36,6 +36,46 @@ def __set_state_desc(data):
     return {}
 
 
+def __set_add_disable(data):
+    valid_values = ['metric', 'ui']
+    if data['value'] not in valid_values:
+        return {'s': 7, 'm': 'invalid value needs to be one of: ' + str(valid_values)}
+    if 'temp_sensor' in data:
+        sensor = temp_sensor_get(data['temp_sensor'])
+        if data['value'] not in sensor['disables']:
+            sensor['disables'].append(data['value'])
+            temp_sensor_save(sensor)
+    elif 'latch' in data:
+        brick_id, latch_id = data['latch'].split('_')
+        latch = latch_get(brick_id, latch_id)
+        if data['value'] not in latch['disables']:
+            latch['disables'].append(data['value'])
+            latch_save(latch)
+    else:
+        return {'s': 14, 'm': 'no object given for adding disable'}
+    return {}
+
+
+def __set_del_disable(data):
+    valid_values = ['metric', 'ui']
+    if data['value'] not in valid_values:
+        return {'s': 7, 'm': 'invalid value needs to be one of: ' + str(valid_values)}
+    if 'temp_sensor' in data:
+        sensor = temp_sensor_get(data['temp_sensor'])
+        if data['value'] in sensor['disables']:
+            sensor['disables'].remove(data['value'])
+            temp_sensor_save(sensor)
+    elif 'latch' in data:
+        brick_id, latch_id = data['latch'].split('_')
+        latch = latch_get(brick_id, latch_id)
+        if data['value'] in latch['disables']:
+            latch['disables'].remove(data['value'])
+            latch_save(latch)
+    else:
+        return {'s': 14, 'm': 'no object given for deleteing disable'}
+    return {}
+
+
 def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -97,7 +137,9 @@ def __set_default(data):
 
 _set_direct = {
     'desc': __set_desc,
-    'state_desc': __set_state_desc
+    'state_desc': __set_state_desc,
+    'add_disable': __set_add_disable,
+    'del_disable': __set_del_disable
 }
 
 

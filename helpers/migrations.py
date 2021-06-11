@@ -1,4 +1,4 @@
-from helpers.mongodb import brick_all, brick_save, util_get, util_save
+from helpers.mongodb import brick_all, brick_save, util_get, util_save, temp_sensor_all, temp_sensor_save, latch_all, latch_save
 from helpers.influxdb import influxDB
 from helpers.shared import version_less_than, version_greater_or_equal_than
 import copy
@@ -28,6 +28,17 @@ def _migrate_from_030():
             brick['bat_init_voltage'] = None
             brick['bat_runtime_prediction'] = None
             brick_save(brick)
+
+
+def _migrate_from_042():
+    for sensor in temp_sensor_all():
+        if 'disables' not in sensor:
+            sensor['disables'] = list()
+            temp_sensor_save(sensor)
+    for latch in latch_all():
+        if 'disables' not in latch:
+            latch['disables'] = list()
+            latch_save(latch)
 
 
 _migrations = {

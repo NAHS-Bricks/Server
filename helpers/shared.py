@@ -29,7 +29,8 @@ temp_sensor_defaults = {
     'desc': None,
     'last_reading': None,
     'prev_reading': None,
-    'corr': None
+    'corr': None,
+    'disables': list()
 }
 
 latch_defaults = {
@@ -40,7 +41,8 @@ latch_defaults = {
     'prev_state': None,
     'prev_ts': None,
     'triggers': list(),
-    'states_desc': list(['low', 'high', 'falling-edge', 'rising-edge', 'rising-bump', 'falling-bump'])
+    'states_desc': list(['low', 'high', 'falling-edge', 'rising-edge', 'rising-bump', 'falling-bump']),
+    'disables': list()
 }
 
 

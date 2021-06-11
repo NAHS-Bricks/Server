@@ -62,6 +62,10 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 15)
         response = self.webapp_request(path="/admin", command='set', key='state_desc', state=0, value='not used')  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
+        response = self.webapp_request(path="/admin", command='set', key='add_disable', value='ui')  # no object given for adding disable
+        self.assertEqual(response.json['s'], 14)
+        response = self.webapp_request(path="/admin", command='set', key='del_disable', value='ui')  # no object given for deleteing disable
+        self.assertEqual(response.json['s'], 14)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
