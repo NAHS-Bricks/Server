@@ -66,6 +66,10 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 14)
         response = self.webapp_request(path="/admin", command='set', key='del_disable', value='ui')  # no object given for deleteing disable
         self.assertEqual(response.json['s'], 14)
+        response = self.webapp_request(path="/admin", command='get_count')  # item is missing in data
+        self.assertEqual(response.json['s'], 16)
+        response = self.webapp_request(path="/admin", command='get_count', item='invalid')  # invalid item given
+        self.assertEqual(response.json['s'], 17)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
@@ -92,6 +96,18 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertIn('deleted', response.json)
         self.assertEqual(response.json['deleted'], {'brick': 'localhost'})
         self.assertEqual(response.state, {})
+
+    def test_get_version(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        response = self.webapp_request(path="/admin", command='get_version')
+        self.assertIn('version', response.json)
+        self.assertGreaterEqual(len(response.json['version'].split('.')), 3)
+
+    def test_get_count_bricks(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        response = self.webapp_request(path="/admin", command='get_count', item='bricks')
+        self.assertIn('count', response.json)
+        self.assertEqual(response.json['count'], 1)
 
     def test_set_temp_precision_without_feature_temp(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)

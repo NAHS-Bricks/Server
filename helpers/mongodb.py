@@ -66,6 +66,14 @@ def brick_all_ids():
     return ids
 
 
+def brick_count():
+    """
+    Returns number of bricks present in DB
+    """
+    global mongoDB
+    return mongoDB.bricks.count_documents({})
+
+
 def temp_sensor_get(sensor_id):
     """
     Returns a temp_sensor from DB or a newly created it if doesn't exist in DB
@@ -112,6 +120,14 @@ def temp_sensor_all():
     """
     global mongoDB
     return mongoDB.temp_sensors.find({})
+
+
+def temp_sensor_count():
+    """
+    Returns number of tempsensors present in DB
+    """
+    global mongoDB
+    return mongoDB.temp_sensors.count_documents({})
 
 
 def latch_get(brick_id, latch_id):
@@ -163,6 +179,14 @@ def latch_all():
     """
     global mongoDB
     return mongoDB.latches.find({})
+
+
+def latch_count():
+    """
+    Returns number of latches present in DB
+    """
+    global mongoDB
+    return mongoDB.latches.count_documents({})
 
 
 def util_get(util_id):

@@ -272,3 +272,17 @@ class TestFeatureLatch(BaseCherryPyTestCase):
         self.assertIn('metric', response.latches['localhost_1']['disables'])
         response = self.webapp_request(path='/admin', command='set', latch='localhost_1', key='del_disable', value='metric')
         self.assertEqual(len(response.latches['localhost_1']['disables']), 0)
+
+    def test_latch_count_is_returned(self):
+        response = self.webapp_request(clear_state=True, v=self.v)
+        response = self.webapp_request(path='/admin', command='get_count', item='latches')
+        self.assertIn('count', response.json)
+        self.assertEqual(response.json['count'], 0)
+        response = self.webapp_request(l=[0, 1])
+        response = self.webapp_request(path='/admin', command='get_count', item='latches')
+        self.assertIn('count', response.json)
+        self.assertEqual(response.json['count'], 2)
+        response = self.webapp_request(l=[0, 1, 2])
+        response = self.webapp_request(path='/admin', command='get_count', item='latches')
+        self.assertIn('count', response.json)
+        self.assertEqual(response.json['count'], 3)

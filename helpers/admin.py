@@ -1,6 +1,9 @@
-from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, temp_sensor_delete, temp_sensor_get, temp_sensor_save, latch_get, latch_save, latch_delete as mongo_latch_delete
+from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, brick_count
+from helpers.mongodb import temp_sensor_delete, temp_sensor_get, temp_sensor_save, temp_sensor_count
+from helpers.mongodb import latch_get, latch_save, latch_delete as mongo_latch_delete, latch_count
 from helpers.influxdb import temp_delete, bat_level_delete, latch_delete as influx_latch_delete
 from helpers.feature_versioning import features_available
+from helpers.current_version import current_brickserver_version
 
 
 def __set_desc(data):
@@ -231,6 +234,26 @@ def __cmd_get_features(data):
     return {'features': features}
 
 
+def __cmd_get_version(data):
+    return {'version': current_brickserver_version}
+
+
+def __cmd_get_count(data):
+    if 'item' not in data:
+        return {'s': 16, 'm': 'item is missing in data'}
+    valid_items = ['bricks', 'temp_sensors', 'latches']
+    if data['item'] not in valid_items:
+        return {'s': 17, 'm': 'invalid item given. Needs to be one of: ' + str(valid_items)}
+    c = 0
+    if data['item'] == 'bricks':
+        c = brick_count()
+    if data['item'] == 'temp_sensors':
+        c = temp_sensor_count()
+    if data['item'] == 'latches':
+        c = latch_count()
+    return {'count': c}
+
+
 admin_commands = {
     'get_bricks': __cmd_get_bricks,
     'get_brick': __cmd_get_brick,
@@ -238,5 +261,7 @@ admin_commands = {
     'delete_brick': __cmd_delete_brick,
     'get_temp_sensor': __cmd_get_temp_sensor,
     'get_latch': __cmd_get_latch,
-    'get_features': __cmd_get_features
+    'get_features': __cmd_get_features,
+    'get_version': __cmd_get_version,
+    'get_count': __cmd_get_count
 }
