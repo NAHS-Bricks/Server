@@ -56,6 +56,11 @@ def _latch_initial(brick):
         brick['latch_triggerstate_received'] = False
 
 
+def _signal_initial(brick):
+    if 'signal_count' not in brick:
+        brick['signal_count'] = None
+
+
 _feature_updates = {
     'all': {
         0.00: _all_initial
@@ -72,6 +77,9 @@ _feature_updates = {
     },
     'latch': {
         0.00: _latch_initial
+    },
+    'signal': {
+        0.00: _signal_initial
     }
 }
 

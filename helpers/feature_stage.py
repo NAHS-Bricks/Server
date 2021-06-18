@@ -1,4 +1,4 @@
-from helpers.mongodb import temp_sensor_get
+from helpers.mongodb import temp_sensor_get, signal_all
 from datetime import datetime, timedelta
 
 
@@ -35,6 +35,14 @@ def __feature_sleep(brick):
         else:
             brick['sleep_delay'] = 900
         return 'update_sleep_delay'
+    elif 'signal' in brick['features']:
+        for signal in signal_all(brick['_id']):
+            if signal['state'] == 1:  # if at least one signal is going to be switched on, set sleep_delay to 60
+                brick['sleep_delay'] = 60
+                break
+        else:
+            brick['sleep_delay'] = 120  # otherwise set is to 120
+        return 'update_sleep_delay'
 
 
 def __feature_temp(brick):
@@ -46,6 +54,11 @@ def __feature_temp(brick):
     if brick['temp_precision'] is None:
         result.append('request_temp_precision')
     return result
+
+
+def __feature_signal(brick):
+    if brick['signal_count'] is None:
+        return 'request_signal_count'
 
 
 def __feature_admin_override(brick):
@@ -62,6 +75,8 @@ def __feature_admin_override(brick):
         result.append('update_temp_precision')
     if 'latch' in brick['features'] and 'latch_triggers' in brick['admin_override']:
         result.append('update_latch_triggers')
+    if 'signal' in brick['features'] and 'signal_states' in brick['admin_override']:
+        result.append('update_signal_states')
     return result
 
 
@@ -69,5 +84,6 @@ feature = {
     'bat': __feature_bat,
     'sleep': __feature_sleep,
     'temp': __feature_temp,
+    'signal': __feature_signal,
     'admin_override': __feature_admin_override
 }

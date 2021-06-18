@@ -6,3 +6,4 @@ from .FeatureSleep import *
 from .FeatureBat import *
 from .FeatureTemp import *
 from .FeatureLatch import *
+from .FeatureSignal import *

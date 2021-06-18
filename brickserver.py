@@ -8,7 +8,7 @@ import argparse
 from datetime import datetime, timedelta
 from helpers.current_version import current_brickserver_version
 from helpers.shared import config, send_telegram, get_deviceid
-from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save, temp_sensor_exists, latch_exists, latch_get
+from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save, temp_sensor_exists, latch_exists, latch_get, signal_exists, signal_all, signal_save
 from helpers.store_stage import store as store_stage
 from helpers.process_stage import process as process_stage
 from helpers.feature_stage import feature as feature_stage
@@ -106,6 +106,13 @@ class Brickserver(object):
                     result['t'] = list()
                     for i in range(0, brick['latch_count']):
                         result['t'].append(sorted(latch_get(brick['_id'], i)['triggers']))
+                elif k == 'update_signal_states':
+                    result['o'] = list()
+                    for signal in signal_all(brick['_id']):
+                        result['o'].append(signal['state'])
+                        if signal['state_transmitted_ts'] is None:
+                            signal['state_transmitted_ts'] = brick['last_ts']
+                            signal_save(signal)
                 elif k == 'request_versions':
                     result['r'].append(1)
                 elif k == 'request_bat_voltage':
@@ -116,8 +123,10 @@ class Brickserver(object):
                     result['r'].append(5)
                 elif k == 'request_temp_precision':
                     result['r'].append(6)
+                elif k == 'request_signal_count':
+                    result['r'].append(7)
 
-            # special-case: feature sleep is present and requests are made: override delay to 60 -- except admin_override for sleep_delay is present
+            # special-case: feature sleep is present and requests are made: override delay to 10 -- except admin_override for sleep_delay is present
             if 'sleep' in brick['features'] and 'r' in result and ('admin_override' not in brick or 'sleep_delay' not in brick['admin_override']):
                 brick['sleep_delay'] = 10
                 result['d'] = 10
@@ -161,6 +170,10 @@ class Brickserver(object):
                 brick_id, latch_id = data['latch'].split('_')
                 if not latch_exists(brick_id, latch_id):
                     return {'s': 9, 'm': 'invalid latch'}
+            if 'signal' in data:
+                brick_id, signal_id = data['signal'].split('_')
+                if not signal_exists(brick_id, signal_id):
+                    return {'s': 20, 'm': 'invalid signal'}
 
             result.update(admin_commands[data['command']](data))
         return result

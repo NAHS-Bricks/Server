@@ -45,6 +45,16 @@ latch_defaults = {
     'disables': list()
 }
 
+signal_defaults = {
+    '_id': None,
+    'desc': None,
+    'state': 0,
+    'state_set_ts': None,  # time on which the state was set via API
+    'state_transmitted_ts': None,  # time on which the state was transmitted to brick (or None if set but not yet transmitted)
+    'states_desc': list(['off', 'on']),
+    'disables': list()
+}
+
 
 def send_telegram(message):
     if 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite':

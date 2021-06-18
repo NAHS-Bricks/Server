@@ -52,6 +52,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 12)
         response = self.webapp_request(path="/admin", command='get_latch')  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
+        response = self.webapp_request(path="/admin", command='get_signal')  # signal is missing in data
+        self.assertEqual(response.json['s'], 18)
         response = self.webapp_request(path="/admin", command='set', key='add_trigger', value=0)  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='set', key='del_trigger', value=0)  # latch is missing in data
@@ -60,8 +62,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 14)
         response = self.webapp_request(path="/admin", command='set', key='state_desc', value='not used')  # state is missing in data
         self.assertEqual(response.json['s'], 15)
-        response = self.webapp_request(path="/admin", command='set', key='state_desc', state=0, value='not used')  # latch is missing in data
-        self.assertEqual(response.json['s'], 13)
+        response = self.webapp_request(path="/admin", command='set', key='state_desc', state=0, value='not used')  # no object given for setting state_desc
+        self.assertEqual(response.json['s'], 14)
         response = self.webapp_request(path="/admin", command='set', key='add_disable', value='ui')  # no object given for adding disable
         self.assertEqual(response.json['s'], 14)
         response = self.webapp_request(path="/admin", command='set', key='del_disable', value='ui')  # no object given for deleteing disable
@@ -70,6 +72,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 16)
         response = self.webapp_request(path="/admin", command='get_count', item='invalid')  # invalid item given
         self.assertEqual(response.json['s'], 17)
+        response = self.webapp_request(path="/admin", command='set', key='signal', value=0)  # signal is missing in data
+        self.assertEqual(response.json['s'], 18)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
@@ -130,11 +134,20 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin", command='set', latch='localhost_0', key='del_trigger', value=0)
         self.assertEqual(response.json['s'], 10)
 
+    def test_set_signal_without_feature_signal(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions + [['signal', 1.0]], s=1)  # indirectly create signal object, to be able to find signal object by adminInterface later on
+        response = self.webapp_request(v=admininterface_versions)  # now remove the feature from brick
+        self.assertNotIn('signal', response.state['features'])
+        self.assertIn('localhost_0', response.signals)
+        response = self.webapp_request(path="/admin", command='set', signal='localhost_0', key='signal', value=0)
+        self.assertEqual(response.json['s'], 19)
+
     def test_get_features(self):
         response = self.webapp_request(path="/admin", command='get_features')
         self.assertEqual(response.json['s'], 0)
-        self.assertEqual(len(response.json['features']), 4)
+        self.assertEqual(len(response.json['features']), 5)
         self.assertIn('temp', response.json['features'])
         self.assertIn('bat', response.json['features'])
         self.assertIn('sleep', response.json['features'])
         self.assertIn('latch', response.json['features'])
+        self.assertIn('signal', response.json['features'])

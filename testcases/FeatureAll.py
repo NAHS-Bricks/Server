@@ -18,7 +18,7 @@ class TestFeatureAll(BaseCherryPyTestCase):
     def test_new_brick_without_init_but_versions(self):
         # Newly created brick without information, that it is initalized but with version info present
         response = self.webapp_request(clear_state=True, v=self.v)
-        if 'temp' not in response.state['features'] and 'bat' not in response.state['features']:
+        if 'temp' not in response.state['features'] and 'bat' not in response.state['features'] and 'signal' not in response.state['features']:
             self.assertNotIn('r', response.json)
 
         self.assertIn('os', response.state['features'])
@@ -43,7 +43,7 @@ class TestFeatureAll(BaseCherryPyTestCase):
     def test_new_brick_without_init_but_versions_and_bricktype(self):
         # Newly created brick without information, that it is initalized but with version info and bricktype present
         response = self.webapp_request(clear_state=True, v=self.v, x=1)
-        if 'temp' not in response.state['features'] and 'bat' not in response.state['features']:
+        if 'temp' not in response.state['features'] and 'bat' not in response.state['features'] and 'signal' not in response.state['features']:
             self.assertNotIn('r', response.json)
 
         self.assertIn('os', response.state['features'])

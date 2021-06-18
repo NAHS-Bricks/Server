@@ -1,4 +1,4 @@
-from helpers.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save
+from helpers.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_all, signal_get, signal_save, signal_delete
 from helpers.feature_versioning import feature_update
 import copy
 
@@ -75,6 +75,22 @@ def __store_l(brick, states):
     brick['latch_count'] = len(states)
 
 
+def __store_s(brick, scount):
+    if 'signal' not in brick['features']:  # pragma: no cover
+        return
+    brick['signal_count'] = scount
+    dbcount = 0
+    for signal in signal_all(brick['_id']):
+        if int(signal['_id'].split('_')[-1]) >= scount:
+            signal_delete(signal)
+        else:
+            dbcount += 1
+    if dbcount < scount:
+        for i in range(0, scount):
+            signal = signal_get(brick['_id'], i)
+            signal_save(signal)
+
+
 store = {
     'v': __store_v,
     't': __store_t,
@@ -83,5 +99,6 @@ store = {
     'c': __store_c,
     'x': __store_x,
     'p': __store_p,
-    'l': __store_l
+    'l': __store_l,
+    's': __store_s
 }

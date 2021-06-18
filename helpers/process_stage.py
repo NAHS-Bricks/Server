@@ -57,6 +57,9 @@ def __process_y(brick_new, brick_old):
             result.append('request_bat_voltage')
             brick_new['bat_init_ts'] = None
             brick_new['bat_init_voltage'] = None
+        if 'signal' in brick_new['features']:
+            result.append('request_signal_count')
+            result.append('update_signal_states')
     if 'bat' in brick_new['features']:
         if brick_new['bat_charging']:
             brick_new['bat_periodic_voltage_request'] -= 1

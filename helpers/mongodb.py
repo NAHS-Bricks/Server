@@ -1,5 +1,5 @@
-from pymongo import MongoClient
-from helpers.shared import config, temp_sensor_defaults, latch_defaults
+from pymongo import MongoClient, ASCENDING
+from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults
 from helpers.feature_versioning import feature_update
 import copy
 
@@ -49,7 +49,7 @@ def brick_exists(brick_id):
 
 def brick_all():
     """
-    Returns an interator to all bricks in DB
+    Returns an iterator to all bricks in DB
     """
     global mongoDB
     return mongoDB.bricks.find({})
@@ -116,7 +116,7 @@ def temp_sensor_exists(sensor_id):
 
 def temp_sensor_all():
     """
-    Returns an interator to all temp_sensors in DB
+    Returns an iterator to all temp_sensors in DB
     """
     global mongoDB
     return mongoDB.temp_sensors.find({})
@@ -158,7 +158,7 @@ def latch_delete(brick_id, latch_id):
     """
     global mongoDB
     lid = brick_id + '_' + str(latch_id)
-    latch = mongoDB.latches.delete_one({'_id': lid})
+    mongoDB.latches.delete_one({'_id': lid})
 
 
 def latch_exists(brick_id, latch_id):
@@ -175,7 +175,7 @@ def latch_exists(brick_id, latch_id):
 
 def latch_all():
     """
-    Returns an interator to all latches in DB
+    Returns an iterator to all latches in DB
     """
     global mongoDB
     return mongoDB.latches.find({})
@@ -187,6 +187,68 @@ def latch_count():
     """
     global mongoDB
     return mongoDB.latches.count_documents({})
+
+
+def signal_get(brick_id, signal_id):
+    """
+    Returns a signal from DB or a newly created it if doesn't exist in DB
+    """
+    global mongoDB
+    sid = brick_id + '_' + str(signal_id)
+    signal = mongoDB.signals.find_one({'_id': sid})
+    if signal is None:
+        signal = dict()
+        signal.update(copy.deepcopy(signal_defaults))
+        signal['_id'] = sid
+    return signal
+
+
+def signal_save(signal):
+    """
+    Saves signal to DB
+    """
+    global mongoDB
+    mongoDB.signals.replace_one({'_id': signal['_id']}, signal, True)
+
+
+def signal_delete(signal):
+    """
+    Removes signal from DB
+    """
+    global mongoDB
+    mongoDB.signals.delete_one({'_id': signal['_id']})
+
+
+def signal_exists(brick_id, signal_id):
+    """
+    Returns True or False whether a signal is stored in DB or not
+    """
+    global mongoDB
+    sid = brick_id + '_' + str(signal_id)
+    signal = mongoDB.signals.find_one({'_id': sid})
+    if signal is not None:
+        return True
+    return False
+
+
+def signal_all(brick_id=None):
+    """
+    Returns an iterator to all signals in DB if brick_id is None
+    Otherwise returns an iterator to all signals of a specific brick
+    """
+    global mongoDB
+    if brick_id is None:
+        return mongoDB.signals.find({}).sort("_id", ASCENDING)
+    else:
+        return mongoDB.signals.find({'_id': {'$regex': '^' + str(brick_id) + '_'}}).sort("_id", ASCENDING)
+
+
+def signal_count():
+    """
+    Returns number of signals present in DB
+    """
+    global mongoDB
+    return mongoDB.signals.count_documents({})
 
 
 def util_get(util_id):
