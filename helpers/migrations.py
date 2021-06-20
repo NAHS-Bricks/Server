@@ -43,7 +43,8 @@ def _migrate_from_042():
 
 _migrations = {
     '0.1.0': _migrate_from_010,
-    '0.3.0': _migrate_from_030
+    '0.3.0': _migrate_from_030,
+    '0.4.2': _migrate_from_042
 }
 
 
