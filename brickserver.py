@@ -213,21 +213,29 @@ class Brickserver(object):
         if dt_now.hour == 20:
             if 'last_report_ts' not in cron_data or not datetime.fromtimestamp(cron_data['last_report_ts']).day == dt_now.day:
                 message = 'Daily-Report:\n\n'
-                max_bat_val, max_bat_brick, max_bat_desc = (0, None, None)
-                min_bat_val, min_bat_brick, min_bat_desc = (6, None, None)
+                min_bat_val, min_bat_str = (6, None)
+                low_prediction = list()
                 for brick in [brick for brick in brick_all() if 'bat' in brick['features']]:
-                    if brick['bat_last_ts'] is None:  # pragma: no cover
-                        continue
                     if brick['bat_last_reading'] < min_bat_val:
                         min_bat_val = brick['bat_last_reading']
-                        min_bat_brick = brick['_id']
-                        min_bat_desc = brick['desc']
-                    if brick['bat_last_reading'] > max_bat_val:
-                        max_bat_val = brick['bat_last_reading']
-                        max_bat_brick = brick['_id']
-                        max_bat_desc = brick['desc']
-                message += 'Lowest Bat: ' + str(round(min_bat_val, 3)) + ' at ' + str(min_bat_brick if min_bat_desc is None or min_bat_desc == '' else min_bat_desc) + '\n'
-                message += 'Highest Bat: ' + str(round(max_bat_val, 3)) + ' at ' + str(max_bat_brick if max_bat_desc is None or max_bat_desc == '' else max_bat_desc)
+                        min_bat_str = (brick['_id'] if brick['desc'] is None or brick['desc'] == '' else brick['desc'])
+                    if brick['bat_runtime_prediction'] is not None and int(brick['bat_runtime_prediction']) <= 14:
+                        brick_str = (brick['_id'] if brick['desc'] is None or brick['desc'] == '' else brick['desc'])
+                        low_prediction.append((int(brick['bat_runtime_prediction']), brick_str))
+                message += 'Lowest Bat: ' + str(round(min_bat_val, 3)) + ' at ' + str(min_bat_str) + '\n'
+                if len(low_prediction) == 0:
+                    message += 'No Bricks predicted to be empty within 14 days.'
+                else:
+                    # bubble sort the list from low to high
+                    for i in range(0, len(low_prediction) - 1):  # pragma: no cover
+                        for j in range(i + 1, len(low_prediction)):
+                            if low_prediction[i][0] > low_prediction[j][0]:
+                                stat = low_prediction[i]
+                                low_prediction[i] = low_prediction[j]
+                                low_prediction[j] = stat
+                    message += 'Bricks predicted to be empty within 14 days:\n'
+                    for predict, brick_str in low_prediction:
+                        message += f'{brick_str} in {predict} days\n'
                 send_telegram(message)
                 cron_data['last_report_ts'] = ts_now
 
