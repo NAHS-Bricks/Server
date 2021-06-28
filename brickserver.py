@@ -8,15 +8,15 @@ import argparse
 from datetime import datetime, timedelta
 from helpers.current_version import current_brickserver_version
 from helpers.shared import config, send_telegram, get_deviceid
-from helpers.mongodb import brick_get, brick_save, brick_exists, brick_all, brick_all_ids, util_get, util_save, temp_sensor_exists, latch_exists, latch_get, signal_exists, signal_all, signal_save
+from helpers.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
 from helpers.store_stage import store as store_stage
 from helpers.process_stage import process as process_stage
 from helpers.feature_stage import feature as feature_stage
-from helpers.admin import admin_commands
+from helpers.admin import admin_interface
 from helpers.migrations import exec_migrate
 
-if not (sys.version_info.major == 3 and sys.version_info.minor >= 5):  # pragma: no cover
-    raise Exception('At least Python3.5 required')
+if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):  # pragma: no cover
+    raise Exception('At least Python3.6 required')
 
 
 class Brickserver(object):
@@ -155,28 +155,11 @@ class Brickserver(object):
     def admin(self):
         test_suite = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
 
-        result = {'s': 0}
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
-            if 'command' not in data:
-                return {'s': 1, 'm': 'command is missing'}
-            if data['command'] not in admin_commands:
-                return {'s': 2, 'm': 'unknown command'}
-            if 'brick' in data and not brick_exists(data['brick']):
-                return {'s': 3, 'm': 'invalid brick'}
-            if 'temp_sensor' in data and not temp_sensor_exists(data['temp_sensor']):
-                return {'s': 8, 'm': 'invalid temp_sensor'}
-            if 'latch' in data:
-                brick_id, latch_id = data['latch'].split('_')
-                if not latch_exists(brick_id, latch_id):
-                    return {'s': 9, 'm': 'invalid latch'}
-            if 'signal' in data:
-                brick_id, signal_id = data['signal'].split('_')
-                if not signal_exists(brick_id, signal_id):
-                    return {'s': 20, 'm': 'invalid signal'}
-
-            result.update(admin_commands[data['command']](data))
-        return result
+            return admin_interface(data)
+        else:
+            return {'s': 99}
 
     @cherrypy.expose
     @cherrypy.tools.json_in()

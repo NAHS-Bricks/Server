@@ -1,7 +1,7 @@
-from helpers.mongodb import brick_get, brick_save, brick_delete, brick_all_ids, brick_count
-from helpers.mongodb import temp_sensor_delete, temp_sensor_get, temp_sensor_save, temp_sensor_count
-from helpers.mongodb import latch_get, latch_save, latch_delete as mongo_latch_delete, latch_count
-from helpers.mongodb import signal_all, signal_delete, signal_count, signal_get, signal_save
+from helpers.mongodb import brick_exists, brick_get, brick_save, brick_delete, brick_all_ids, brick_count
+from helpers.mongodb import temp_sensor_exists, temp_sensor_delete, temp_sensor_get, temp_sensor_save, temp_sensor_count
+from helpers.mongodb import latch_exists, latch_get, latch_save, latch_delete as mongo_latch_delete, latch_count
+from helpers.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
 from helpers.influxdb import temp_delete, bat_level_delete, latch_delete as influx_latch_delete
 from helpers.feature_versioning import features_available
 from helpers.current_version import current_brickserver_version
@@ -323,3 +323,27 @@ admin_commands = {
     'get_version': __cmd_get_version,
     'get_count': __cmd_get_count
 }
+
+
+def admin_interface(data):
+    result = {'s': 0}
+
+    if 'command' not in data:
+        return {'s': 1, 'm': 'command is missing'}
+    if data['command'] not in admin_commands:
+        return {'s': 2, 'm': 'unknown command'}
+    if 'brick' in data and not brick_exists(data['brick']):
+        return {'s': 3, 'm': 'invalid brick'}
+    if 'temp_sensor' in data and not temp_sensor_exists(data['temp_sensor']):
+        return {'s': 8, 'm': 'invalid temp_sensor'}
+    if 'latch' in data:
+        brick_id, latch_id = data['latch'].split('_')
+        if not latch_exists(brick_id, latch_id):
+            return {'s': 9, 'm': 'invalid latch'}
+    if 'signal' in data:
+        brick_id, signal_id = data['signal'].split('_')
+        if not signal_exists(brick_id, signal_id):
+            return {'s': 20, 'm': 'invalid signal'}
+
+    result.update(admin_commands[data['command']](data))
+    return result
