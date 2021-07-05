@@ -143,9 +143,39 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
         self.assertIn('os', response.state['features'])
         self.assertIn('sleep', response.state['features'])
 
-        response = self.webapp_request(v=[['all', '1.0'], ['os', 1.0], ['bat', 1.0]])  # delete sleep and add bat
+        response = self.webapp_request(v=[['all', 1.0], ['os', 1.0], ['bat', 1.0]])  # delete sleep and add bat
         self.assertEqual(len(response.state['features']), 3)
         self.assertIn('all', response.state['features'])
         self.assertIn('os', response.state['features'])
         self.assertIn('bat', response.state['features'])
         self.assertNotIn('sleep', response.state['features'])
+
+    def test_multiple_testing_bricks_are_generated(self):  # there are cases whre it is nesseccary to test on/with multiple bricks, so test if this is possible
+        response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0]])
+        self.assertEqual(self.webapp_request(path='/admin', command='get_count', item='bricks').json['count'], 1)
+
+        response = self.webapp_request(test_brick_id=1, v=[['all', 1.0], ['os', 1.0], ['sleep', 1.0]])
+        self.assertEqual(self.webapp_request(path='/admin', command='get_count', item='bricks').json['count'], 2)
+
+        self.webapp_request(path='/admin', command='set', key='desc', brick='localhost', value='brickdesc0')
+        self.webapp_request(path='/admin', command='set', key='desc', brick='localhost1', value='brickdesc1')
+
+        # are the object independent?
+        brick = self.webapp_request(path='/admin', command='get_brick', brick='localhost').json['brick']
+        self.assertEqual(brick['desc'], 'brickdesc0')
+        self.assertEqual(len(brick['features']), 2)
+        brick = self.webapp_request(path='/admin', command='get_brick', brick='localhost1').json['brick']
+        self.assertEqual(brick['desc'], 'brickdesc1')
+        self.assertEqual(len(brick['features']), 3)
+
+        # generate one more
+        response = self.webapp_request(test_brick_id=2, v=[['all', 1.0], ['os', 1.0]])
+        self.assertEqual(self.webapp_request(path='/admin', command='get_count', item='bricks').json['count'], 3)
+
+        # delete it
+        self.webapp_request(path='/admin', command='delete_brick', brick='localhost2')
+        self.assertEqual(self.webapp_request(path='/admin', command='get_count', item='bricks').json['count'], 2)
+
+        # and test if clearing also clears all bricks
+        response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0]])
+        self.assertEqual(self.webapp_request(path='/admin', command='get_count', item='bricks').json['count'], 1)

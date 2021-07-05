@@ -67,6 +67,8 @@ class Brickserver(object):
                 print("Deliver: " + json.dumps(data))
             brick_ip = cherrypy.request.remote.ip
             brick_id = get_deviceid(brick_ip)
+            if test_suite and 'test_brick_id' in data:
+                brick_id += str(int(data['test_brick_id']))
             brick_old = brick_get(brick_id)
 
             # create intermediate brick for storing and processing current session
