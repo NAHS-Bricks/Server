@@ -1,5 +1,5 @@
 from ._wrapper import *
-from freezegun import freeze_time
+from libfaketime import fake_time
 from datetime import datetime, timedelta
 
 
@@ -31,7 +31,7 @@ class TestFeatureBat(BaseCherryPyTestCase):
     def test_voltageRequest_after_12_hours(self):
         dt_now = datetime.now()
 
-        with freeze_time(dt_now - timedelta(hours=13)):
+        with fake_time(dt_now - timedelta(hours=13)):
             response = self.webapp_request(clear_state=True, v=self.v)
             self.assertIn('r', response.json)
             self.assertIn(3, response.json['r'])
@@ -41,12 +41,12 @@ class TestFeatureBat(BaseCherryPyTestCase):
 
         for i in reversed(list(range(1, 13))):
             with self.subTest(i=i):
-                with freeze_time(dt_now - timedelta(hours=i)):
+                with fake_time(dt_now - timedelta(hours=i)):
                     response = self.webapp_request()
                     if 'r' in response.json:
                         self.assertNotIn(3, response.json['r'])
 
-        with freeze_time(dt_now):
+        with fake_time(dt_now):
             response = self.webapp_request()
             self.assertIn('r', response.json)
             self.assertIn(3, response.json['r'])
@@ -124,16 +124,16 @@ class TestFeatureBat(BaseCherryPyTestCase):
     def test_bat_runtime_prediction_is_calculated(self):
         dt_now = datetime.now()
 
-        with freeze_time(dt_now - timedelta(hours=24)):
+        with fake_time(dt_now - timedelta(hours=24)):
             response = self.webapp_request(clear_state=True, v=self.v, b=4)
             self.assertIsNone(response.state['bat_runtime_prediction'])
 
-        with freeze_time(dt_now - timedelta(hours=12)):
+        with fake_time(dt_now - timedelta(hours=12)):
             response = self.webapp_request(b=3.9)
             self.assertIsNotNone(response.state['bat_runtime_prediction'])
             brp = response.state['bat_runtime_prediction']
 
-        with freeze_time(dt_now):
+        with fake_time(dt_now):
             response = self.webapp_request(b=3.7)
             self.assertIsNotNone(response.state['bat_runtime_prediction'])
             self.assertNotEqual(response.state['bat_runtime_prediction'], brp)
@@ -141,22 +141,22 @@ class TestFeatureBat(BaseCherryPyTestCase):
     def test_bat_runtime_prediction_is_not_calculated_during_charging(self):
         dt_now = datetime.now()
 
-        with freeze_time(dt_now - timedelta(hours=24)):
+        with fake_time(dt_now - timedelta(hours=24)):
             response = self.webapp_request(clear_state=True, v=self.v, b=4)
             self.assertIsNone(response.state['bat_runtime_prediction'])
 
-        with freeze_time(dt_now - timedelta(hours=12)):
+        with fake_time(dt_now - timedelta(hours=12)):
             response = self.webapp_request(b=3.9, y=['c'])
             self.assertIsNone(response.state['bat_runtime_prediction'])
 
     def test_bat_runtime_prediction_is_not_calculated_during_charging_standby(self):
         dt_now = datetime.now()
 
-        with freeze_time(dt_now - timedelta(hours=24)):
+        with fake_time(dt_now - timedelta(hours=24)):
             response = self.webapp_request(clear_state=True, v=self.v, b=4)
             self.assertIsNone(response.state['bat_runtime_prediction'])
 
-        with freeze_time(dt_now - timedelta(hours=12)):
+        with fake_time(dt_now - timedelta(hours=12)):
             response = self.webapp_request(b=3.9, y=['s'])
             self.assertIsNone(response.state['bat_runtime_prediction'])
 

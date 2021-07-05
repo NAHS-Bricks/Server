@@ -32,7 +32,7 @@ def cleanup_development(c):
 
 @task(name="coverage", pre=[start_development])
 def coverage(c):
-    c.run("coverage erase && coverage run -m unittest discover && coverage html && coverage report")
+    c.run("coverage erase && eval $(python-libfaketime) && coverage run -m unittest discover && coverage html && coverage report")
 
 
 @task(name="deploy")
