@@ -2,10 +2,15 @@ from helpers.mongodb import brick_exists, brick_get, brick_save, brick_delete, b
 from helpers.mongodb import temp_sensor_exists, temp_sensor_delete, temp_sensor_get, temp_sensor_save, temp_sensor_count
 from helpers.mongodb import latch_exists, latch_get, latch_save, latch_delete as mongo_latch_delete, latch_count
 from helpers.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
+from helpers.mongodb import event_get, event_count, event_save, event_all, event_delete, event_exists
+from helpers.mongodb import event_data_get, event_data_delete, event_data_save, event_data_all, event_data_count
+from event.commands import commands as event_commands
+from event.reactions import reactions as event_reactions
 from helpers.influxdb import temp_delete, bat_level_delete, latch_delete as influx_latch_delete
 from helpers.feature_versioning import features_available
 from helpers.current_version import current_brickserver_version
 import time
+from helpers.rabbitmq import event_create
 
 
 def __set_desc(data):
@@ -100,6 +105,39 @@ def __set_del_disable(data):
     return {}
 
 
+def __set_pos(data):
+    if 'event' not in data:
+        return {'s': 22, 'm': 'event is missing in data'}
+    event = event_get(data['event'])
+    if 'reaction_src' in data:
+        if data['reaction_src'] not in range(0, len(event['reactions'])):
+            return {'s': 7, 'm': f"invalid index range(0, {len(event['reactions']) - 1}) for reaction_src"}
+        if data['value'] not in range(0, len(event['reactions'])):
+            return {'s': 7, 'm': f"invalid index range(0, {len(event['reactions']) - 1}) for value"}
+        reaction = event['reactions'].pop(data['reaction_src'])
+        event["reactions"].insert(data['value'], reaction)
+        event_save(event)
+    else:
+        brick = brick_get(event['brick_id'])
+        if data['value'] not in range(0, len(brick['events'])):
+            return {'s': 7, 'm': f"invalid index range(0, {len(brick['events']) - 1}) for value"}
+        brick['events'].remove(event['_id'])
+        brick['events'].insert(data['value'], event['_id'])
+        brick_save(brick)
+    return {}
+
+
+def __set_event_command(data):
+    if 'event_data' not in data:
+        return {'s': 24, 'm': 'event_data is missing in data'}
+    if data['value'] not in event_commands:
+        return {'s': 28, 'm': 'invalid event_command in value'}
+    event = event_get(data['event'])
+    event['command'] = [data['value'], data['event_data']]
+    event_save(event)
+    return {}
+
+
 def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -182,7 +220,9 @@ _set_direct = {
     'desc': __set_desc,
     'state_desc': __set_state_desc,
     'add_disable': __set_add_disable,
-    'del_disable': __set_del_disable
+    'del_disable': __set_del_disable,
+    'pos': __set_pos,
+    'event_command': __set_event_command
 }
 
 
@@ -214,6 +254,7 @@ def __cmd_set(data):
     if data['key'] in _set_direct:
         result.update(_set_direct[data['key']](data))
     else:
+        brick = None
         if 'brick' in data or 'latch' in data or 'signal' in data:
             if 'latch' in data:
                 brick = brick_get(data['latch'].split('_')[0])
@@ -229,6 +270,8 @@ def __cmd_set(data):
 
         if data['key'] in _set_indirect:
             result.update(_set_indirect[data['key']](data))
+            if brick is not None:
+                event_create(brick_get(brick['_id']), brick)
         else:
             result.update(__set_default(data))
 
@@ -254,9 +297,24 @@ def __cmd_delete_brick(data):
             influx_latch_delete(brick['_id'], i)
     if 'signal' in brick['features']:
         result['signals'] = list()
-        for signal in signal_all():
+        for signal in signal_all(brick_id=brick['_id']):
             result['signals'].append(signal['_id'])
             signal_delete(signal)
+    for event in brick['events']:
+        if 'events' not in result:
+            result['events'] = list()
+        result['events'].append(event)
+        event_delete(event_get(event))
+        for ed in event_data_all(event):
+            if 'event_data' not in result:
+                result['event_data'] = list()
+            result['event_data'].append(ed['_id'])
+            event_data_delete(ed)
+    for ed in event_data_all(brick['_id']):
+        if 'event_data' not in result:
+            result['event_data'] = list()
+        result['event_data'].append(ed['_id'])
+        event_data_delete(ed)
     bat_level_delete(brick['_id'])
     brick_delete(brick['_id'])
     return {'deleted': result}
@@ -282,6 +340,42 @@ def __cmd_get_signal(data):
     return {'signal': signal_get(brick_id, signal_id)}
 
 
+def __cmd_get_event(data):
+    if 'event' not in data:
+        return {'s': 22, 'm': 'event is missing in data'}
+    return {'event': event_get(data['event'])}
+
+
+def __cmd_get_event_data(data):
+    if 'event_data' not in data:
+        return {'s': 24, 'm': 'event_data missing in data'}
+    ev = event_get(data['event'])
+    return {'event_data': event_data_get(ev, data['event_data'])}
+
+
+def __cmd_get_event_data_names(data):
+    if 'level' not in data:
+        return {'s': 30, 'm': 'level is missing in data'}
+    valid_levels = ['l', 'b', 'g', 'local', 'brick', 'global']
+    if data['level'] not in valid_levels:
+        return {'s': 31, 'm': f'invalid level, needs to be one of: {valid_levels}'}
+    if 'event' not in data and not data['level'] == 'g' and not data['level'] == 'global':
+        return {'s': 22, 'm': 'event is missing in data'}
+
+    if data['level'] == 'g' or data['level'] == 'global':
+        event_datas = event_data_all('g')
+    elif data['level'] == 'b' or data['level'] == 'brick':
+        event = event_get(data['event'])
+        event_datas = event_data_all(event['brick_id'])
+    else:
+        event_datas = event_data_all(data['event'])
+
+    result = list()
+    for ed in event_datas:
+        result.append(ed['_id'].split('_', 1)[1])
+    return {'event_data_names': result}
+
+
 def __cmd_get_features(data):
     features = features_available()
     features.remove('all')
@@ -296,7 +390,7 @@ def __cmd_get_version(data):
 def __cmd_get_count(data):
     if 'item' not in data:
         return {'s': 16, 'm': 'item is missing in data'}
-    valid_items = ['bricks', 'temp_sensors', 'latches', 'signals']
+    valid_items = ['bricks', 'temp_sensors', 'latches', 'signals', 'events', 'event_data']
     if data['item'] not in valid_items:
         return {'s': 17, 'm': 'invalid item given. Needs to be one of: ' + str(valid_items)}
     c = 0
@@ -308,7 +402,111 @@ def __cmd_get_count(data):
         c = latch_count()
     if data['item'] == 'signals':
         c = signal_count()
+    if data['item'] == 'events':
+        c = event_count()
+    if data['item'] == 'event_data':
+        c = event_data_count()
     return {'count': c}
+
+
+def __cmd_add_event(data):
+    if 'brick' not in data:
+        return {'s': 11, 'm': 'brick is missing in data'}
+    brick = brick_get(data['brick'])
+    event = event_get()
+    event['brick_id'] = brick['_id']
+    brick['events'].append(event['_id'])
+    event_save(event)
+    brick_save(brick)
+    return {'event': event}
+
+
+def __cmd_delete_event(data):
+    if 'brick' not in data:
+        return {'s': 11, 'm': 'brick is missing in data'}
+    if 'event' not in data:
+        return {'s': 22, 'm': 'event is missing in data'}
+    result = {'event': data['event'], 'event_data': list()}
+    brick = brick_get(data['brick'])
+    brick["events"].remove(data['event'])
+    event_delete(event_get(data['event']))
+    for ed in event_data_all(data['event']):
+        event_data_delete(ed)
+        result['event_data'].append(ed['_id'])
+    brick_save(brick)
+    return {'deleted': result}
+
+
+def __cmd_get_event_commands(data):
+    return {'commands': list(event_commands.keys())}
+
+
+def __cmd_get_event_reactions(data):
+    return {'reactions': list(event_reactions.keys())}
+
+
+def __cmd_add_event_reaction(data):
+    if 'event_data' not in data:
+        return {'s': 24, 'm': 'event_data is missing in data'}
+    if 'event_reaction' not in data:
+        return {'s': 25, 'm': 'event_reaction is missing in data'}
+    event = event_get(data['event'])
+    event['reactions'].append([data['event_reaction'], data['event_data']])
+    event_save(event)
+    return {'event': event}
+
+
+def __cmd_delete_event_reaction(data):
+    if 'event' not in data:
+        return {'s': 22, 'm': 'event is missing in data'}
+    if 'pos' not in data:
+        return {'s': 26, 'm': 'pos is missing in data'}
+    event = event_get(data['event'])
+    if data['pos'] not in range(0, len(event['reactions'])):
+        return {'s': 7, 'm': f"invalid index range(0, {len(event['reactions']) - 1}) for pos"}
+    event['reactions'].pop(data['pos'])
+    event_save(event)
+    return {'event': event}
+
+
+def __cmd_replace_event_data(data):
+    if 'event_data' not in data:
+        return {'s': 24, 'm': 'event_data missing in data'}
+    if 'content' not in data:
+        return {'s': 27, 'm': 'content missing in data'}
+    if not isinstance(data['content'], dict):
+        return {'s': 29, 'm': 'content needs to be a dict'}
+    event = event_get(data['event'])
+    ed = event_data_get(event, data['event_data'])
+    data['content']['_id'] = ed['_id']
+    event_data_save(data['content'])
+    return {'event_data': data['content']}
+
+
+def __cmd_update_event_data(data):
+    if 'event_data' not in data:
+        return {'s': 24, 'm': 'event_data missing in data'}
+    if 'content' not in data:
+        return {'s': 27, 'm': 'content missing in data'}
+    if not isinstance(data['content'], dict):
+        return {'s': 29, 'm': 'content needs to be a dict'}
+    event = event_get(data['event'])
+    ed = event_data_get(event, data['event_data'])
+    ed_id = ed['_id']
+    ed.update(data['content'])
+    ed['_id'] = ed_id
+    event_data_save(ed)
+    return {'event_data': ed}
+
+
+def __cmd_delete_event_data(data):
+    if 'event_data' not in data:
+        return {'s': 24, 'm': 'event_data missing in data'}
+    event = event_get(data['event'])
+    ed = event_data_get(event, data['event_data'])
+    result = {'event_data': ed['_id']}
+    event_data_delete(ed)
+    return {'deleted': result}
 
 
 admin_commands = {
@@ -319,9 +517,21 @@ admin_commands = {
     'get_temp_sensor': __cmd_get_temp_sensor,
     'get_latch': __cmd_get_latch,
     'get_signal': __cmd_get_signal,
+    'get_event': __cmd_get_event,
+    'get_event_data': __cmd_get_event_data,
+    'get_event_data_names': __cmd_get_event_data_names,
     'get_features': __cmd_get_features,
     'get_version': __cmd_get_version,
-    'get_count': __cmd_get_count
+    'get_count': __cmd_get_count,
+    'add_event': __cmd_add_event,
+    'delete_event': __cmd_delete_event,
+    'get_event_commands': __cmd_get_event_commands,
+    'get_event_reactions': __cmd_get_event_reactions,
+    'add_event_reaction': __cmd_add_event_reaction,
+    'delete_event_reaction': __cmd_delete_event_reaction,
+    'replace_event_data': __cmd_replace_event_data,
+    'update_event_data': __cmd_update_event_data,
+    'delete_event_data': __cmd_delete_event_data,
 }
 
 
@@ -344,6 +554,17 @@ def admin_interface(data):
         brick_id, signal_id = data['signal'].split('_')
         if not signal_exists(brick_id, signal_id):
             return {'s': 20, 'm': 'invalid signal'}
+    if 'event' in data:
+        if not event_exists(data['event']):
+            return {'s': 21, 'm': 'invalid event'}
+    if 'event_data' in data:
+        if 'event' not in data:
+            return {'s': 22, 'm': 'event is missing in data'}
+    if 'event_reaction' in data:
+        if 'event' not in data:
+            return {'s': 22, 'm': 'event is missing in data'}
+        if data['event_reaction'] not in event_reactions:
+            return {'s': 23, 'm': 'invalid event_reaction'}
 
     result.update(admin_commands[data['command']](data))
     return result

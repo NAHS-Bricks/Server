@@ -41,10 +41,18 @@ def _migrate_from_042():
             latch_save(latch)
 
 
+def _migrate_from_050():
+    for brick in brick_all():
+        brick['events'] = list()
+        brick['ip'] = None
+        brick_save(brick)
+
+
 _migrations = {
     '0.1.0': _migrate_from_010,
     '0.3.0': _migrate_from_030,
-    '0.4.2': _migrate_from_042
+    '0.4.2': _migrate_from_042,
+    '0.5.0': _migrate_from_050
 }
 
 

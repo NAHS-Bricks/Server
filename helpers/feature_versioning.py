@@ -12,6 +12,10 @@ def _all_initial(brick):
         brick['last_ts'] = None
     if 'initalized' not in brick:
         brick['initalized'] = False
+    if 'events' not in brick:
+        brick['events'] = list()
+    if 'ip' not in brick:
+        brick['ip'] = None
 
 
 def _temp_initial(brick):

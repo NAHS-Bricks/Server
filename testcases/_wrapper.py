@@ -8,6 +8,7 @@ from brickserver import Brickserver
 from pymongo import MongoClient
 from parameterized import parameterized_class
 import copy
+from event.worker import start_thread as event_worker
 
 local = httputil.Host('127.0.0.1', 50000, '')
 remote = httputil.Host('127.0.0.1', 50001, '')
@@ -39,6 +40,9 @@ def getVersionParameter(myFeature, forbiddenCombinations=None):
 def setUpModule():
     cherrypy.config.update({'environment': 'test_suite'})
 
+    # start the event_worker in background
+    event_worker()
+
     # prevent the HTTP server from ever starting
     cherrypy.server.unsubscribe()
 
@@ -63,11 +67,8 @@ class BaseCherryPyTestCase(unittest.TestCase):
                 config = json.loads(f.read().strip())
             mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
             mongoDB = mongoClient.get_database(config['mongo']['database'])
-            mongoDB.bricks.drop()
-            mongoDB.temp_sensors.drop()
-            mongoDB.latches.drop()
-            mongoDB.signals.drop()
-            mongoDB.util.drop()
+            for c in mongoDB.list_collections():
+                mongoDB.get_collection(c['name']).drop()
 
         headers = [('Host', '127.0.0.1')]
 

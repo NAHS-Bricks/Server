@@ -14,6 +14,8 @@ from helpers.process_stage import process as process_stage
 from helpers.feature_stage import feature as feature_stage
 from helpers.admin import admin_interface
 from helpers.migrations import exec_migrate
+from event.worker import start_thread as event_worker
+from helpers.rabbitmq import event_create
 
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):  # pragma: no cover
     raise Exception('At least Python3.6 required')
@@ -32,9 +34,12 @@ class Brickserver(object):
         c = bat is charging
         s = bat charging is in standby
         i = brick initalized (just started up, runtimeData is on initial values)
+        d = allwaysOverwriteDelay(WithDefault) is active/set
+        q = sleep_disabled is active/set
     x = bricktype as int (1 = TempBrick)
     p = temp_precision for temp-sensors as int
     s = signal_count (number of signal outputs available on brick)
+    d = delay_default value
 
     Output json keys:
     s = state is 0 for ok and 1 for failure
@@ -49,6 +54,8 @@ class Brickserver(object):
         5 = brick-type is requested
         6 = temp_precision is requested
         7 = signal_count is requested
+        8 = delay_default is requested
+    q = sets sleep_disabled (true or false)
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -74,6 +81,7 @@ class Brickserver(object):
             # create intermediate brick for storing and processing current session
             brick = copy.deepcopy(brick_old)
             brick['last_ts'] = int(time.time())
+            brick['ip'] = brick_ip
 
             # ensure some structures are present in data with their defaults
             if 'y' not in data:
@@ -139,6 +147,9 @@ class Brickserver(object):
 
             # save-back intermediate brick
             brick_save(brick)
+
+            # create an event for this brick
+            event_create(brick)
         if not test_suite:  # pragma: no cover
             print("Feedback: " + json.dumps(result))
         return result
@@ -242,6 +253,8 @@ if __name__ == '__main__':
     if args.migrate:
         exec_migrate(current_brickserver_version)
         sys.exit(0)
+
+    event_worker()
 
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': config['server_port'], })
     cherrypy.quickstart(Brickserver())

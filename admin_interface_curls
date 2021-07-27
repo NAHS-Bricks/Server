@@ -9,3 +9,4 @@ curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "brick":
 
 curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "latch": "807d3a6ea260_0", "key": "add_trigger", "value": 0}' http://localhost:8081/admin
 
+curl -X POST -H "Content-Type: application/json" -d '{"v": [["all", 1], ["os", 1], ["sleep", 1], ["signal", 1]], "s": 2}' http://localhost:8081/

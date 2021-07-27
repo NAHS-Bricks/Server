@@ -3,6 +3,11 @@ import json
 import subprocess
 import cherrypy
 from datetime import datetime, timedelta
+from threading import Lock
+
+
+# used to have some kind if signal if the event_worker is currently running
+event_worker_is_running = Lock()
 
 
 config = {
@@ -17,6 +22,10 @@ config = {
         'server': 'localhost',
         'port': 8086,
         'database': 'brickserver'
+    },
+    'rabbit': {
+        'server': 'localhost',
+        'port': 5672
     }
 }
 if os.path.isfile('config.json'):
@@ -53,6 +62,13 @@ signal_defaults = {
     'state_transmitted_ts': None,  # time on which the state was transmitted to brick (or None if set but not yet transmitted)
     'states_desc': list(['off', 'on']),
     'disables': list()
+}
+
+event_defaults = {
+    '_id': None,
+    'brick_id': None,
+    'command': None,
+    'reactions': list()
 }
 
 

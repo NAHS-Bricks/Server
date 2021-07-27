@@ -8,11 +8,11 @@ influxDB = InfluxDBClient(host='localhost', port=8086)
 while(True):
     try:
         influxDB.get_list_database()
-        print("InfluxDB started ... continue")
+        print("InfluxDB started ... continue", flush=True)
         sys.exit(0)
     except exceptions.ConnectionError:
-        print("InfluxDB pending ... waiting")
+        print("InfluxDB pending ... waiting", flush=True)
         time.sleep(1)
     except Exception:
-        print("InfluxDB unknown error ... aborting")
+        print("InfluxDB unknown error ... aborting", flush=True)
         sys.exit(1)

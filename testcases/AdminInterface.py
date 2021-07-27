@@ -74,6 +74,12 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 17)
         response = self.webapp_request(path="/admin", command='set', key='signal', value=0)  # signal is missing in data
         self.assertEqual(response.json['s'], 18)
+        response = self.webapp_request(path="/admin", command='get_event_data_names')  # level is missing in data
+        self.assertEqual(response.json['s'], 30)
+        response = self.webapp_request(path="/admin", command='get_event_data_names', level='l')  # event is missing in data
+        self.assertEqual(response.json['s'], 22)
+        response = self.webapp_request(path="/admin", command='get_event_data_names', level='b')  # event is missing in data
+        self.assertEqual(response.json['s'], 22)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)

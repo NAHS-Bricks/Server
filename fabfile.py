@@ -8,8 +8,10 @@ apt_update_run = False
 project_dir = "/opt/middleware/nahs/brickserver"
 storagedir_mongo = "/var/data/mongodb"
 storagedir_influx = "/var/data/influxdb"
+storagedir_rabbitmq = "/var/data/rabbitmq"
 mongodb_image = 'mongo:4.4'
 influxdb_image = 'influxdb:1.8'
+rabbitmq_image = 'rabbitmq:3.8'
 
 
 def docker_pull(c, image):
@@ -103,6 +105,7 @@ def upload_deploy_helpers(c):
     c.run("mkdir -p /tmp/brickserver-deploy")
     c.put("install/wait_for_mongodb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_mongodb.py"))
     c.put("install/wait_for_influxdb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_influxdb.py"))
+    c.put("install/wait_for_rabbitmq.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_rabbitmq.py"))
 
 
 def cleanup_deploy_helpers(c):
@@ -114,7 +117,7 @@ def upload_project_files(c):
     for f in ["brickserver.py", "requirements.txt", "bat_prediction_reference.dat"]:
         print(f"Uploading {f}")
         c.put(f, remote=os.path.join(project_dir, f))
-    for d in ["helpers"]:
+    for d in ["helpers", "event"]:
         print(f"Uploading {d}")
         patchwork.transfers.rsync(c, d, project_dir, exclude=['*.pyc', '*__pycache__'])
 
@@ -156,6 +159,11 @@ def wait_for_influxdb(c):
     c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_influxdb.py")
 
 
+def wait_for_rabbitmq(c):
+    print("Waiting for RabbitMQ to be started")
+    c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_rabbitmq.py")
+
+
 @task
 def deploy(c):
     c.run('hostname')
@@ -168,27 +176,32 @@ def deploy(c):
     systemctl_start_docker(c)
     docker_pull(c, mongodb_image)
     docker_pull(c, influxdb_image)
+    docker_pull(c, rabbitmq_image)
     upload_deploy_helpers(c)
     # Timecritical stuff (when service allready runs) - start
     systemctl_stop(c, 'cron')
     systemctl_stop(c, 'brickserver')
     systemctl_stop(c, 'docker.mongodb.service')
     systemctl_stop(c, 'docker.influxdb.service')
+    systemctl_stop(c, 'docker.rabbitmq.service')
     create_directorys(c)
     upload_project_files(c)
     write_brickserver_version(c)
     setup_virtualenv(c)
     systemctl_install_service(c, 'brickserver.service', 'brickserver.service', [('__project_dir__', project_dir)])
-    systemctl_install_service(c, 'docker.service', 'docker.mongodb.service', [('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
-    systemctl_install_service(c, 'docker.service', 'docker.influxdb.service', [('__storage__', storagedir_influx + ':/var/lib/influxdb'), ('__port__', '8086:8086'), ('__image__', influxdb_image)])
+    systemctl_install_service(c, 'docker.service', 'docker.mongodb.service', [('__additional__', ''), ('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
+    systemctl_install_service(c, 'docker.service', 'docker.influxdb.service', [('__additional__', ''), ('__storage__', storagedir_influx + ':/var/lib/influxdb'), ('__port__', '8086:8086'), ('__image__', influxdb_image)])
+    systemctl_install_service(c, 'docker.service', 'docker.rabbitmq.service', [('__additional__', "--hostname brickserver -e RABBITMQ_VM_MEMORY_HIGH_WATERMARK='0.25'"), ('__storage__', storagedir_rabbitmq + ':/var/lib/rabbitmq'), ('__port__', '5672:5672'), ('__image__', rabbitmq_image)])
     c.run("systemctl daemon-reload")
     install_rsyslog(c)
     install_cron(c)
     install_logrotate(c)
     systemctl_start(c, 'docker.mongodb.service')
     systemctl_start(c, 'docker.influxdb.service')
+    systemctl_start(c, 'docker.rabbitmq.service')
     wait_for_mongodb(c)
     wait_for_influxdb(c)
+    wait_for_rabbitmq(c)
     execute_migrations(c)
     systemctl_start(c, 'brickserver')
     systemctl_start(c, 'cron')
