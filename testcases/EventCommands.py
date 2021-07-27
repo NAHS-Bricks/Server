@@ -1,6 +1,6 @@
 from ._wrapper import *
 from event.commands import commands as event_command
-from helpers.mongodb import event_get, event_save, event_data_get, event_data_save
+from connector.mongodb import event_get, event_save, event_data_get, event_data_save
 
 
 class TestEventCommands(BaseCherryPyTestCase):

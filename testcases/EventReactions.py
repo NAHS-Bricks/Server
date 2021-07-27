@@ -1,6 +1,6 @@
 from ._wrapper import *
 from event.reactions import reactions as event_reaction
-from helpers.mongodb import event_get, event_save, event_data_get, event_data_save
+from connector.mongodb import event_get, event_save, event_data_get, event_data_save
 
 
 class TestEventReactions(BaseCherryPyTestCase):

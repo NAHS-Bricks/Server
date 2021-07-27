@@ -117,7 +117,7 @@ def upload_project_files(c):
     for f in ["brickserver.py", "requirements.txt", "bat_prediction_reference.dat"]:
         print(f"Uploading {f}")
         c.put(f, remote=os.path.join(project_dir, f))
-    for d in ["helpers", "event"]:
+    for d in ["helpers", "event", "connector", "stage"]:
         print(f"Uploading {d}")
         patchwork.transfers.rsync(c, d, project_dir, exclude=['*.pyc', '*__pycache__'])
 

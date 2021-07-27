@@ -1,5 +1,5 @@
-from helpers.mongodb import brick_all, brick_save, util_get, util_save, temp_sensor_all, temp_sensor_save, latch_all, latch_save
-from helpers.influxdb import influxDB
+from connector.mongodb import brick_all, brick_save, util_get, util_save, temp_sensor_all, temp_sensor_save, latch_all, latch_save
+from connector.influxdb import influxDB
 from helpers.shared import version_less_than, version_greater_or_equal_than
 import copy
 

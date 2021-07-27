@@ -1,6 +1,6 @@
 import requests
 import json
-from helpers.mongodb import brick_get, event_data_get, event_data_save
+from connector.mongodb import brick_get, event_data_get, event_data_save
 
 
 def __call_admin_interface(data):

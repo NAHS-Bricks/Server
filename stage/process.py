@@ -1,6 +1,6 @@
 from helpers.shared import send_telegram, calculate_bat_prediction
-from helpers.mongodb import temp_sensor_get, latch_get
-from helpers.influxdb import temp_store, bat_level_store, latch_store
+from connector.mongodb import temp_sensor_get, latch_get
+from connector.influxdb import temp_store, bat_level_store, latch_store
 from datetime import datetime, timedelta
 import os
 

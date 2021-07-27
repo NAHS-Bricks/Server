@@ -3,7 +3,7 @@ import json
 import cherrypy
 import builtins
 from helpers.shared import config
-from helpers.mongodb import event_get, event_data_get
+from connector.mongodb import event_get, event_data_get
 from event.commands import commands as event_command
 from event.reactions import reactions as event_reaction
 from helpers.shared import event_worker_is_running

@@ -1,4 +1,4 @@
-from helpers.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_all, signal_get, signal_save, signal_delete
+from connector.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_all, signal_get, signal_save, signal_delete
 from helpers.feature_versioning import feature_update
 import copy
 

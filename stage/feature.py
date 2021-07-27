@@ -1,4 +1,4 @@
-from helpers.mongodb import temp_sensor_get, signal_all
+from connector.mongodb import temp_sensor_get, signal_all
 from datetime import datetime, timedelta
 
 

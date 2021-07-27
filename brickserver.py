@@ -6,16 +6,17 @@ import sys
 import copy
 import argparse
 from datetime import datetime, timedelta
+from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
+from connector.rabbitmq import event_create
+from stage.store import store as store_stage
+from stage.process import process as process_stage
+from stage.feature import feature as feature_stage
+from event.worker import start_thread as event_worker
 from helpers.current_version import current_brickserver_version
 from helpers.shared import config, send_telegram, get_deviceid
-from helpers.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
-from helpers.store_stage import store as store_stage
-from helpers.process_stage import process as process_stage
-from helpers.feature_stage import feature as feature_stage
 from helpers.admin import admin_interface
 from helpers.migrations import exec_migrate
-from event.worker import start_thread as event_worker
-from helpers.rabbitmq import event_create
+
 
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):  # pragma: no cover
     raise Exception('At least Python3.6 required')

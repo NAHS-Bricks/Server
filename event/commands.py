@@ -1,4 +1,4 @@
-from helpers.mongodb import signal_all, latch_get
+from connector.mongodb import signal_all, latch_get
 
 
 def _signals_pending(event, event_data, brick, brick_old):

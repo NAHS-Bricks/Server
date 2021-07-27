@@ -1,5 +1,5 @@
 from ._wrapper import *
-from helpers.rabbitmq import wait_for_all_events_done
+from connector.rabbitmq import wait_for_all_events_done
 from helpers.shared import event_worker_is_running
 
 eventsystem_versions = [['os', 1.0], ['all', 1.0]]
