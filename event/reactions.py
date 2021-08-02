@@ -1,6 +1,6 @@
 import requests
 import json
-from connector.mongodb import brick_get, event_data_get, event_data_save
+from connector.mongodb import brick_get, event_data_get
 
 
 def __call_admin_interface(data):
@@ -68,7 +68,7 @@ def _math(event, event_data):
             return False
     except Exception:
         return False  # invalid operand
-    event_data_save(ed)
+    __call_admin_interface(data={'command': 'replace_event_data', 'event': event['_id'], 'event_data': event_data['event_data_name'], 'content': ed})
     return True
 
 

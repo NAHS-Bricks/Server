@@ -3,9 +3,27 @@ from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_
 from helpers.feature_versioning import feature_update
 import copy
 from bson.objectid import ObjectId
+from threading import Lock
 
 mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
 mongoDB = mongoClient.get_database(config['mongo']['database'])
+brick_locks = {}
+brick_locks_modifier_lock = Lock()
+
+
+def mongodb_lock_acquire(brick_id):
+    global brick_locks
+    global brick_locks_modifier_lock
+    brick_locks_modifier_lock.acquire()
+    if brick_id not in brick_locks:
+        brick_locks[brick_id] = Lock()
+    brick_locks_modifier_lock.release()
+    brick_locks[brick_id].acquire()
+
+
+def mongodb_lock_release(brick_id):
+    global brick_locks
+    brick_locks[brick_id].release()
 
 
 def brick_get(brick_id):

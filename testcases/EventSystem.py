@@ -16,7 +16,7 @@ class TestEventSystem(BaseCherryPyTestCase):
         response = self.webapp_request(path='/admin', command='get_event', event='invalid')
         self.assertEqual(response.json['s'], 21)  # invalid event
 
-        response = self.webapp_request(path='/admin', command='add_event')
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='add_event')
         self.assertEqual(response.json['s'], 11)  # brick missing in data
 
         response = self.webapp_request(path='/admin', command='add_event', brick='localhost')
@@ -35,7 +35,7 @@ class TestEventSystem(BaseCherryPyTestCase):
 
         last_event = response.json['event']['_id']
 
-        response = self.webapp_request(path='/admin', command='delete_event')
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='delete_event')
         self.assertEqual(response.json['s'], 11)  # brick missing in data
 
         response = self.webapp_request(path='/admin', command='delete_event', brick='localhost')
@@ -48,7 +48,7 @@ class TestEventSystem(BaseCherryPyTestCase):
         self.assertEqual(len(response.state['events']), 3)
 
         events = response.state['events']
-        response = self.webapp_request(path='/admin', command='set', key="pos", value=3)
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key="pos", value=3)
         self.assertEqual(response.json['s'], 22)  # event is missing
 
         response = self.webapp_request(path='/admin', command='set', key="pos", event=events[0], value=3)
@@ -90,7 +90,7 @@ class TestEventSystem(BaseCherryPyTestCase):
         event = response.json['event']
         event_commands = self.webapp_request(path='/admin', command='get_event_commands').json['commands']
 
-        response = self.webapp_request(path='/admin', command='set', key="event_command", value='bullshit')
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key="event_command", value='bullshit')
         self.assertEqual(response.json['s'], 24)  # event_data missing in data
 
         response = self.webapp_request(path='/admin', command='set', key="event_command", event=event['_id'], event_data='test', value='bullshit')
@@ -136,7 +136,7 @@ class TestEventSystem(BaseCherryPyTestCase):
         event = response.json['event']
         self.assertEqual(len(event['reactions']), 4)
 
-        response = self.webapp_request(path='/admin', command='delete_event_reaction')
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='delete_event_reaction')
         self.assertEqual(response.json['s'], 22)  # event is missing in data
 
         response = self.webapp_request(path='/admin', command='delete_event_reaction', event=event['_id'])

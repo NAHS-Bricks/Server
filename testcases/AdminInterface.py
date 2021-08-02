@@ -34,19 +34,19 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 0)
         response = self.webapp_request(path="/admin")
         self.assertEqual(response.json['s'], 1)
-        response = self.webapp_request(path="/admin", command='set')
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set')
         self.assertEqual(response.json['s'], 4)
-        response = self.webapp_request(path="/admin", command='set', key='somekey')
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='somekey')
         self.assertEqual(response.json['s'], 5)
-        response = self.webapp_request(path="/admin", command='set', value='somevalue')
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', value='somevalue')
         self.assertEqual(response.json['s'], 4)
-        response = self.webapp_request(path="/admin", command='set', key='temp_precision', value=11)  # brick is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='temp_precision', value=11)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
-        response = self.webapp_request(path="/admin", command='set', key='sleep_delay', value=40)  # brick is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='sleep_delay', value=40)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(path="/admin", command='get_brick')  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
-        response = self.webapp_request(path="/admin", command='delete_brick')  # brick is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='delete_brick')  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(path="/admin", command='get_temp_sensor')  # temp_sensor is missing in data
         self.assertEqual(response.json['s'], 12)
@@ -54,25 +54,25 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='get_signal')  # signal is missing in data
         self.assertEqual(response.json['s'], 18)
-        response = self.webapp_request(path="/admin", command='set', key='add_trigger', value=0)  # latch is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='add_trigger', value=0)  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
-        response = self.webapp_request(path="/admin", command='set', key='del_trigger', value=0)  # latch is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='del_trigger', value=0)  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
-        response = self.webapp_request(path="/admin", command='set', key='desc', value='not used')  # no object given for setting desc
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='desc', value='not used')  # no object given for setting desc
         self.assertEqual(response.json['s'], 14)
-        response = self.webapp_request(path="/admin", command='set', key='state_desc', value='not used')  # state is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='state_desc', value='not used')  # state is missing in data
         self.assertEqual(response.json['s'], 15)
-        response = self.webapp_request(path="/admin", command='set', key='state_desc', state=0, value='not used')  # no object given for setting state_desc
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='state_desc', state=0, value='not used')  # no object given for setting state_desc
         self.assertEqual(response.json['s'], 14)
-        response = self.webapp_request(path="/admin", command='set', key='add_disable', value='ui')  # no object given for adding disable
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='add_disable', value='ui')  # no object given for adding disable
         self.assertEqual(response.json['s'], 14)
-        response = self.webapp_request(path="/admin", command='set', key='del_disable', value='ui')  # no object given for deleteing disable
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='del_disable', value='ui')  # no object given for deleteing disable
         self.assertEqual(response.json['s'], 14)
         response = self.webapp_request(path="/admin", command='get_count')  # item is missing in data
         self.assertEqual(response.json['s'], 16)
         response = self.webapp_request(path="/admin", command='get_count', item='invalid')  # invalid item given
         self.assertEqual(response.json['s'], 17)
-        response = self.webapp_request(path="/admin", command='set', key='signal', value=0)  # signal is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='signal', value=0)  # signal is missing in data
         self.assertEqual(response.json['s'], 18)
         response = self.webapp_request(path="/admin", command='get_event_data_names')  # level is missing in data
         self.assertEqual(response.json['s'], 30)
@@ -80,7 +80,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 22)
         response = self.webapp_request(path="/admin", command='get_event_data_names', level='b')  # event is missing in data
         self.assertEqual(response.json['s'], 22)
-        response = self.webapp_request(path='/admin', command='set', key='bat_solar_charging', value=True)  # brick is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='bat_solar_charging', value=True)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
 
     def test_brick_desc(self):

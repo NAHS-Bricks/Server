@@ -61,7 +61,7 @@ teardown_module = tearDownModule
 
 
 class BaseCherryPyTestCase(unittest.TestCase):
-    def webapp_request(self, path='/', clear_state=False, **kwargs):
+    def webapp_request(self, path='/', clear_state=False, ignore_brick_id=False, **kwargs):
         if clear_state and os.path.isfile('config.json'):
             with open('config.json', 'r') as f:
                 config = json.loads(f.read().strip())
@@ -69,6 +69,7 @@ class BaseCherryPyTestCase(unittest.TestCase):
             mongoDB = mongoClient.get_database(config['mongo']['database'])
             for c in mongoDB.list_collections():
                 mongoDB.get_collection(c['name']).drop()
+        cherrypy.config.update({'ignore_brick_identification': ignore_brick_id})
 
         headers = [('Host', '127.0.0.1')]
 

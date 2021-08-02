@@ -6,7 +6,7 @@ import sys
 import copy
 import argparse
 from datetime import datetime, timedelta
-from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
+from connector.mongodb import mongodb_lock_acquire, mongodb_lock_release, brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
 from connector.rabbitmq import event_create
 from stage.store import store as store_stage
 from stage.process import process as process_stage
@@ -77,6 +77,9 @@ class Brickserver(object):
             brick_id = get_deviceid(brick_ip)
             if test_suite and 'test_brick_id' in data:
                 brick_id += str(int(data['test_brick_id']))
+
+            # acquire lock on brick object and load it from db
+            mongodb_lock_acquire(brick_id)
             brick_old = brick_get(brick_id)
 
             # create intermediate brick for storing and processing current session
@@ -151,6 +154,9 @@ class Brickserver(object):
 
             # create an event for this brick
             event_create(brick)
+
+            # release lock on brick object
+            mongodb_lock_release(brick_id)
         if not test_suite:  # pragma: no cover
             print("Feedback: " + json.dumps(result))
         return result

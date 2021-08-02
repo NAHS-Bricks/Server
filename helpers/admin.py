@@ -1,4 +1,5 @@
-from connector.mongodb import brick_exists, brick_get, brick_save, brick_delete, brick_all_ids, brick_count
+from connector.mongodb import mongodb_lock_acquire, mongodb_lock_release
+from connector.mongodb import brick_exists, brick_get, brick_save, brick_delete, brick_all, brick_all_ids, brick_count
 from connector.mongodb import temp_sensor_exists, temp_sensor_delete, temp_sensor_get, temp_sensor_save, temp_sensor_count
 from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete as mongo_latch_delete, latch_count
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
@@ -11,6 +12,7 @@ from event.reactions import reactions as event_reactions
 from helpers.feature_versioning import features_available
 from helpers.current_version import current_brickserver_version
 import time
+import cherrypy
 
 
 def __set_desc(data):
@@ -547,6 +549,34 @@ admin_commands = {
 }
 
 
+def __thread_save_execution(data):
+    if data['command'].startswith('get_'):
+        return admin_commands[data['command']](data)
+
+    brick_id = None
+    if 'brick' in data:
+        brick_id = data['brick']
+    elif 'latch' in data:
+        brick_id = data['latch'].split('_', 1)[0]
+    elif 'signal' in data:
+        brick_id = data['signal'].split('_', 1)[0]
+    elif 'event' in data:
+        brick_id = event_get(data['event'])['brick_id']
+    elif 'temp_sensor' in data:
+        for brick in brick_all():
+            if 'temp' in brick['features'] and data['temp_sensor'] in brick['temp_sensors']:
+                brick_id = brick['_id']
+                break
+
+    if brick_id is None and 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite' and not cherrypy.config['ignore_brick_identification']:  # pragma: no cover
+        raise Exception(f"brick can't be identified by: {data}")
+
+    mongodb_lock_acquire(brick_id)
+    result = admin_commands[data['command']](data)
+    mongodb_lock_release(brick_id)
+    return result
+
+
 def admin_interface(data):
     result = {'s': 0}
 
@@ -578,5 +608,5 @@ def admin_interface(data):
         if data['event_reaction'] not in event_reactions:
             return {'s': 23, 'm': 'invalid event_reaction'}
 
-    result.update(admin_commands[data['command']](data))
+    result.update(__thread_save_execution(data))
     return result

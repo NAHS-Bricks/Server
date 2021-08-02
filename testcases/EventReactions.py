@@ -4,6 +4,12 @@ from connector.mongodb import event_get, event_save, event_data_get, event_data_
 
 
 class TestEventReactions(BaseCherryPyTestCase):
+    def test_no_save_methods_used(self):  # reactions are not allowed to use save methods, they have to use the admin interface for saveing operations
+        with open('event/reactions.py', 'r') as f:
+            for line in f.read().strip().split('\n'):
+                if line.strip().startswith('from'):
+                    self.assertNotIn('_save', line)
+
     def test_set_signal_state(self):
         response = self.webapp_request(clear_state=True, v=[['all', 1], ['os', 1], ['signal', 1]], s=2, y=['i'])
         self.assertIsNotNone(response.signals['localhost_0']['state_transmitted_ts'])
@@ -42,7 +48,10 @@ class TestEventReactions(BaseCherryPyTestCase):
         self.assertTrue(event_reaction['trigger_brick'](ev, ed))
 
     def test_math(self):
+        self.webapp_request(clear_state=True)
         ev = event_get()
+        ev['brick_id'] = 'localhost'
+        event_save(ev)
         ed = event_data_get(ev, 'input')
 
         ed = {'_id': ed['_id'], 'operand': 1, 'event_data_name': 'output', 'event_data_key': 'val'}
