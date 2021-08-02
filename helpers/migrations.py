@@ -45,6 +45,11 @@ def _migrate_from_050():
     for brick in brick_all():
         brick['events'] = list()
         brick['ip'] = None
+        if 'bat' in brick['features']:
+            brick['bat_solar_charging'] = False
+            brick['init_ts'] = brick['bat_init_ts']
+        else:
+            brick['init_ts'] = brick['last_ts']
         brick_save(brick)
 
 

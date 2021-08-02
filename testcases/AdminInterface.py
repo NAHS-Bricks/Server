@@ -80,6 +80,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 22)
         response = self.webapp_request(path="/admin", command='get_event_data_names', level='b')  # event is missing in data
         self.assertEqual(response.json['s'], 22)
+        response = self.webapp_request(path='/admin', command='set', key='bat_solar_charging', value=True)  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)

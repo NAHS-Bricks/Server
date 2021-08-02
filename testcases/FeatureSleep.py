@@ -97,6 +97,45 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
 
+@parameterized_class(getVersionParameter(['sleep', 'bat'], ['temp', 'latch', 'signal']))
+class TestFeatureSleepWithBatSolarCharging(BaseCherryPyTestCase):
+    def test_solar_charging(self):  # expected to not effect delay
+        response = self.webapp_request(clear_state=True, v=self.v, b=4, y=['c'])
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_solar_charging', value=True)
+        response = self.webapp_request(b=4, y=['c'])
+        self.assertNotIn('d', response.json)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 2)
+
+        response = self.webapp_request(b=4, y=['c'])
+        self.assertNotIn('d', response.json)
+        self.assertEqual(response.state['sleep_increase_wait'], 1)
+
+        for i in range(0, 20):
+            with self.subTest(i=i):
+                response = self.webapp_request(b=4, y=['c'])
+                self.assertNotIn('d', response.json)
+                self.assertEqual(response.state['sleep_increase_wait'], 0)
+
+    def test_solar_charging_standby(self):  # expected to not effect delay
+        response = self.webapp_request(clear_state=True, v=self.v, b=4, y=['s'])
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_solar_charging', value=True)
+        response = self.webapp_request(b=4, y=['s'])
+        self.assertNotIn('d', response.json)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 2)
+
+        response = self.webapp_request(b=4, y=['s'])
+        self.assertNotIn('d', response.json)
+        self.assertEqual(response.state['sleep_increase_wait'], 1)
+
+        for i in range(0, 20):
+            with self.subTest(i=i):
+                response = self.webapp_request(b=4, y=['s'])
+                self.assertNotIn('d', response.json)
+                self.assertEqual(response.state['sleep_increase_wait'], 0)
+
+
 @parameterized_class(getVersionParameter(['sleep', 'temp']))
 class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
     def test_delay_increase_on_stable_temp(self):

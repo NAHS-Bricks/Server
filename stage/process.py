@@ -1,6 +1,6 @@
 from helpers.shared import send_telegram, calculate_bat_prediction
 from connector.mongodb import temp_sensor_get, latch_get
-from connector.influxdb import temp_store, bat_level_store, latch_store
+from connector.influxdb import temp_store, bat_level_store, bat_charging_store, latch_store
 from datetime import datetime, timedelta
 import os
 
@@ -19,16 +19,17 @@ def __process_t(brick_new, brick_old):
 
 
 def __process_b(brick_new, brick_old):
-    if 'bat' in brick_new['features']:
-        # Check for low-bat warning
-        if brick_new['bat_last_reading'] < 3.4:
-            send_telegram('Charge bat on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']) + ' it reads ' + str(round(brick_new['bat_last_reading'], 3)) + ' Volts')
-        # Calculate bat_runtime_prediction
-        brick_new['bat_runtime_prediction'] = (None if brick_new['bat_charging'] or brick_new['bat_charging_standby'] else calculate_bat_prediction(brick_new))
-        # Store Data to InfluxDB
-        voltage_diff = ((brick_old['bat_last_reading'] - brick_new['bat_last_reading']) if 'bat_last_reading' in brick_old and brick_old['bat_last_reading'] else None)
-        bat_level_store(brick_new['bat_last_reading'], brick_new['bat_charging'], brick_new['bat_charging_standby'], voltage_diff, brick_new['bat_runtime_prediction'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
-    if 'bat' in brick_new['features'] and 'bat' in brick_old['features']:
+    if 'bat' not in brick_new['features']:  # pragma: no cover
+        return
+    # Check for low-bat warning
+    if brick_new['bat_last_reading'] < 3.4:
+        send_telegram('Charge bat on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']) + ' it reads ' + str(round(brick_new['bat_last_reading'], 3)) + ' Volts')
+    # Calculate bat_runtime_prediction
+    brick_new['bat_runtime_prediction'] = (None if (brick_new['bat_charging'] or brick_new['bat_charging_standby']) and not brick_new['bat_solar_charging'] else calculate_bat_prediction(brick_new))
+    # Store Data to InfluxDB
+    voltage_diff = ((brick_old['bat_last_reading'] - brick_new['bat_last_reading']) if 'bat_last_reading' in brick_old and brick_old['bat_last_reading'] else None)
+    bat_level_store(brick_new['bat_last_reading'], voltage_diff, brick_new['bat_runtime_prediction'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
+    if 'bat' in brick_old['features']:
         if brick_new['bat_charging'] and brick_new['bat_last_reading'] >= 4.15 and brick_old['bat_last_reading'] < 4.15:
             send_telegram('Bat charged over 4.15Volts on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']))
 
@@ -48,6 +49,7 @@ def __process_y(brick_new, brick_old):
     if brick_new['initalized']:
         result.append('request_versions')
         result.append('request_type')
+        brick_new['init_ts'] = brick_new['last_ts']
         if 'temp' in brick_new['features']:
             result.append('request_temp_corr')
             result.append('request_temp_precision')
@@ -60,19 +62,21 @@ def __process_y(brick_new, brick_old):
         if 'signal' in brick_new['features']:
             result.append('request_signal_count')
             result.append('update_signal_states')
-    if 'bat' in brick_new['features']:
+    if 'bat' in brick_new['features'] and not brick_new['bat_solar_charging']:
         if brick_new['bat_charging']:
             brick_new['bat_periodic_voltage_request'] -= 1
             if brick_new['bat_periodic_voltage_request'] <= 0:
                 brick_new['bat_periodic_voltage_request'] = 10
                 result.append('request_bat_voltage')
     if 'bat' in brick_new['features'] and 'bat' in brick_old['features']:
-        if not brick_new['bat_charging'] and brick_old['bat_charging']:
+        if not brick_new['bat_charging'] == brick_old['bat_charging'] or not brick_new['bat_charging_standby'] == brick_old['bat_charging_standby']:
+            bat_charging_store(brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
+        if not brick_new['bat_charging'] and brick_old['bat_charging'] and not brick_new['bat_solar_charging']:
             brick_new['bat_periodic_voltage_request'] = 10
             result.append('request_bat_voltage')
-        if not brick_new['bat_charging'] and brick_old['bat_charging'] and brick_new['bat_charging_standby']:
+        if not brick_new['bat_charging'] and brick_old['bat_charging'] and brick_new['bat_charging_standby'] and not brick_new['bat_solar_charging']:
             send_telegram('Charging finished on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']))
-        if not brick_new['bat_charging'] and not brick_new['bat_charging_standby'] and (brick_old['bat_charging'] or brick_old['bat_charging_standby']):
+        if not brick_new['bat_charging'] and not brick_new['bat_charging_standby'] and (brick_old['bat_charging'] or brick_old['bat_charging_standby']) and not brick_new['bat_solar_charging']:
             brick_new['bat_periodic_voltage_request'] = 10
             result.append('request_bat_voltage')
     return result

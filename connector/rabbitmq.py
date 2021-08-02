@@ -17,14 +17,18 @@ def _connect():
         rabbitMQ.queue_declare(queue='events')
 
 
-def event_create(brick, brick_old=None):
+def event_create(brick, brick_old=None, retry=True):
     _connect()
     global rabbitMQ
-    rabbitMQ.basic_publish(
-        exchange='',
-        routing_key='events',
-        body=json.dumps((brick, brick_old))
-    )
+    try:
+        rabbitMQ.basic_publish(
+            exchange='',
+            routing_key='events',
+            body=json.dumps((brick, brick_old))
+        )
+    except pika.exceptions.StreamLostError:  # pragma: no cover
+        if retry:
+            event_create(brick, brick_old, False)
 
 
 def wait_for_all_events_done():

@@ -92,6 +92,14 @@ class TestFeatureBat(BaseCherryPyTestCase):
         response = self.webapp_request()
         self.assertFalse(response.state['bat_charging_standby'])
 
+    def test_set_solar_charging_api(self):
+        response = self.webapp_request(clear_state=True, v=self.v)
+        self.assertFalse(response.state['bat_solar_charging'])
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_solar_charging', value='true')
+        self.assertEqual(response.json['s'], 7)  # invalid value, needs to be bool
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_solar_charging', value=True)
+        self.assertTrue(response.state['bat_solar_charging'])
+
     def test_periodic_voltageRequest_on_charging(self):
         response = self.webapp_request(clear_state=True, v=self.v, b=4)
         if 'r' in response.json:
@@ -117,6 +125,21 @@ class TestFeatureBat(BaseCherryPyTestCase):
 
         for i in range(0, 21):
             with self.subTest(rnd=i):
+                response = self.webapp_request(y=['s'])
+                if 'r' in response.json:
+                    self.assertNotIn(3, response.json['r'])
+                self.assertEqual(response.state['bat_periodic_voltage_request'], 10)
+
+    def test_no_periodic_voltageRequest_on_solar_charging(self):
+        response = self.webapp_request(clear_state=True, v=self.v, b=4)
+        response = self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_solar_charging', value=True)
+        if 'r' in response.json:
+            self.assertNotIn(3, response.json['r'])
+        self.assertEqual(response.state['bat_periodic_voltage_request'], 10)
+
+        for i in range(0, 21):
+            with self.subTest(rnd=i):
+                response = self.webapp_request(y=['c'])
                 if 'r' in response.json:
                     self.assertNotIn(3, response.json['r'])
                 self.assertEqual(response.state['bat_periodic_voltage_request'], 10)
@@ -159,6 +182,30 @@ class TestFeatureBat(BaseCherryPyTestCase):
         with fake_time(dt_now - timedelta(hours=12)):
             response = self.webapp_request(b=3.9, y=['s'])
             self.assertIsNone(response.state['bat_runtime_prediction'])
+
+    def test_bat_runtime_prediction_is_calculated_during_solar_charging(self):
+        dt_now = datetime.now()
+
+        with fake_time(dt_now - timedelta(hours=24)):
+            response = self.webapp_request(clear_state=True, v=self.v, b=4)
+            response = self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_solar_charging', value=True)
+            self.assertIsNone(response.state['bat_runtime_prediction'])
+
+        with fake_time(dt_now - timedelta(hours=12)):
+            response = self.webapp_request(b=3.9, y=['c'])
+            self.assertIsNotNone(response.state['bat_runtime_prediction'])
+
+    def test_bat_runtime_prediction_is_calculated_during_solar_charging_standby(self):
+        dt_now = datetime.now()
+
+        with fake_time(dt_now - timedelta(hours=24)):
+            response = self.webapp_request(clear_state=True, v=self.v, b=4)
+            response = self.webapp_request(path='/admin', command='set', brick='localhost', key='bat_solar_charging', value=True)
+            self.assertIsNone(response.state['bat_runtime_prediction'])
+
+        with fake_time(dt_now - timedelta(hours=12)):
+            response = self.webapp_request(b=3.9, y=['s'])
+            self.assertIsNotNone(response.state['bat_runtime_prediction'])
 
     def test_telegram_messages_are_send_without_desc(self):
         response = self.webapp_request(clear_state=True, v=self.v, b=3.35)

@@ -8,6 +8,8 @@ def _all_initial(brick):
         brick['features']['os'] = 0
     if 'desc' not in brick:
         brick['desc'] = None
+    if 'init_ts' not in brick:
+        brick['init_ts'] = None
     if 'last_ts' not in brick:
         brick['last_ts'] = None
     if 'initalized' not in brick:
@@ -38,6 +40,8 @@ def _bat_initial(brick):
         brick['bat_charging_standby'] = False
     if 'bat_periodic_voltage_request' not in brick:
         brick['bat_periodic_voltage_request'] = 10
+    if 'bat_solar_charging' not in brick:
+        brick['bat_solar_charging'] = False
     if 'bat_init_ts' not in brick:
         brick['bat_init_ts'] = None
     if 'bat_init_voltage' not in brick:

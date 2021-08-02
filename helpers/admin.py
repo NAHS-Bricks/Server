@@ -4,7 +4,7 @@ from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete 
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
 from connector.mongodb import event_get, event_count, event_save, event_all, event_delete, event_exists
 from connector.mongodb import event_data_get, event_data_delete, event_data_save, event_data_all, event_data_count
-from connector.influxdb import temp_delete, bat_level_delete, latch_delete as influx_latch_delete
+from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as influx_latch_delete
 from connector.rabbitmq import event_create
 from event.commands import commands as event_commands
 from event.reactions import reactions as event_reactions
@@ -138,6 +138,17 @@ def __set_event_command(data):
     return {}
 
 
+def __set_bat_solar_charging(data):
+    if 'brick' not in data:
+        return {'s': 11, 'm': 'brick is missing in data'}
+    if not isinstance(data['value'], bool):
+        return {'s': 7, 'm': 'invalid value, needs to be a bool'}
+    brick = brick_get(data['brick'])
+    brick['bat_solar_charging'] = data['value']
+    brick_save(brick)
+    return {}
+
+
 def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -222,7 +233,8 @@ _set_direct = {
     'add_disable': __set_add_disable,
     'del_disable': __set_del_disable,
     'pos': __set_pos,
-    'event_command': __set_event_command
+    'event_command': __set_event_command,
+    'bat_solar_charging': __set_bat_solar_charging
 }
 
 
@@ -315,7 +327,7 @@ def __cmd_delete_brick(data):
             result['event_data'] = list()
         result['event_data'].append(ed['_id'])
         event_data_delete(ed)
-    bat_level_delete(brick['_id'])
+    bat_stats_delete(brick['_id'])
     brick_delete(brick['_id'])
     return {'deleted': result}
 

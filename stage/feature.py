@@ -12,8 +12,8 @@ def __feature_bat(brick):
 
 def __feature_sleep(brick):
     brick['sleep_increase_wait'] -= (0 if brick['sleep_increase_wait'] <= 0 else 1)
-    # If power-cord is connected sleep_delay can be set to 60
-    if 'bat' in brick['features'] and (brick['bat_charging'] or brick['bat_charging_standby']):
+    # If power-cord is connected sleep_delay can be set to 60, except it's solar charged
+    if 'bat' in brick['features'] and (brick['bat_charging'] or brick['bat_charging_standby']) and not brick['bat_solar_charging']:
         brick['sleep_delay'] = 60
         brick['sleep_increase_wait'] = 3
         return 'update_sleep_delay'
