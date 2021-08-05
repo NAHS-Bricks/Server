@@ -3,15 +3,20 @@ import patchwork.transfers
 import os
 import subprocess
 import time
+from datetime import datetime
 
 apt_update_run = False
 project_dir = "/opt/middleware/nahs/brickserver"
+backup_dir = "/var/backup"
 storagedir_mongo = "/var/data/mongodb"
 storagedir_influx = "/var/data/influxdb"
 storagedir_rabbitmq = "/var/data/rabbitmq"
 mongodb_image = 'mongo:4.4'
 influxdb_image = 'influxdb:1.8'
 rabbitmq_image = 'rabbitmq:3.8'
+mongodb_service = "docker.mongodb.service"
+influxdb_service = 'docker.influxdb.service'
+rabbitmq_service = 'docker.rabbitmq.service'
 
 
 def docker_pull(c, image):
@@ -26,35 +31,35 @@ def docker_prune(c):
 
 def systemctl_stop(c, service):
     if c.run(f"systemctl is-active {service}", warn=True, hide=True).ok:
-        print(f"Stop Service {service}")
+        print(f"Stop Service {service}", flush=True)
         c.run(f"systemctl stop {service}", hide=True)
 
 
 def systemctl_start(c, service):
     if not c.run(f"systemctl is-enabled {service}", warn=True, hide=True).ok:
-        print(f"Enable Service {service}")
+        print(f"Enable Service {service}", flush=True)
         c.run(f"systemctl enable {service}", hide=True)
     if c.run(f"systemctl is-active {service}", warn=True, hide=True).ok:
-        print(f"Restart Service {service}")
+        print(f"Restart Service {service}", flush=True)
         c.run(f"systemctl restart {service}", hide=True)
     else:
-        print(f"Start Service {service}")
+        print(f"Start Service {service}", flush=True)
         c.run(f"systemctl start {service}", hide=True)
 
 
 def systemctl_start_docker(c):
     if not c.run(f"systemctl is-enabled docker", warn=True, hide=True).ok:
-        print(f"Enable Service docker")
+        print(f"Enable Service docker", flush=True)
         c.run(f"systemctl enable docker", hide=True)
     if c.run(f"systemctl is-active docker", warn=True, hide=True).ok:
-        print(f"Service docker allready running")
+        print(f"Service docker allready running", flush=True)
     else:
-        print(f"Start Service docker")
+        print(f"Start Service docker", flush=True)
         c.run(f"systemctl start docker", hide=True)
 
 
 def systemctl_install_service(c, local_file, remote_file, replace_macros):
-    print(f"Installing Service {remote_file}")
+    print(f"Installing Service {remote_file}", flush=True)
     c.put(os.path.join('install', local_file), remote=os.path.join('/etc/systemd/system', remote_file))
     for macro, value in replace_macros:
         c.run("sed -i -e 's/" + macro + "/" + value.replace('/', '\/') + "/g' " + os.path.join('/etc/systemd/system', remote_file))
@@ -123,7 +128,7 @@ def upload_project_files(c):
 
 
 def create_directorys(c):
-    for d in [project_dir, storagedir_mongo, storagedir_influx]:
+    for d in [project_dir, storagedir_mongo, storagedir_influx, backup_dir]:
         print(f"Creating {d}")
         c.run(f"mkdir -p {d}", warn=True, hide=True)
 
@@ -164,6 +169,22 @@ def wait_for_rabbitmq(c):
     c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_rabbitmq.py")
 
 
+def backup_mongodb(c):
+    if c.run(f"systemctl is-active {mongodb_service}", warn=True, hide=True).ok:
+        backup_path = os.path.join(backup_dir, 'mongodb-' + datetime.now().isoformat() + '.tar.gz')
+        print(f"Creating backup: {backup_path}", flush=True)
+        c.run(f'docker exec -t {mongodb_service} /bin/sh -c "mongodump --forceTableScan -o /backup; tar cfz /backup.tar.gz /backup; rm -rf /backup"', hide=True)
+        c.run(f'docker cp {mongodb_service}:/backup.tar.gz {backup_path}', hide=True)
+
+
+def backup_influxdb(c):
+    if c.run(f"systemctl is-active {influxdb_service}", warn=True, hide=True).ok:
+        backup_path = os.path.join(backup_dir, 'influxdb-' + datetime.now().isoformat() + '.tar.gz')
+        print(f"Creating backup: {backup_path}", flush=True)
+        c.run(f'docker exec -t {influxdb_service} /bin/sh -c "influxd backup -portable /backup; tar cfz /backup.tar.gz /backup; rm -rf /backup"', hide=True)
+        c.run(f'docker cp {influxdb_service}:/backup.tar.gz {backup_path}', hide=True)
+
+
 @task
 def deploy(c):
     c.run('hostname')
@@ -179,26 +200,28 @@ def deploy(c):
     docker_pull(c, rabbitmq_image)
     upload_deploy_helpers(c)
     # Timecritical stuff (when service allready runs) - start
+    create_directorys(c)
     systemctl_stop(c, 'cron')
     systemctl_stop(c, 'brickserver')
-    systemctl_stop(c, 'docker.mongodb.service')
-    systemctl_stop(c, 'docker.influxdb.service')
-    systemctl_stop(c, 'docker.rabbitmq.service')
-    create_directorys(c)
+    backup_influxdb(c)
+    backup_mongodb(c)
+    systemctl_stop(c, mongodb_service)
+    systemctl_stop(c, influxdb_service)
+    systemctl_stop(c, rabbitmq_service)
     upload_project_files(c)
     write_brickserver_version(c)
     setup_virtualenv(c)
     systemctl_install_service(c, 'brickserver.service', 'brickserver.service', [('__project_dir__', project_dir)])
-    systemctl_install_service(c, 'docker.service', 'docker.mongodb.service', [('__additional__', ''), ('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
-    systemctl_install_service(c, 'docker.service', 'docker.influxdb.service', [('__additional__', ''), ('__storage__', storagedir_influx + ':/var/lib/influxdb'), ('__port__', '8086:8086'), ('__image__', influxdb_image)])
-    systemctl_install_service(c, 'docker.service', 'docker.rabbitmq.service', [('__additional__', "--hostname brickserver -e RABBITMQ_VM_MEMORY_HIGH_WATERMARK='0.25'"), ('__storage__', storagedir_rabbitmq + ':/var/lib/rabbitmq'), ('__port__', '5672:5672'), ('__image__', rabbitmq_image)])
+    systemctl_install_service(c, 'docker.service', mongodb_service, [('__additional__', ''), ('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
+    systemctl_install_service(c, 'docker.service', influxdb_service, [('__additional__', ''), ('__storage__', storagedir_influx + ':/var/lib/influxdb'), ('__port__', '8086:8086'), ('__image__', influxdb_image)])
+    systemctl_install_service(c, 'docker.service', rabbitmq_service, [('__additional__', "--hostname brickserver -e RABBITMQ_VM_MEMORY_HIGH_WATERMARK='0.25'"), ('__storage__', storagedir_rabbitmq + ':/var/lib/rabbitmq'), ('__port__', '5672:5672'), ('__image__', rabbitmq_image)])
     c.run("systemctl daemon-reload")
     install_rsyslog(c)
     install_cron(c)
     install_logrotate(c)
-    systemctl_start(c, 'docker.mongodb.service')
-    systemctl_start(c, 'docker.influxdb.service')
-    systemctl_start(c, 'docker.rabbitmq.service')
+    systemctl_start(c, mongodb_service)
+    systemctl_start(c, influxdb_service)
+    systemctl_start(c, rabbitmq_service)
     wait_for_mongodb(c)
     wait_for_influxdb(c)
     wait_for_rabbitmq(c)
