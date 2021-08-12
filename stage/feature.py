@@ -4,8 +4,20 @@ from datetime import datetime, timedelta
 
 def __feature_bat(brick):
     if brick['bat_last_ts']:
-        if datetime.fromtimestamp(brick['last_ts']) > datetime.fromtimestamp(brick['bat_last_ts']) + timedelta(hours=12):
-            return 'request_bat_voltage'
+        dt_now = datetime.fromtimestamp(brick['last_ts'])
+        dt_last = datetime.fromtimestamp(brick['bat_last_ts'])
+        if (dt_last.hour % 12) == 7:
+            # align to half past 7
+            if dt_now >= (dt_last + timedelta(hours=12)).replace(minute=30, second=0):
+                return 'request_bat_voltage'
+        elif (dt_last.hour % 12) in range(1, 7):
+            # expand the time a bit
+            if dt_now >= dt_last + timedelta(hours=12.5):
+                return 'request_bat_voltage'
+        else:
+            # shorten the time a bit
+            if dt_now >= dt_last + timedelta(hours=11.5):
+                return 'request_bat_voltage'
     else:
         return 'request_bat_voltage'
 

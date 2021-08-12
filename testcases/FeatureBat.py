@@ -28,10 +28,11 @@ class TestFeatureBat(BaseCherryPyTestCase):
         if 'r' in response.json:
             self.assertNotIn(3, response.json['r'])
 
-    def test_voltageRequest_after_12_hours(self):
-        dt_now = datetime.now()
+    def test_voltageRequest_aligned_to_half_past_seven(self):
+        # in this case the previous time allready had been aligned to half past 7 (AM or PM) and is requested again around 12 hours later
+        dt_now = datetime.now().replace(hour=7, minute=31)
 
-        with fake_time(dt_now - timedelta(hours=13)):
+        with fake_time(dt_now - timedelta(hours=12)):
             response = self.webapp_request(clear_state=True, v=self.v)
             self.assertIn('r', response.json)
             self.assertIn(3, response.json['r'])
@@ -39,7 +40,55 @@ class TestFeatureBat(BaseCherryPyTestCase):
             if 'r' in response.json:
                 self.assertNotIn(3, response.json['r'])
 
-        for i in reversed(list(range(1, 13))):
+        for i in reversed(list(range(1, 12))):
+            with self.subTest(i=i):
+                with fake_time(dt_now - timedelta(hours=i)):
+                    response = self.webapp_request()
+                    if 'r' in response.json:
+                        self.assertNotIn(3, response.json['r'])
+
+        with fake_time(dt_now):
+            response = self.webapp_request()
+            self.assertIn('r', response.json)
+            self.assertIn(3, response.json['r'])
+
+    def test_voltageRequest_aligne_to_half_past_seven_expand(self):
+        # in the time between hour % 12  between 1 and 6 the 12 hour timespan is expanded by 30 minutes
+        dt_now = datetime.now().replace(hour=4)
+
+        with fake_time(dt_now - timedelta(hours=12)):
+            response = self.webapp_request(clear_state=True, v=self.v)
+            self.assertIn('r', response.json)
+            self.assertIn(3, response.json['r'])
+            response = self.webapp_request(b=4)
+            if 'r' in response.json:
+                self.assertNotIn(3, response.json['r'])
+
+        for i in reversed(list(range(0, 12))):
+            with self.subTest(i=i):
+                with fake_time(dt_now - timedelta(hours=i)):
+                    response = self.webapp_request()
+                    if 'r' in response.json:
+                        self.assertNotIn(3, response.json['r'])
+
+        with fake_time(dt_now + timedelta(hours=1)):
+            response = self.webapp_request()
+            self.assertIn('r', response.json)
+            self.assertIn(3, response.json['r'])
+
+    def test_voltageRequest_aligne_to_half_past_seven_shorten(self):
+        # in the time between hour % 12  between 8 and 12 the 12 hour timespan is shortened by 30 minutes
+        dt_now = datetime.now().replace(hour=21)
+
+        with fake_time(dt_now - timedelta(hours=12)):
+            response = self.webapp_request(clear_state=True, v=self.v)
+            self.assertIn('r', response.json)
+            self.assertIn(3, response.json['r'])
+            response = self.webapp_request(b=4)
+            if 'r' in response.json:
+                self.assertNotIn(3, response.json['r'])
+
+        for i in reversed(list(range(1, 12))):
             with self.subTest(i=i):
                 with fake_time(dt_now - timedelta(hours=i)):
                     response = self.webapp_request()
