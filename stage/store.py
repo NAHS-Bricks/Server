@@ -8,7 +8,7 @@ def __store_v(brick, versions):
     for feature, version in versions:
         tmp_feature_list.append(feature)
         if feature not in brick['features']:
-            brick['features'][feature] = 0
+            brick['features'][feature] = -1
         feature_update(brick, feature, brick['features'][feature], version)
         brick['features'][feature] = version
 
@@ -44,6 +44,8 @@ def __store_y(brick, bools):
         brick['bat_charging'] = ('c' in bools)
         brick['bat_charging_standby'] = ('s' in bools)
     brick['initalized'] = ('i' in bools)
+    if brick['features']['all'] >= 1.02:
+        brick['delay_overwrite'] = ('d' in bools)
 
 
 def __store_c(brick, corrs):
@@ -91,6 +93,12 @@ def __store_s(brick, scount):
             signal_save(signal)
 
 
+def __store_d(brick, default_delay):
+    if not brick['features']['all'] >= 1.02:  # pragma: no cover
+        return
+    brick['delay_default'] = int(default_delay)
+
+
 store = {
     'v': __store_v,
     't': __store_t,
@@ -100,5 +108,6 @@ store = {
     'x': __store_x,
     'p': __store_p,
     'l': __store_l,
-    's': __store_s
+    's': __store_s,
+    'd': __store_d
 }

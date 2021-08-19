@@ -1,77 +1,58 @@
 
 def _all_initial(brick):
-    if 'type' not in brick:
-        brick['type'] = None
-    if 'features' not in brick:
-        brick['features'] = dict()
-        brick['features']['all'] = 0
-        brick['features']['os'] = 0
-    if 'desc' not in brick:
-        brick['desc'] = None
-    if 'init_ts' not in brick:
-        brick['init_ts'] = None
-    if 'last_ts' not in brick:
-        brick['last_ts'] = None
-    if 'initalized' not in brick:
-        brick['initalized'] = False
-    if 'events' not in brick:
-        brick['events'] = list()
-    if 'ip' not in brick:
-        brick['ip'] = None
+    brick['type'] = None
+    brick['features'] = dict()
+    brick['features']['all'] = 0
+    brick['features']['os'] = 0
+    brick['desc'] = None
+    brick['init_ts'] = None
+    brick['last_ts'] = None
+    brick['initalized'] = False
+    brick['events'] = list()
+    brick['ip'] = None
+    brick['delay'] = 60
+
+
+def _all_102(brick):
+    brick['delay_default'] = 60
+    brick['delay_overwrite'] = False
 
 
 def _temp_initial(brick):
-    if 'temp_sensors' not in brick:
-        brick['temp_sensors'] = list()
-    if 'temp_precision' not in brick:
-        brick['temp_precision'] = None
-    if 'temp_max_diff' not in brick:
-        brick['temp_max_diff'] = 0
+    brick['temp_sensors'] = list()
+    brick['temp_precision'] = None
+    brick['temp_max_diff'] = 0
 
 
 def _bat_initial(brick):
-    if 'bat_last_reading' not in brick:
-        brick['bat_last_reading'] = 0
-    if 'bat_last_ts' not in brick:
-        brick['bat_last_ts'] = None
-    if 'bat_charging' not in brick:
-        brick['bat_charging'] = False
-    if 'bat_charging_standby' not in brick:
-        brick['bat_charging_standby'] = False
-    if 'bat_periodic_voltage_request' not in brick:
-        brick['bat_periodic_voltage_request'] = 10
-    if 'bat_solar_charging' not in brick:
-        brick['bat_solar_charging'] = False
-    if 'bat_init_ts' not in brick:
-        brick['bat_init_ts'] = None
-    if 'bat_init_voltage' not in brick:
-        brick['bat_init_voltage'] = None
-    if 'bat_runtime_prediction' not in brick:
-        brick['bat_runtime_prediction'] = None
+    brick['bat_last_reading'] = 0
+    brick['bat_last_ts'] = None
+    brick['bat_charging'] = False
+    brick['bat_charging_standby'] = False
+    brick['bat_periodic_voltage_request'] = 10
+    brick['bat_solar_charging'] = False
+    brick['bat_init_ts'] = None
+    brick['bat_init_voltage'] = None
+    brick['bat_runtime_prediction'] = None
 
 
 def _sleep_initial(brick):
-    if 'sleep_delay' not in brick:
-        brick['sleep_delay'] = 60
-    if 'sleep_increase_wait' not in brick:
-        brick['sleep_increase_wait'] = 3
+    brick['sleep_increase_wait'] = 3
 
 
 def _latch_initial(brick):
-    if 'latch_count' not in brick:
-        brick['latch_count'] = 0
-    if 'latch_triggerstate_received' not in brick:
-        brick['latch_triggerstate_received'] = False
+    brick['latch_count'] = 0
+    brick['latch_triggerstate_received'] = False
 
 
 def _signal_initial(brick):
-    if 'signal_count' not in brick:
-        brick['signal_count'] = None
+    brick['signal_count'] = None
 
 
 _feature_updates = {
     'all': {
-        0.00: _all_initial
+        0.00: _all_initial,
+        1.02: _all_102
     },
     'os': {},
     'sleep': {
@@ -93,9 +74,9 @@ _feature_updates = {
 
 
 def feature_update(brick, feature, from_version, to_version):
-    if feature in _feature_updates:
+    if from_version < to_version and feature in _feature_updates:
         for version in sorted(_feature_updates[feature].keys()):
-            if version >= from_version and version <= to_version:
+            if version > from_version and version <= to_version:
                 _feature_updates[feature][version](brick)
 
 

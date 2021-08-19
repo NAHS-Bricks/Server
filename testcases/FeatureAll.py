@@ -118,7 +118,7 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
         self.assertIn('all', response.state['features'])
         self.assertIn('os', response.state['features'])
 
-        response = self.webapp_request(v=[['all', '1.0'], ['os', 1.0], ['sleep', 1.0]])  # add a new feature without deleting brick beforehand
+        response = self.webapp_request(v=[['all', 1.0], ['os', 1.0], ['sleep', 1.0]])  # add a new feature without deleting brick beforehand
         self.assertEqual(len(response.state['features']), 3)
         self.assertIn('all', response.state['features'])
         self.assertIn('os', response.state['features'])
@@ -131,7 +131,7 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
         self.assertIn('os', response.state['features'])
         self.assertIn('sleep', response.state['features'])
 
-        response = self.webapp_request(v=[['all', '1.0'], ['os', 1.0]])  # delete a feature without deleting brick beforehand
+        response = self.webapp_request(v=[['all', 1.0], ['os', 1.0]])  # delete a feature without deleting brick beforehand
         self.assertEqual(len(response.state['features']), 2)
         self.assertIn('all', response.state['features'])
         self.assertIn('os', response.state['features'])
@@ -149,6 +149,16 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
         self.assertIn('os', response.state['features'])
         self.assertIn('bat', response.state['features'])
         self.assertNotIn('sleep', response.state['features'])
+
+    def test_resending_features_is_not_resetting_variables(self):
+        response = self.webapp_request(clear_state=True, v=[['all', 1.02], ['os', 1.0]])
+        self.assertEqual(response.state['delay_default'], 60)
+
+        response = self.webapp_request(d=120)
+        self.assertEqual(response.state['delay_default'], 120)
+
+        response = self.webapp_request(v=[['all', 1.02], ['os', 1.0]])
+        self.assertEqual(response.state['delay_default'], 120)  # should not have been changed by feature_versioning
 
     def test_multiple_testing_bricks_are_generated(self):  # there are cases whre it is nesseccary to test on/with multiple bricks, so test if this is possible
         response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0]])
@@ -179,3 +189,62 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
         # and test if clearing also clears all bricks
         response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0]])
         self.assertEqual(self.webapp_request(path='/admin', command='get_count', item='bricks').json['count'], 1)
+
+    def test_delay_default_is_stored(self):
+        response = self.webapp_request(clear_state=True, v=[['all', 1.02], ['os', 1.0]])
+        self.assertEqual(response.state['delay_default'], 60)
+
+        response = self.webapp_request(d=120)
+        self.assertEqual(response.state['delay_default'], 120)
+
+        response = self.webapp_request(d=180)
+        self.assertEqual(response.state['delay_default'], 180)
+
+        response = self.webapp_request()
+        self.assertEqual(response.state['delay_default'], 180)
+
+    def test_delay_not_present_on_v100(self):
+        response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0]], y=['i'])
+        self.assertIn('r', response.json)
+        self.assertNotIn('d', response.json)
+
+    def test_delay_present_on_v102(self):
+        response = self.webapp_request(clear_state=True, v=[['all', 1.02], ['os', 1.0]], d=120, y=['i'])
+        self.assertIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 10)
+
+        response = self.webapp_request()
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 120)
+
+        response = self.webapp_request()
+        self.assertNotIn('r', response.json)
+        self.assertNotIn('d', response.json)
+
+    def test_delay_overwrite_in_v102(self):
+        response = self.webapp_request(clear_state=True, v=[['all', 1.02], ['os', 1.0]], d=120, y=['i', 'd'])
+        self.assertIn('r', response.json)
+        self.assertNotIn('d', response.json)
+        self.assertTrue(response.state['delay_overwrite'])
+        self.assertEqual(response.state['delay'], 120)
+
+        response = self.webapp_request(y=['d'])
+        self.assertNotIn('r', response.json)
+        self.assertNotIn('d', response.json)
+        self.assertTrue(response.state['delay_overwrite'])
+        self.assertEqual(response.state['delay'], 120)
+
+        response = self.webapp_request(y=['i'])
+        self.assertIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 10)
+        self.assertFalse(response.state['delay_overwrite'])
+        self.assertEqual(response.state['delay'], 10)
+
+        response = self.webapp_request(y=['i', 'd'])
+        self.assertIn('r', response.json)
+        self.assertNotIn('d', response.json)
+        self.assertTrue(response.state['delay_overwrite'])
+        self.assertEqual(response.state['delay'], 120)

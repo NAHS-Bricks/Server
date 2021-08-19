@@ -42,7 +42,7 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 4)
         response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='temp_precision', value=11)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
-        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='sleep_delay', value=40)  # brick is missing in data
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='delay', value=40)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(path="/admin", command='get_brick')  # brick is missing in data
         self.assertEqual(response.json['s'], 11)

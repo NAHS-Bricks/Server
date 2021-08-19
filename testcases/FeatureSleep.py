@@ -25,12 +25,24 @@ class TestFeatureSleep(BaseCherryPyTestCase):
         self.assertIn('sleep_increase_wait', response.state)
         self.assertEqual(response.state['sleep_increase_wait'], 2)
 
-        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
         response = self.webapp_request()
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 30)
         self.assertIn('sleep_increase_wait', response.state)
         self.assertEqual(response.state['sleep_increase_wait'], 3)
+
+    def test_admin_override_delay_with_delay_overwrite(self):
+        v = self.v.copy()
+        v.remove(['all', 1])
+        v.insert(0, ['all', 1.02])
+        response = self.webapp_request(clear_state=True, v=v, d=60, y=['d'])
+        self.assertNotIn('d', response.json)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
+        response = self.webapp_request(y=['d'])
+        self.assertNotIn('d', response.json)
+        self.assertEqual(response.state['delay'], 60)
 
 
 @parameterized_class(getVersionParameter(['sleep', 'bat']))
@@ -75,12 +87,25 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
         self.assertIn('sleep_increase_wait', response.state)
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
-        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
         response = self.webapp_request(y=['c'])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 30)
         self.assertIn('sleep_increase_wait', response.state)
         self.assertEqual(response.state['sleep_increase_wait'], 3)
+
+    def test_admin_override_delay_charging_with_delay_overwrite(self):
+        v = self.v.copy()
+        v.remove(['all', 1])
+        v.insert(0, ['all', 1.02])
+        response = self.webapp_request(clear_state=True, v=v, b=4.2, p=11, d=120, y=['c', 'd'], s=1)  # p and s for getting rid of other features requests
+        self.assertNotIn('d', response.json)
+        self.assertEqual(response.state['delay'], 120)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
+        response = self.webapp_request(y=['c', 'd'])
+        self.assertNotIn('d', response.json)
+        self.assertEqual(response.state['delay'], 120)
 
     def test_admin_override_delay_standby(self):
         response = self.webapp_request(clear_state=True, v=self.v, b=4.2, p=11, y=['s'], s=1)  # p and s for getting rid of other features requests
@@ -89,7 +114,7 @@ class TestFeatureSleepWithBat(BaseCherryPyTestCase):
         self.assertIn('sleep_increase_wait', response.state)
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
-        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
         response = self.webapp_request(y=['s'])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 30)
@@ -166,81 +191,81 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 120)
+        self.assertEqual(response.state['delay'], 120)
         response = self.webapp_request(t=[['s1', 24.25]])
         self.assertNotIn('d', response.json)
-        self.assertEqual(response.state['sleep_delay'], 120)
+        self.assertEqual(response.state['delay'], 120)
 
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 180)
+        self.assertEqual(response.state['delay'], 180)
         response = self.webapp_request(t=[['s1', 24.25]])
         self.assertNotIn('d', response.json)
-        self.assertEqual(response.state['sleep_delay'], 180)
+        self.assertEqual(response.state['delay'], 180)
 
     def test_no_delay_decrease_on_negative_point25_change(self):
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 120)
+        self.assertEqual(response.state['delay'], 120)
         response = self.webapp_request(t=[['s1', 23.75]])
         self.assertNotIn('d', response.json)
-        self.assertEqual(response.state['sleep_delay'], 120)
+        self.assertEqual(response.state['delay'], 120)
 
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 180)
+        self.assertEqual(response.state['delay'], 180)
         response = self.webapp_request(t=[['s1', 23.75]])
         self.assertNotIn('d', response.json)
-        self.assertEqual(response.state['sleep_delay'], 180)
+        self.assertEqual(response.state['delay'], 180)
 
     def test_delay_decrease_on_positive_point26_change(self):
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 120)
+        self.assertEqual(response.state['delay'], 120)
         response = self.webapp_request(t=[['s1', 24.26]])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
-        self.assertEqual(response.state['sleep_delay'], 60)
+        self.assertEqual(response.state['delay'], 60)
 
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 180)
+        self.assertEqual(response.state['delay'], 180)
         response = self.webapp_request(t=[['s1', 24.26]])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
-        self.assertEqual(response.state['sleep_delay'], 60)
+        self.assertEqual(response.state['delay'], 60)
 
     def test_delay_decrease_on_negative_point26_change(self):
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 120)
+        self.assertEqual(response.state['delay'], 120)
         response = self.webapp_request(t=[['s1', 23.74]])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
-        self.assertEqual(response.state['sleep_delay'], 60)
+        self.assertEqual(response.state['delay'], 60)
 
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 7):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 180)
+        self.assertEqual(response.state['delay'], 180)
         response = self.webapp_request(t=[['s1', 23.74]])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 60)
-        self.assertEqual(response.state['sleep_delay'], 60)
+        self.assertEqual(response.state['delay'], 60)
 
     def test_admin_override_delay(self):
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], p=11, b=4, s=1)  # b and s for getting rid of other features requests
         for i in range(0, 4):
             response = self.webapp_request(t=[['s1', 24]])
-        self.assertEqual(response.state['sleep_delay'], 120)
+        self.assertEqual(response.state['delay'], 120)
 
-        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
         response = self.webapp_request(t=[['s1', 24]])
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 30)
@@ -316,7 +341,7 @@ class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 900)
 
-        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
         response = self.webapp_request()
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 30)
@@ -365,7 +390,7 @@ class TestFeatureSleepWithSignal(BaseCherryPyTestCase):
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 120)
 
-        self.webapp_request(path='/admin', command="set", brick='localhost', key='sleep_delay', value=30)
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
         response = self.webapp_request()
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 30)

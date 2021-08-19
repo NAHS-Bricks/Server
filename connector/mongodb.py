@@ -34,7 +34,7 @@ def brick_get(brick_id):
     brick = mongoDB.bricks.find_one({'_id': brick_id})
     if brick is None:
         brick = {}
-        feature_update(brick, 'all', 0, 0)
+        feature_update(brick, 'all', -1, 0)
         brick['_id'] = brick_id
     return brick
 

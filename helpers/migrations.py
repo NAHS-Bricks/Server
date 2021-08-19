@@ -53,11 +53,21 @@ def _migrate_from_050():
         brick_save(brick)
 
 
+def _migrate_from_061():
+    for brick in brick_all():
+        if 'sleep_delay' in brick:
+            brick['delay'] = brick['sleep_delay']
+            brick.pop('sleep_delay')
+        else:
+            brick['delay'] = 60
+
+
 _migrations = {
     '0.1.0': _migrate_from_010,
     '0.3.0': _migrate_from_030,
     '0.4.2': _migrate_from_042,
-    '0.5.0': _migrate_from_050
+    '0.5.0': _migrate_from_050,
+    '0.6.1': _migrate_from_061
 }
 
 

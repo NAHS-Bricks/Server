@@ -35,7 +35,7 @@ class Brickserver(object):
         c = bat is charging
         s = bat charging is in standby
         i = brick initalized (just started up, runtimeData is on initial values)
-        d = allwaysOverwriteDelay(WithDefault) is active/set
+        d = delay_overwrite(AllwaysWithDefault) is active/set
         q = sleep_disabled is active/set
     x = bricktype as int (1 = TempBrick)
     p = temp_precision for temp-sensors as int
@@ -44,7 +44,7 @@ class Brickserver(object):
 
     Output json keys:
     s = state is 0 for ok and 1 for failure
-    d = sleep_delay value for brick to use
+    d = delay value for brick to use
     p = temp_precision for temp-sensors (int between 9 and 12)
     t = list of lists where the index of the outerlist is the latch id and the nested lists carry the triggers to enable (eg: [[0, 2], [1, 3]])
     o = list of signal output states where 0 is output off (low) and 1 is output on (high) length of list equals signal_count
@@ -112,8 +112,8 @@ class Brickserver(object):
             for k in {x for t in [(p if type(p) is list else [p]) for p in process_requests + feature_requests if p] for x in t}:
                 if k.startswith('request_') and 'r' not in result:
                     result['r'] = []
-                if k == 'update_sleep_delay':
-                    result['d'] = brick['sleep_delay']
+                if k == 'update_delay':
+                    result['d'] = brick['delay']
                 elif k == 'update_temp_precision':
                     result['p'] = brick['temp_precision']
                 elif k == 'update_latch_triggers':
@@ -140,9 +140,9 @@ class Brickserver(object):
                 elif k == 'request_signal_count':
                     result['r'].append(7)
 
-            # special-case: feature sleep is present and requests are made: override delay to 10 -- except admin_override for sleep_delay is present
-            if 'sleep' in brick['features'] and 'r' in result and ('admin_override' not in brick or 'sleep_delay' not in brick['admin_override']):
-                brick['sleep_delay'] = 10
+            # special-case: requests are made and feature sleep is present or all is at least v1.02: override delay to 10 -- except admin_override for delay is present or delay_overwrite is True
+            if 'r' in result and ('admin_override' not in brick or 'delay' not in brick['admin_override']) and ('sleep' in brick['features'] or brick['features']['all'] >= 1.02) and not (brick['features']['all'] >= 1.02 and brick['delay_overwrite']):
+                brick['delay'] = 10
                 result['d'] = 10
 
             # remove admin_override form brick if present (processing done, so it's no longer needed)
@@ -164,7 +164,7 @@ class Brickserver(object):
     """
     Admin interface to override some values
     Usable via set command:
-      sleep_delay: integer (set delay to value)
+      delay: integer (set delay to value)
       bat_voltage: bool (request_bat_voltage if true)
       desc: string (description of brick)
       temp_precision: integer (temperature sensors precision 9 <= value <= 12)

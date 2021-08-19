@@ -2,6 +2,16 @@ from connector.mongodb import temp_sensor_get, signal_all
 from datetime import datetime, timedelta
 
 
+def __feature_all(brick):
+    if brick['features']['all'] >= 1.02 and brick['delay_overwrite']:
+        brick['delay'] = (brick['delay_default'] if brick['delay_default'] is not None else 60)
+        return
+    if 'sleep' not in brick['features'] and brick['features']['all'] >= 1.02:
+        if not brick['delay'] == brick['delay_default']:
+            brick['delay'] = brick['delay_default']
+            return 'update_delay'
+
+
 def __feature_bat(brick):
     if brick['bat_last_ts']:
         dt_now = datetime.fromtimestamp(brick['last_ts'])
@@ -23,38 +33,40 @@ def __feature_bat(brick):
 
 
 def __feature_sleep(brick):
+    if brick['features']['all'] >= 1.02 and brick['delay_overwrite']:
+        return
     brick['sleep_increase_wait'] -= (0 if brick['sleep_increase_wait'] <= 0 else 1)
-    # If power-cord is connected sleep_delay can be set to 60, except it's solar charged
+    # If power-cord is connected delay can be set to 60, except it's solar charged
     if 'bat' in brick['features'] and (brick['bat_charging'] or brick['bat_charging_standby']) and not brick['bat_solar_charging']:
-        brick['sleep_delay'] = 60
+        brick['delay'] = 60
         brick['sleep_increase_wait'] = 3
-        return 'update_sleep_delay'
+        return 'update_delay'
     elif 'temp' in brick['features']:
-        if (brick['temp_max_diff'] > 0.25 and brick['sleep_delay'] > 60) or brick['sleep_delay'] < 60:
-            brick['sleep_delay'] = 60
+        if (brick['temp_max_diff'] > 0.25 and brick['delay'] > 60) or brick['delay'] < 60:
+            brick['delay'] = 60
             brick['sleep_increase_wait'] = 3
-            return 'update_sleep_delay'
-        elif brick['temp_max_diff'] > 0.25:  # If sleep_delay is allready 60 we don't need to send an update
+            return 'update_delay'
+        elif brick['temp_max_diff'] > 0.25:  # If delay is allready 60 we don't need to send an update
             brick['sleep_increase_wait'] = 3
             return None
-        elif brick['sleep_increase_wait'] <= 0 and brick['sleep_delay'] < 300:
-            brick['sleep_delay'] += 60
+        elif brick['sleep_increase_wait'] <= 0 and brick['delay'] < 300:
+            brick['delay'] += 60
             brick['sleep_increase_wait'] = 3
-            return 'update_sleep_delay'
+            return 'update_delay'
     elif 'latch' in brick['features']:
         if brick['latch_triggerstate_received']:
-            brick['sleep_delay'] = 20
+            brick['delay'] = 20
         else:
-            brick['sleep_delay'] = 900
-        return 'update_sleep_delay'
+            brick['delay'] = 900
+        return 'update_delay'
     elif 'signal' in brick['features']:
         for signal in signal_all(brick['_id']):
-            if signal['state'] == 1:  # if at least one signal is going to be switched on, set sleep_delay to 60
-                brick['sleep_delay'] = 60
+            if signal['state'] == 1:  # if at least one signal is going to be switched on, set delay to 60
+                brick['delay'] = 60
                 break
         else:
-            brick['sleep_delay'] = 120  # otherwise set is to 120
-        return 'update_sleep_delay'
+            brick['delay'] = 120  # otherwise set is to 120
+        return 'update_delay'
 
 
 def __feature_temp(brick):
@@ -77,10 +89,10 @@ def __feature_admin_override(brick):
     result = []
     if 'admin_override' not in brick:  # pragma: no cover
         return result
-    if 'sleep_delay' in brick['admin_override']:
-        brick['sleep_delay'] = brick['admin_override']['sleep_delay']
+    if 'delay' in brick['admin_override'] and not (brick['features']['all'] >= 1.02 and brick['delay_overwrite']):
+        brick['delay'] = brick['admin_override']['delay']
         brick['sleep_increase_wait'] = 3
-        result.append('update_sleep_delay')
+        result.append('update_delay')
     if 'bat' in brick['features'] and 'bat_voltage' in brick['admin_override'] and brick['admin_override']['bat_voltage']:
         result.append('request_bat_voltage')
     if 'temp' in brick['features'] and 'temp_precision' in brick['admin_override']:
@@ -93,6 +105,7 @@ def __feature_admin_override(brick):
 
 
 feature = {
+    'all': __feature_all,
     'bat': __feature_bat,
     'sleep': __feature_sleep,
     'temp': __feature_temp,
