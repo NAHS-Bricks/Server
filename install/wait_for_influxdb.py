@@ -1,9 +1,12 @@
+import sys
+import os
+import time
 from influxdb import InfluxDBClient
 from requests import exceptions
-import sys
-import time
+sys.path.append(os.getcwd())
+from helpers.shared import config
 
-influxDB = InfluxDBClient(host='localhost', port=8086)
+influxDB = InfluxDBClient(host=config['influx']['server'], port=config['influx']['port'])
 
 while(True):
     try:

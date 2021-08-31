@@ -8,7 +8,6 @@ def _all_initial(brick):
     brick['init_ts'] = None
     brick['last_ts'] = None
     brick['initalized'] = False
-    brick['events'] = list()
     brick['ip'] = None
     brick['delay'] = 60
 

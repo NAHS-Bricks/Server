@@ -7,11 +7,17 @@ from cherrypy.lib import httputil
 from brickserver import Brickserver
 from pymongo import MongoClient
 from parameterized import parameterized_class
+from connector.mqtt import start_async_worker as mqtt_start_worker, _publish_async as mqtt_publish_async
 import copy
-from event.worker import start_thread as event_worker
+from threading import Thread
+import time
+import paho.mqtt.client as mqtt
 
 local = httputil.Host('127.0.0.1', 50000, '')
 remote = httputil.Host('127.0.0.1', 50001, '')
+
+mqtt_receiver = None
+mqtt_receiver_str = ""
 
 
 def getVersionParameter(myFeature, forbiddenCombinations=None):
@@ -37,11 +43,34 @@ def getVersionParameter(myFeature, forbiddenCombinations=None):
     return r
 
 
-def setUpModule():
-    cherrypy.config.update({'environment': 'test_suite'})
+def mqtt_start_receiver():
+    global mqtt_receiver
+    global mqtt_receiver_str
 
-    # start the event_worker in background
-    event_worker()
+    def _mqtt_receiver_thread():
+        def on_message(client, userdata, message):
+            global mqtt_receiver_str
+            mqtt_receiver_str += f'{message.topic} {message.payload.decode("utf-8")}\n'
+        if os.path.isfile('config.json'):
+            with open('config.json', 'r') as f:
+                config = json.loads(f.read().strip())
+            client = mqtt.Client("brickserver_test")
+            client.on_message = on_message
+            client.connect(config['mqtt']['server'])
+            client.loop_start()
+            client.subscribe("brick/#")
+            while True:
+                time.sleep(10)
+
+    if mqtt_receiver is None:
+        mqtt_receiver = Thread(target=_mqtt_receiver_thread, daemon=True)
+        mqtt_receiver.start()
+
+
+def setUpModule():
+    mqtt_start_worker()
+    mqtt_start_receiver()
+    cherrypy.config.update({'environment': 'test_suite'})
 
     # prevent the HTTP server from ever starting
     cherrypy.server.unsubscribe()
@@ -61,7 +90,9 @@ teardown_module = tearDownModule
 
 
 class BaseCherryPyTestCase(unittest.TestCase):
-    def webapp_request(self, path='/', clear_state=False, ignore_brick_id=False, **kwargs):
+    def webapp_request(self, path='/', clear_state=False, ignore_brick_id=False, mqtt_test=False, **kwargs):
+        global mqtt_receiver_str
+        mqtt_receiver_str = ""
         if clear_state and os.path.isfile('config.json'):
             with open('config.json', 'r') as f:
                 config = json.loads(f.read().strip())
@@ -104,6 +135,17 @@ class BaseCherryPyTestCase(unittest.TestCase):
             response.json = json.loads(response.body[0])
         except Exception:
             response.json = {}
+
+        if mqtt_test:
+            # sending a mqtt message, that test is done
+            mqtt_publish_async('brick/test_done', 1)
+            # waiting for the done message to be received
+            while 'test_done' not in mqtt_receiver_str:
+                time.sleep(0.01)
+            # copy the recieved mqtt messages to the response
+            response.mqtt = mqtt_receiver_str
+        else:
+            response.mqtt = ''
 
         if os.path.isfile('config.json'):
             with open('config.json', 'r') as f:

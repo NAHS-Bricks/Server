@@ -1,6 +1,7 @@
 from helpers.shared import send_telegram, calculate_bat_prediction
 from connector.mongodb import temp_sensor_get, latch_get
 from connector.influxdb import temp_store, bat_level_store, bat_charging_store, latch_store
+from connector.mqtt import temp_send, bat_level_send, bat_charging_send, latch_send
 from datetime import datetime, timedelta
 import os
 
@@ -8,8 +9,11 @@ import os
 def __process_t(brick_new, brick_old):
     if 'temp' not in brick_new['features']:  # pragma: no cover
         return
-    for sensor in [sensor for sensor in [temp_sensor_get(sensor) for sensor in brick_new['temp_sensors']] if sensor['last_reading'] is not None and 'metric' not in sensor['disables']]:
-        temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
+    for sensor in [sensor for sensor in [temp_sensor_get(sensor) for sensor in brick_new['temp_sensors']] if sensor['last_reading'] is not None]:
+        if 'metric' not in sensor['disables']:
+            temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
+        if 'mqtt' not in sensor['disables']:
+            temp_send(sensor['_id'], sensor['last_reading'], brick_new['_id'])
     if 'temp' in brick_old['features']:
         max_diff = 0
         for sensor in [sensor for sensor in [temp_sensor_get(s) for s in brick_new['temp_sensors']] if sensor['last_reading'] and sensor['prev_reading']]:
@@ -29,6 +33,7 @@ def __process_b(brick_new, brick_old):
     # Store Data to InfluxDB
     voltage_diff = ((brick_old['bat_last_reading'] - brick_new['bat_last_reading']) if 'bat_last_reading' in brick_old and brick_old['bat_last_reading'] else None)
     bat_level_store(brick_new['bat_last_reading'], voltage_diff, brick_new['bat_runtime_prediction'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
+    bat_level_send(brick_new['_id'], brick_new['bat_last_reading'], brick_new['bat_runtime_prediction'])
     if 'bat' in brick_old['features']:
         if brick_new['bat_charging'] and brick_new['bat_last_reading'] >= 4.15 and brick_old['bat_last_reading'] < 4.15:
             send_telegram('Bat charged over 4.15Volts on ' + (brick_new['_id'] if brick_new['desc'] is None or brick_new['desc'] == '' else brick_new['desc']))
@@ -38,8 +43,11 @@ def __process_l(brick_new, brick_old):
     if 'latch' not in brick_new['features']:  # pragma: no cover
         return
     brick_new['latch_triggerstate_received'] = False
-    for latch in [latch for latch in [latch_get(brick_new['_id'], lid) for lid in range(0, brick_new['latch_count'])] if latch['last_state'] is not None and 'metric' not in latch['disables']]:
-        latch_store(latch['last_state'], latch['_id'], brick_new['last_ts'], latch['desc'], brick_new['desc'])
+    for latch in [latch for latch in [latch_get(brick_new['_id'], lid) for lid in range(0, brick_new['latch_count'])] if latch['last_state'] is not None]:
+        if 'metric' not in latch['disables']:
+            latch_store(latch['last_state'], latch['_id'], brick_new['last_ts'], latch['desc'], brick_new['desc'])
+        if 'mqtt' not in latch['disables']:
+            latch_send(latch['_id'], latch['last_state'])
         if latch['last_state'] > 1:
             brick_new['latch_triggerstate_received'] = True
 
@@ -71,6 +79,7 @@ def __process_y(brick_new, brick_old):
     if 'bat' in brick_new['features'] and 'bat' in brick_old['features']:
         if not brick_new['bat_charging'] == brick_old['bat_charging'] or not brick_new['bat_charging_standby'] == brick_old['bat_charging_standby']:
             bat_charging_store(brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
+            bat_charging_send(brick_new['_id'], brick_new['bat_charging'], brick_new['bat_charging_standby'])
         if not brick_new['bat_charging'] and brick_old['bat_charging'] and not brick_new['bat_solar_charging']:
             brick_new['bat_periodic_voltage_request'] = 10
             result.append('request_bat_voltage')

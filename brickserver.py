@@ -7,11 +7,10 @@ import copy
 import argparse
 from datetime import datetime, timedelta
 from connector.mongodb import mongodb_lock_acquire, mongodb_lock_release, brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
-from connector.rabbitmq import event_create
+from connector.mqtt import start_async_worker as start_mqtt_worker, signal_send
 from stage.store import store as store_stage
 from stage.process import process as process_stage
 from stage.feature import feature as feature_stage
-from event.worker import start_thread as event_worker
 from helpers.current_version import current_brickserver_version
 from helpers.shared import config, send_telegram, get_deviceid
 from helpers.admin import admin_interface
@@ -127,6 +126,8 @@ class Brickserver(object):
                         if signal['state_transmitted_ts'] is None:
                             signal['state_transmitted_ts'] = brick['last_ts']
                             signal_save(signal)
+                        if 'mqtt' not in signal['disables']:
+                            signal_send(signal['_id'], signal['state'], True)
                 elif k == 'request_versions':
                     result['r'].append(1)
                 elif k == 'request_bat_voltage':
@@ -151,9 +152,6 @@ class Brickserver(object):
 
             # save-back intermediate brick
             brick_save(brick)
-
-            # create an event for this brick
-            event_create(brick)
 
             # release lock on brick object
             mongodb_lock_release(brick_id)
@@ -261,7 +259,6 @@ if __name__ == '__main__':
         exec_migrate(current_brickserver_version)
         sys.exit(0)
 
-    event_worker()
-
+    start_mqtt_worker()
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': config['server_port'], })
     cherrypy.quickstart(Brickserver())

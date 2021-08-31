@@ -286,3 +286,26 @@ class TestFeatureLatch(BaseCherryPyTestCase):
         response = self.webapp_request(path='/admin', command='get_count', item='latches')
         self.assertIn('count', response.json)
         self.assertEqual(response.json['count'], 3)
+
+    def test_mqtt_messages_are_send(self):
+        response = self.webapp_request(clear_state=True, mqtt_test=True, v=self.v, l=[1, 2])
+        self.assertIn('brick/localhost/latch/localhost_0 1', response.mqtt)
+        self.assertIn('brick/localhost/latch/localhost_1 2', response.mqtt)
+        response = self.webapp_request(mqtt_test=True, l=[0, 1, 2])
+        self.assertIn('brick/localhost/latch/localhost_0 0', response.mqtt)
+        self.assertIn('brick/localhost/latch/localhost_1 1', response.mqtt)
+        self.assertIn('brick/localhost/latch/localhost_2 2', response.mqtt)
+
+        # disableing latch 1 to send mqtt messages
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_1', key='add_disable', value='mqtt')
+        response = self.webapp_request(mqtt_test=True, l=[0, 1, 2])
+        self.assertIn('brick/localhost/latch/localhost_0 0', response.mqtt)
+        self.assertNotIn('brick/localhost/latch/localhost_1 1', response.mqtt)
+        self.assertIn('brick/localhost/latch/localhost_2 2', response.mqtt)
+
+        # enable latch 1 to send mqtt messages
+        response = self.webapp_request(path='/admin', command='set', latch='localhost_1', key='del_disable', value='mqtt')
+        response = self.webapp_request(mqtt_test=True, l=[0, 1, 2])
+        self.assertIn('brick/localhost/latch/localhost_0 0', response.mqtt)
+        self.assertIn('brick/localhost/latch/localhost_1 1', response.mqtt)
+        self.assertIn('brick/localhost/latch/localhost_2 2', response.mqtt)

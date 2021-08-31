@@ -10,13 +10,13 @@ project_dir = "/opt/middleware/nahs/brickserver"
 backup_dir = "/var/backup"
 storagedir_mongo = "/var/data/mongodb"
 storagedir_influx = "/var/data/influxdb"
-storagedir_rabbitmq = "/var/data/rabbitmq"
+storagedir_mosquitto = "/var/data/mosquitto"
 mongodb_image = 'mongo:4.4'
 influxdb_image = 'influxdb:1.8'
-rabbitmq_image = 'rabbitmq:3.8'
+mosquitto_image = 'eclipse-mosquitto:2.0'
 mongodb_service = "docker.mongodb.service"
 influxdb_service = 'docker.influxdb.service'
-rabbitmq_service = 'docker.rabbitmq.service'
+mosquitto_service = 'docker.mosquitto.service'
 
 
 def docker_pull(c, image):
@@ -65,6 +65,17 @@ def systemctl_install_service(c, local_file, remote_file, replace_macros):
         c.run("sed -i -e 's/" + macro + "/" + value.replace('/', '\/') + "/g' " + os.path.join('/etc/systemd/system', remote_file))
 
 
+def drop_event_system(c):
+    rabbitmq_service = 'docker.rabbitmq.service'
+    storagedir_rabbitmq = "/var/data/rabbitmq"
+    rabbitmq_image = 'rabbitmq:3.8'
+    systemctl_stop(c, rabbitmq_service)
+    c.run(f"rm -f {os.path.join('/etc/systemd/system', rabbitmq_service)}", warn=True, hide=True)
+    c.run(f"rm -rf {storagedir_rabbitmq}", warn=True, hide=True)
+    c.run(f"docker rmi {rabbitmq_image}", warn=True, hide=True)
+    c.run(f"rm -rf {os.path.join(project_dir, 'event')}", warn=True, hide=True)
+
+
 def install_rsyslog(c):
     print("Configuring rsyslog for BrickServer")
     c.put("install/rsyslog.conf", "/etc/rsyslog.d/brickserver.conf")
@@ -110,7 +121,7 @@ def upload_deploy_helpers(c):
     c.run("mkdir -p /tmp/brickserver-deploy")
     c.put("install/wait_for_mongodb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_mongodb.py"))
     c.put("install/wait_for_influxdb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_influxdb.py"))
-    c.put("install/wait_for_rabbitmq.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_rabbitmq.py"))
+    c.put("install/wait_for_mosquitto.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_mosquitto.py"))
 
 
 def cleanup_deploy_helpers(c):
@@ -122,13 +133,15 @@ def upload_project_files(c):
     for f in ["brickserver.py", "requirements.txt", "bat_prediction_reference.dat"]:
         print(f"Uploading {f}")
         c.put(f, remote=os.path.join(project_dir, f))
-    for d in ["helpers", "event", "connector", "stage"]:
+    print(f"Uploading mosquitto.conf")
+    c.put('install/mosquitto.conf', remote=os.path.join(storagedir_mosquitto, 'mosquitto.conf'))
+    for d in ["helpers", "connector", "stage"]:
         print(f"Uploading {d}")
-        patchwork.transfers.rsync(c, d, project_dir, exclude=['*.pyc', '*__pycache__'])
+        patchwork.transfers.rsync(c, d, project_dir, exclude=['*.pyc', '*__pycache__'], delete=True)
 
 
 def create_directorys(c):
-    for d in [project_dir, storagedir_mongo, storagedir_influx, backup_dir]:
+    for d in [project_dir, storagedir_mongo, storagedir_influx, storagedir_mosquitto, backup_dir]:
         print(f"Creating {d}")
         c.run(f"mkdir -p {d}", warn=True, hide=True)
 
@@ -156,17 +169,17 @@ def install_docker(c):
 
 def wait_for_mongodb(c):
     print("Waiting for MongoDB to be started")
-    c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_mongodb.py")
+    c.run(f"cd {project_dir}; {os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_mongodb.py")
 
 
 def wait_for_influxdb(c):
     print("Waiting for InfluxDB to be started")
-    c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_influxdb.py")
+    c.run(f"cd {project_dir}; {os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_influxdb.py")
 
 
-def wait_for_rabbitmq(c):
-    print("Waiting for RabbitMQ to be started")
-    c.run(f"{os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_rabbitmq.py")
+def wait_for_mosquitto(c):
+    print("Waiting for mosquitto to be started")
+    c.run(f"cd {project_dir}; {os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_mosquitto.py")
 
 
 def backup_mongodb(c):
@@ -197,7 +210,7 @@ def deploy(c):
     systemctl_start_docker(c)
     docker_pull(c, mongodb_image)
     docker_pull(c, influxdb_image)
-    docker_pull(c, rabbitmq_image)
+    docker_pull(c, mosquitto_image)
     upload_deploy_helpers(c)
     # Timecritical stuff (when service allready runs) - start
     create_directorys(c)
@@ -207,24 +220,25 @@ def deploy(c):
     backup_mongodb(c)
     systemctl_stop(c, mongodb_service)
     systemctl_stop(c, influxdb_service)
-    systemctl_stop(c, rabbitmq_service)
+    systemctl_stop(c, mosquitto_service)
+    drop_event_system(c)
     upload_project_files(c)
     write_brickserver_version(c)
     setup_virtualenv(c)
     systemctl_install_service(c, 'brickserver.service', 'brickserver.service', [('__project_dir__', project_dir)])
     systemctl_install_service(c, 'docker.service', mongodb_service, [('__additional__', ''), ('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
     systemctl_install_service(c, 'docker.service', influxdb_service, [('__additional__', ''), ('__storage__', storagedir_influx + ':/var/lib/influxdb'), ('__port__', '8086:8086'), ('__image__', influxdb_image)])
-    systemctl_install_service(c, 'docker.service', rabbitmq_service, [('__additional__', "--hostname brickserver -e RABBITMQ_VM_MEMORY_HIGH_WATERMARK='0.25'"), ('__storage__', storagedir_rabbitmq + ':/var/lib/rabbitmq'), ('__port__', '5672:5672'), ('__image__', rabbitmq_image)])
+    systemctl_install_service(c, 'docker.service', mosquitto_service, [('__additional__', ''), ('__storage__', os.path.join(storagedir_mosquitto, 'mosquitto.conf') + ':/mosquitto/config/mosquitto.conf'), ('__port__', '1883:1883'), ('__image__', mosquitto_image)])
     c.run("systemctl daemon-reload")
     install_rsyslog(c)
     install_cron(c)
     install_logrotate(c)
     systemctl_start(c, mongodb_service)
     systemctl_start(c, influxdb_service)
-    systemctl_start(c, rabbitmq_service)
+    systemctl_start(c, mosquitto_service)
     wait_for_mongodb(c)
     wait_for_influxdb(c)
-    wait_for_rabbitmq(c)
+    wait_for_mosquitto(c)
     execute_migrations(c)
     systemctl_start(c, 'brickserver')
     systemctl_start(c, 'cron')

@@ -1,5 +1,5 @@
 from pymongo import MongoClient, ASCENDING
-from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, event_defaults
+from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults
 from helpers.feature_versioning import feature_update
 import copy
 from bson.objectid import ObjectId
@@ -268,120 +268,6 @@ def signal_count():
     """
     global mongoDB
     return mongoDB.signals.count_documents({})
-
-
-def event_get(event_id=None):
-    """
-    Returns an event from DB or a newly created it if doesn't exist in DB
-    """
-    global mongoDB
-    if event_id is not None:
-        event = mongoDB.events.find_one({'_id': event_id})
-    if event_id is None or event is None:
-        event = dict()
-        event.update(copy.deepcopy(event_defaults))
-        event['_id'] = str(ObjectId())
-    return event
-
-
-def event_save(event):
-    """
-    Saves event to DB
-    """
-    global mongoDB
-    mongoDB.events.replace_one({'_id': event['_id']}, event, True)
-
-
-def event_delete(event):
-    """
-    Removes event from DB
-    """
-    global mongoDB
-    mongoDB.events.delete_one({'_id': event['_id']})
-
-
-def event_exists(event_id):
-    """
-    Returns True or False whether a event is stored in DB or not
-    """
-    global mongoDB
-    event = mongoDB.events.find_one({'_id': event_id})
-    return event is not None
-
-
-def event_all(brick_id=None):  # pragma: no cover
-    """
-    Returns an iterator to all events in DB if brick_id is None
-    Otherwise returns an iterator to all events of a specific brick
-    """
-    global mongoDB
-    if brick_id is None:
-        return mongoDB.events.find({}).sort("_id", ASCENDING)
-    else:
-        return mongoDB.events.find({'brick_id': str(brick_id)}).sort("_id", ASCENDING)
-
-
-def event_count():
-    """
-    Returns number of events present in DB
-    """
-    global mongoDB
-    return mongoDB.events.count_documents({})
-
-
-def event_data_get(event, name):
-    """
-    Returns event_data from DB or a newly created it if doesn't exist in DB
-    """
-    global mongoDB
-    if name.startswith('__'):
-        edid = str(name.replace('__', 'g_', 1))
-    elif name.startswith('_'):
-        edid = str(event['brick_id']) + str(name)
-    else:
-        edid = str(event['_id']) + '_' + str(name)
-    event_data = mongoDB.event_data.find_one({'_id': edid})
-    if event_data is None:
-        event_data = dict()
-        event_data['_id'] = edid
-    return event_data
-
-
-def event_data_save(event_data):
-    """
-    Saves event_data to DB
-    """
-    global mongoDB
-    mongoDB.event_data.replace_one({'_id': event_data['_id']}, event_data, True)
-
-
-def event_data_delete(event_data):
-    """
-    Removes event_data from DB
-    """
-    global mongoDB
-    mongoDB.event_data.delete_one({'_id': event_data['_id']})
-
-
-def event_data_all(scope=None):  # pragma: no cover
-    """
-    Returns an iterator to all event_data in DB if scope is None
-    Otherwise returns an iterator to all event_data of a specific scope
-      this can either be <event_id>, <brick_id> or g
-    """
-    global mongoDB
-    if scope is None:
-        return mongoDB.event_data.find({}).sort("_id", ASCENDING)
-    else:
-        return mongoDB.event_data.find({'_id': {'$regex': '^' + str(scope) + '_'}}).sort("_id", ASCENDING)
-
-
-def event_data_count():
-    """
-    Returns number of event_data present in DB
-    """
-    global mongoDB
-    return mongoDB.event_data.count_documents({})
 
 
 def util_get(util_id):

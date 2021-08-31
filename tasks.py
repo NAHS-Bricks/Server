@@ -11,18 +11,19 @@ def start_development(c):
     if 'dev-influx' not in r.stdout:
         print("Starting influxDB")
         c.run("sudo docker run --name dev-influx --rm -v /media/ramdisk/influxdb:/var/lib/influxdb -p 8086:8086 -d influxdb:1.8-alpine")
-    r = c.run("sudo docker ps -f name=dev-rabbitmq", hide=True)
-    if 'dev-rabbitmq' not in r.stdout:
-        print("Starting RabbitMQ")
-        c.run("sudo docker run --rm -d --hostname brickserver --name dev-rabbitmq -v /media/ramdisk/rabbitmq:/var/lib/rabbitmq -p 15672:15672 -p 5672:5672 -e RABBITMQ_VM_MEMORY_HIGH_WATERMARK='0.25' rabbitmq:3.8-management")
+    r = c.run("sudo docker ps -f name=dev-mosquitto", hide=True)
+    if 'dev-mosquitto' not in r.stdout:
+        print("Starting mosquitto")
+        c.run("cp install/mosquitto.conf /media/ramdisk/mosquitto.conf")
+        c.run("sudo docker run --name dev-mosquitto --rm -v /media/ramdisk/mosquitto.conf:/mosquitto/config/mosquitto.conf -p 1883:1883 -p 9001:9001 -d eclipse-mosquitto:2.0")
     c.run("python install/wait_for_influxdb.py")
+    c.run("python install/wait_for_mosquitto.py")
     c.run("python install/wait_for_mongodb.py")
-    c.run("python install/wait_for_rabbitmq.py")
 
 
 @task(name="dev-stop")
 def stop_development(c):
-    for name in ['dev-mongo', 'dev-influx', 'dev-rabbitmq']:
+    for name in ['dev-mongo', 'dev-influx', 'dev-mosquitto']:
         r = c.run(f"sudo docker ps -f name={name}", hide=True)
         if name in r.stdout:
             print(f"Stopping {name}")
@@ -31,8 +32,8 @@ def stop_development(c):
     c.run('sudo rm -rf /media/ramdisk/mongodb')
     print('Removing storage for dev-influx')
     c.run('sudo rm -rf /media/ramdisk/influxdb')
-    print('Removing storage for dev-rabbit')
-    c.run('sudo rm -rf /media/ramdisk/rabbitmq')
+    print('Removing conf for dev-mosquitto')
+    c.run('sudo rm -rf /media/ramdisk/mosquitto.conf')
 
 
 @task(pre=[stop_development], post=[start_development], name="dev-clean")

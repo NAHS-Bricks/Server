@@ -1,4 +1,4 @@
-from connector.mongodb import brick_all, brick_save, util_get, util_save, temp_sensor_all, temp_sensor_save, latch_all, latch_save
+from connector.mongodb import mongoDB, brick_all, brick_save, util_get, util_save, temp_sensor_all, temp_sensor_save, latch_all, latch_save
 from connector.influxdb import influxDB
 from helpers.shared import version_less_than, version_greater_or_equal_than
 import copy
@@ -60,6 +60,13 @@ def _migrate_from_061():
             brick.pop('sleep_delay')
         else:
             brick['delay'] = 60
+        if 'events' in brick:
+            brick.pop('events')
+        brick_save(brick)
+    if 'events' in mongoDB.collection_names():
+        mongoDB.drop_collection('events')
+    if 'event_data' in mongoDB.collection_names():
+        mongoDB.drop_collection('event_data')
 
 
 _migrations = {

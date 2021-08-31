@@ -295,3 +295,29 @@ class TestFeatureBat(BaseCherryPyTestCase):
         response = self.webapp_request()
         self.assertIn('r', response.json)
         self.assertIn(3, response.json['r'])
+
+    def test_mqtt_messages_are_send(self):
+        dt_now = datetime.now()
+
+        with fake_time(dt_now - timedelta(hours=24)):
+            response = self.webapp_request(clear_state=True, mqtt_test=True, v=self.v, b=3.8)
+            self.assertIn('brick/localhost/bat/voltage 3.8', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True, b=3.7)
+        self.assertIn('brick/localhost/bat/voltage 3.7', response.mqtt)
+        self.assertIn('brick/localhost/bat/prediction', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True)
+        self.assertNotIn('brick/localhost/bat/', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True, y=['c'])
+        self.assertIn('brick/localhost/bat/charging 1', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True, y=['s'])
+        self.assertIn('brick/localhost/bat/charging 2', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True)
+        self.assertIn('brick/localhost/bat/charging 0', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True)
+        self.assertNotIn('brick/localhost/bat/', response.mqtt)

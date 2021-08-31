@@ -1,7 +1,10 @@
-from pymongo import MongoClient, errors
 import sys
+import os
+from pymongo import MongoClient, errors
+sys.path.append(os.getcwd())
+from helpers.shared import config
 
-mongoClient = MongoClient(host='localhost', port=27017, serverSelectionTimeoutMS=2000)
+mongoClient = MongoClient(host=config['mongo']['server'], port=config['mongo']['port'], serverSelectionTimeoutMS=2000)
 while(True):
     try:
         mongoClient.server_info()

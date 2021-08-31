@@ -246,3 +246,46 @@ class TestFeatureSignal(BaseCherryPyTestCase):
         self.assertIn('metric', response.signals['localhost_1']['disables'])
         response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='del_disable', value='metric')
         self.assertEqual(len(response.signals['localhost_1']['disables']), 0)
+
+    def test_mqtt_messages_are_send(self):
+        response = self.webapp_request(clear_state=True, mqtt_test=True, v=self.v, s=3)
+        self.assertNotIn('brick/localhost/signal/', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True, y=['i'])
+        self.assertIn('brick/localhost/signal/localhost_0 0', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_1 0', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_2 0', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True, path='/admin', command='set', key='signal', signal='localhost_0', value=1)
+        self.assertIn('brick/localhost/signal/localhost_0 11', response.mqtt)
+        response = self.webapp_request(mqtt_test=True)
+        self.assertIn('brick/localhost/signal/localhost_0 1', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_1 0', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_2 0', response.mqtt)
+
+        response = self.webapp_request(mqtt_test=True, path='/admin', command='set', key='signal', signal='localhost_0', value=0)
+        self.assertIn('brick/localhost/signal/localhost_0 10', response.mqtt)
+        response = self.webapp_request(mqtt_test=True, path='/admin', command='set', key='signal', signal='localhost_1', value=1)
+        self.assertIn('brick/localhost/signal/localhost_1 11', response.mqtt)
+        response = self.webapp_request(mqtt_test=True)
+        self.assertIn('brick/localhost/signal/localhost_0 0', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_1 1', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_2 0', response.mqtt)
+
+        # disable signal 1 to send mqtt messages
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='mqtt')
+        response = self.webapp_request(mqtt_test=True, path='/admin', command='set', key='signal', signal='localhost_1', value=1)
+        self.assertNotIn('brick/localhost/signal/', response.mqtt)
+        response = self.webapp_request(mqtt_test=True)
+        self.assertIn('brick/localhost/signal/localhost_0 0', response.mqtt)
+        self.assertNotIn('brick/localhost/signal/localhost_1 1', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_2 0', response.mqtt)
+
+        # reanable signal 1 to send mqtt messages
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='del_disable', value='mqtt')
+        response = self.webapp_request(mqtt_test=True, path='/admin', command='set', key='signal', signal='localhost_1', value=1)
+        self.assertIn('brick/localhost/signal/localhost_1 11', response.mqtt)
+        response = self.webapp_request(mqtt_test=True)
+        self.assertIn('brick/localhost/signal/localhost_0 0', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_1 1', response.mqtt)
+        self.assertIn('brick/localhost/signal/localhost_2 0', response.mqtt)

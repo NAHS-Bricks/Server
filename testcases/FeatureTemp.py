@@ -251,3 +251,26 @@ class TestFeatureTemp(BaseCherryPyTestCase):
         response = self.webapp_request(path='/admin', command='get_count', item='temp_sensors')
         self.assertIn('count', response.json)
         self.assertEqual(response.json['count'], 3)
+
+    def test_mqtt_messages_are_send(self):
+        response = self.webapp_request(clear_state=True, mqtt_test=True, v=self.v, t=[['s1', 24], ['s2', 25]])
+        self.assertIn('brick/localhost/temp/s1 24', response.mqtt)
+        self.assertIn('brick/localhost/temp/s2 25', response.mqtt)
+        response = self.webapp_request(mqtt_test=True, t=[['s1', 24], ['s2', 25], ['s3', 24.5]])
+        self.assertIn('brick/localhost/temp/s1 24', response.mqtt)
+        self.assertIn('brick/localhost/temp/s2 25', response.mqtt)
+        self.assertIn('brick/localhost/temp/s3 24.5', response.mqtt)
+
+        # disableing latch 1 to send mqtt messages
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s2', key='add_disable', value='mqtt')
+        response = self.webapp_request(mqtt_test=True, t=[['s1', 24], ['s2', 25], ['s3', 24.5]])
+        self.assertIn('brick/localhost/temp/s1 24', response.mqtt)
+        self.assertNotIn('brick/localhost/temp/s2 25', response.mqtt)
+        self.assertIn('brick/localhost/temp/s3 24.5', response.mqtt)
+
+        # enable latch 1 to send mqtt messages
+        response = self.webapp_request(path='/admin', command='set', temp_sensor='s2', key='del_disable', value='mqtt')
+        response = self.webapp_request(mqtt_test=True, t=[['s1', 24], ['s2', 25], ['s3', 24.5]])
+        self.assertIn('brick/localhost/temp/s1 24', response.mqtt)
+        self.assertIn('brick/localhost/temp/s2 25', response.mqtt)
+        self.assertIn('brick/localhost/temp/s3 24.5', response.mqtt)
