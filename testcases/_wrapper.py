@@ -25,6 +25,7 @@ def getVersionParameter(myFeature, forbiddenCombinations=None):
         'sleep': ['sleep', 1],
         'bat': ['bat', 1],
         'temp': ['temp', 1],
+        'humid': ['humid', 1],
         'latch': ['latch', 1],
         'signal': ['signal', 1]
     }
@@ -158,6 +159,9 @@ class BaseCherryPyTestCase(unittest.TestCase):
             response.temp_sensors = {}
             for sensor in mongoDB.temp_sensors.find({}):
                 response.temp_sensors[sensor['_id']] = sensor
+            response.humid_sensors = {}
+            for sensor in mongoDB.humid_sensors.find({}):
+                response.humid_sensors[sensor['_id']] = sensor
             response.latches = {}
             for latch in mongoDB.latches.find({}):
                 response.latches[latch['_id']] = latch

@@ -25,8 +25,10 @@ class Brickserver(object):
     """
     Input json keys:
     t = list of sensors with temps, where sensor and temp are lists themself (eg: [['s1', t1], ['s2', t2]] )
+    c = list of sensors with corr (temperature), where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
     l = list of latch states, where the index of a state is the id of the latch input (eg: [0, 1] )
-    c = list of sensors with corr, where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
+    h = list of sensors with humidity, where sensor and humid are lists themself (eg: [['s1', h1], ['s2', h2]] )
+    k = list of sensors with corr (humidity), where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
     v = list of features with version (as float), where elements are lists themself, allways needs to contain os and all (as this are meta-features) (eg: [['os', 1.0], ['all', 1.0], ['bat', 1.0]] )
     f = list of bricks features as in brick_state_defaults
     b = bat-voltage as float
@@ -55,6 +57,7 @@ class Brickserver(object):
         6 = temp_precision is requested
         7 = signal_count is requested
         8 = delay_default is requested
+        9 = humid-sensor correction values are requested
     q = sets sleep_disabled (true or false)
     """
     @cherrypy.expose
@@ -140,6 +143,8 @@ class Brickserver(object):
                     result['r'].append(6)
                 elif k == 'request_signal_count':
                     result['r'].append(7)
+                elif k == 'request_humid_corr':
+                    result['r'].append(9)
 
             # special-case: requests are made and feature sleep is present or all is at least v1.02: override delay to 10 -- except admin_override for delay is present or delay_overwrite is True
             if 'r' in result and ('admin_override' not in brick or 'delay' not in brick['admin_override']) and ('sleep' in brick['features'] or brick['features']['all'] >= 1.02) and not (brick['features']['all'] >= 1.02 and brick['delay_overwrite']):

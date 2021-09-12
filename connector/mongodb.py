@@ -1,5 +1,5 @@
 from pymongo import MongoClient, ASCENDING
-from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults
+from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, humid_defaults
 from helpers.feature_versioning import feature_update
 import copy
 from bson.objectid import ObjectId
@@ -24,6 +24,11 @@ def mongodb_lock_acquire(brick_id):
 def mongodb_lock_release(brick_id):
     global brick_locks
     brick_locks[brick_id].release()
+
+
+"""
+brick
+"""
 
 
 def brick_get(brick_id):
@@ -93,6 +98,11 @@ def brick_count():
     return mongoDB.bricks.count_documents({})
 
 
+"""
+temp
+"""
+
+
 def temp_sensor_get(sensor_id):
     """
     Returns a temp_sensor from DB or a newly created it if doesn't exist in DB
@@ -147,6 +157,72 @@ def temp_sensor_count():
     """
     global mongoDB
     return mongoDB.temp_sensors.count_documents({})
+
+
+"""
+humid
+"""
+
+
+def humid_get(sensor_id):
+    """
+    Returns a humidity sensor from DB or a newly created it if doesn't exist in DB
+    """
+    global mongoDB
+    sensor = mongoDB.humid_sensors.find_one({'_id': sensor_id})
+    if sensor is None:
+        sensor = {}
+        sensor.update(copy.deepcopy(humid_defaults))
+        sensor['_id'] = sensor_id
+    return sensor
+
+
+def humid_save(sensor):
+    """
+    Saves humidity sensor to DB
+    """
+    global mongoDB
+    mongoDB.humid_sensors.replace_one({'_id': sensor['_id']}, sensor, True)
+
+
+def humid_delete(sensor_id):
+    """
+    Removes humidity sensor from DB
+    """
+    global mongoDB
+    mongoDB.humid_sensors.delete_one({'_id': sensor_id})
+
+
+def humid_exists(sensor_id):
+    """
+    Returns True or False whether a humidity sensor is stored in DB or not
+    """
+    global mongoDB
+    sensor = mongoDB.humid_sensors.find_one({'_id': sensor_id})
+    if sensor is not None:
+        return True
+    return False
+
+
+def humid_all():  # pragma: no cover
+    """
+    Returns an iterator to all humidity sensors in DB
+    """
+    global mongoDB
+    return mongoDB.humid_sensors.find({})
+
+
+def humid_count():
+    """
+    Returns number of humidity sensors present in DB
+    """
+    global mongoDB
+    return mongoDB.humid_sensors.count_documents({})
+
+
+"""
+latch
+"""
 
 
 def latch_get(brick_id, latch_id):
@@ -206,6 +282,11 @@ def latch_count():
     """
     global mongoDB
     return mongoDB.latches.count_documents({})
+
+
+"""
+signal
+"""
 
 
 def signal_get(brick_id, signal_id):
@@ -268,6 +349,11 @@ def signal_count():
     """
     global mongoDB
     return mongoDB.signals.count_documents({})
+
+
+"""
+util
+"""
 
 
 def util_get(util_id):

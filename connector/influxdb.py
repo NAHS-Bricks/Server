@@ -23,12 +23,16 @@ def setup_database():
         # All compressed data is stored for 26 weeks (half of a year)
         influxDB.create_retention_policy(name='26weeks', duration='26w', replication=1, database=db_name, default=False)
 
-    # Create continous queries
+    # Create continuous queries
     cq_names = [q['name'] for q in [d[db_name] for d in influxDB.get_list_continuous_queries() if db_name in d][0]]
     if 'temp_mean' not in cq_names:
         # downsampling temperature measurements
         select_clause = 'SELECT mean("celsius") AS "mean_celsius" INTO "26weeks"."temps_downsampled" FROM "temps" GROUP BY time(60m), *'
         influxDB.create_continuous_query('temp_mean', select_clause, db_name)
+    if 'humid_mean' not in cq_names:
+        # downsampling humidity measurements
+        select_clause = 'SELECT mean("humidity") AS "mean_humidity" INTO "26weeks"."humids_downsampled" FROM "humids" GROUP BY time(60m), *'
+        influxDB.create_continuous_query('humid_mean', select_clause, db_name)
     # downsampling for bat_levels is not needed as they are not quiet frequent, and they should stored to 26weeks by default
     influxDB.switch_database(db_name)
 
@@ -57,6 +61,29 @@ def temp_delete(sensor_id):
     global influxDB
     influxDB.delete_series(measurement='temps', tags={'sensor_id': sensor_id})
     influxDB.delete_series(measurement='temps_downsampled', tags={'sensor_id': sensor_id})
+
+
+def humid_store(humidity, sensor_id, ts, sensor_desc=None, brick_id=None, brick_desc=None):
+    global influxDB
+    # store to default (8weeks) to humids
+    body = {'measurement': 'humids', 'tags': {'sensor_id': sensor_id}, 'time': int(ts), 'fields': {'humidity': float(humidity)}}
+    if sensor_desc is not None and not sensor_desc == '':
+        body['tags']['sensor_desc'] = sensor_desc
+    if brick_id is not None and not brick_id == '':
+        body['tags']['brick_id'] = brick_id
+    if brick_desc is not None and not brick_desc == '':
+        body['tags']['brick_desc'] = brick_desc
+    body = [body]
+    influxDB.write_points(body, time_precision='s')
+
+
+def humid_delete(sensor_id):
+    """
+    Deletes all humid measurements for a given sensor_id
+    """
+    global influxDB
+    influxDB.delete_series(measurement='humids', tags={'sensor_id': sensor_id})
+    influxDB.delete_series(measurement='humids_downsampled', tags={'sensor_id': sensor_id})
 
 
 def bat_level_store(voltage, v_diff, runtime_prediction, brick_id, ts, brick_desc=None):

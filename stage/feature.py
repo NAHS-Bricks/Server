@@ -1,4 +1,4 @@
-from connector.mongodb import temp_sensor_get, signal_all
+from connector.mongodb import temp_sensor_get, humid_get, signal_all
 from datetime import datetime, timedelta
 
 
@@ -35,38 +35,40 @@ def __feature_bat(brick):
 def __feature_sleep(brick):
     if brick['features']['all'] >= 1.02 and brick['delay_overwrite']:
         return
+    prefered_delay = list()
     brick['sleep_increase_wait'] -= (0 if brick['sleep_increase_wait'] <= 0 else 1)
     # If power-cord is connected delay can be set to 60, except it's solar charged
     if 'bat' in brick['features'] and (brick['bat_charging'] or brick['bat_charging_standby']) and not brick['bat_solar_charging']:
-        brick['delay'] = 60
+        prefered_delay.append(60)
         brick['sleep_increase_wait'] = 3
-        return 'update_delay'
-    elif 'temp' in brick['features']:
-        if (brick['temp_max_diff'] > 0.25 and brick['delay'] > 60) or brick['delay'] < 60:
-            brick['delay'] = 60
+    if 'temp' in brick['features'] or 'humid' in brick['features']:
+        if ('temp' in brick['features'] and brick['temp_max_diff'] > 0.25) or ('humid' in brick['features'] and brick['humid_max_diff'] > 0.25) or brick['delay'] < 60:
+            prefered_delay.append(60)
             brick['sleep_increase_wait'] = 3
-            return 'update_delay'
-        elif brick['temp_max_diff'] > 0.25:  # If delay is allready 60 we don't need to send an update
-            brick['sleep_increase_wait'] = 3
-            return None
         elif brick['sleep_increase_wait'] <= 0 and brick['delay'] < 300:
-            brick['delay'] += 60
+            prefered_delay.append(brick['delay'] + 60)
             brick['sleep_increase_wait'] = 3
-            return 'update_delay'
-    elif 'latch' in brick['features']:
-        if brick['latch_triggerstate_received']:
-            brick['delay'] = 20
         else:
-            brick['delay'] = 900
-        return 'update_delay'
-    elif 'signal' in brick['features']:
+            prefered_delay.append(min(brick['delay'], 300))
+    if 'latch' in brick['features']:
+        if brick['latch_triggerstate_received']:
+            prefered_delay.append(20)
+        else:
+            prefered_delay.append(900)
+    if 'signal' in brick['features']:
         for signal in signal_all(brick['_id']):
             if signal['state'] == 1:  # if at least one signal is going to be switched on, set delay to 60
-                brick['delay'] = 60
+                prefered_delay.append(60)
                 break
         else:
-            brick['delay'] = 120  # otherwise set is to 120
-        return 'update_delay'
+            prefered_delay.append(120)
+
+    if len(prefered_delay) > 0:
+        delay = sorted(prefered_delay)[0]
+        if not delay == brick['delay']:
+            brick['delay'] = delay
+            return 'update_delay'
+    return None
 
 
 def __feature_temp(brick):
@@ -78,6 +80,12 @@ def __feature_temp(brick):
     if brick['temp_precision'] is None:
         result.append('request_temp_precision')
     return result
+
+
+def __feature_humid(brick):
+    for sensor in [humid_get(sensor) for sensor in brick['humid_sensors']]:
+        if sensor['corr'] is None:
+            return 'request_humid_corr'
 
 
 def __feature_signal(brick):
@@ -109,6 +117,7 @@ feature = {
     'bat': __feature_bat,
     'sleep': __feature_sleep,
     'temp': __feature_temp,
+    'humid': __feature_humid,
     'signal': __feature_signal,
     'admin_override': __feature_admin_override
 }

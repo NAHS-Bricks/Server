@@ -23,6 +23,11 @@ def _temp_initial(brick):
     brick['temp_max_diff'] = 0
 
 
+def _humid_initial(brick):
+    brick['humid_sensors'] = list()
+    brick['humid_max_diff'] = 0
+
+
 def _bat_initial(brick):
     brick['bat_last_reading'] = 0
     brick['bat_last_ts'] = None
@@ -62,6 +67,9 @@ _feature_updates = {
     },
     'temp': {
         0.00: _temp_initial
+    },
+    'humid': {
+        0.00: _humid_initial
     },
     'latch': {
         0.00: _latch_initial

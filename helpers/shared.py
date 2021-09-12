@@ -38,6 +38,17 @@ temp_sensor_defaults = {
     'disables': list()
 }
 
+humid_defaults = {
+    '_id': None,
+    'desc': None,
+    'last_reading': None,
+    'last_ts': None,
+    'prev_reading': None,
+    'prev_ts': None,
+    'corr': None,
+    'disables': list()
+}
+
 latch_defaults = {
     '_id': None,
     'desc': None,

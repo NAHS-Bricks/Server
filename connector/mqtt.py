@@ -32,6 +32,10 @@ def temp_send(sensor_id, celsius, brick_id):
     _publish_async(f"brick/{brick_id}/temp/{sensor_id}", float(celsius))
 
 
+def humid_send(sensor_id, humidity, brick_id):
+    _publish_async(f"brick/{brick_id}/humid/{sensor_id}", float(humidity))
+
+
 def latch_send(latch_id, state):
     brick_id, _ = latch_id.split('_')
     _publish_async(f"brick/{brick_id}/latch/{latch_id}", int(state))

@@ -1,9 +1,10 @@
 from connector.mongodb import mongodb_lock_acquire, mongodb_lock_release
 from connector.mongodb import brick_exists, brick_get, brick_save, brick_delete, brick_all, brick_all_ids, brick_count
 from connector.mongodb import temp_sensor_exists, temp_sensor_delete, temp_sensor_get, temp_sensor_save, temp_sensor_count
-from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete as mongo_latch_delete, latch_count
+from connector.mongodb import humid_exists, humid_delete, humid_get, humid_save, humid_count
+from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete, latch_count
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
-from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as influx_latch_delete
+from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete
 from connector.mqtt import signal_send
 from helpers.feature_versioning import features_available
 from helpers.current_version import current_brickserver_version
@@ -20,6 +21,10 @@ def __set_desc(data):
         sensor = temp_sensor_get(data['temp_sensor'])
         sensor['desc'] = data['value']
         temp_sensor_save(sensor)
+    elif 'humid_sensor' in data:
+        sensor = humid_get(data['humid_sensor'])
+        sensor['desc'] = data['value']
+        humid_save(sensor)
     elif 'latch' in data:
         brick_id, latch_id = data['latch'].split('_')
         latch = latch_get(brick_id, latch_id)
@@ -64,6 +69,11 @@ def __set_add_disable(data):
         if data['value'] not in sensor['disables']:
             sensor['disables'].append(data['value'])
             temp_sensor_save(sensor)
+    elif 'humid_sensor' in data:
+        sensor = humid_get(data['humid_sensor'])
+        if data['value'] not in sensor['disables']:
+            sensor['disables'].append(data['value'])
+            humid_save(sensor)
     elif 'latch' in data:
         latch = latch_get(*data['latch'].split('_'))
         if data['value'] not in latch['disables']:
@@ -88,6 +98,11 @@ def __set_del_disable(data):
         if data['value'] in sensor['disables']:
             sensor['disables'].remove(data['value'])
             temp_sensor_save(sensor)
+    elif 'humid_sensor' in data:
+        sensor = humid_get(data['humid_sensor'])
+        if data['value'] in sensor['disables']:
+            sensor['disables'].remove(data['value'])
+            humid_save(sensor)
     elif 'latch' in data:
         latch = latch_get(*data['latch'].split('_'))
         if data['value'] in latch['disables']:
@@ -264,12 +279,18 @@ def __cmd_delete_brick(data):
             result['temp_sensors'].append(sensor)
             temp_delete(sensor)
             temp_sensor_delete(sensor)
+    if 'humid' in brick['features']:
+        result['humid_sensors'] = list()
+        for sensor in brick['humid_sensors']:
+            result['humid_sensors'].append(sensor)
+            humid_delete(sensor)
+            humid_metrics_delete(sensor)
     if 'latch' in brick['features']:
         result['latches'] = list()
         for i in range(0, brick['latch_count']):
             result['latches'].append(brick['_id'] + '_' + str(i))
-            mongo_latch_delete(brick['_id'], i)
-            influx_latch_delete(brick['_id'], i)
+            latch_delete(brick['_id'], i)
+            latch_metrics_delete(brick['_id'], i)
     if 'signal' in brick['features']:
         result['signals'] = list()
         for signal in signal_all(brick_id=brick['_id']):
@@ -284,6 +305,12 @@ def __cmd_get_temp_sensor(data):
     if 'temp_sensor' not in data:
         return {'s': 12, 'm': 'temp_sensor is missing in data'}
     return {'temp_sensor': temp_sensor_get(data['temp_sensor'])}
+
+
+def __cmd_get_humid_sensor(data):
+    if 'humid_sensor' not in data:
+        return {'s': 33, 'm': 'humid_sensor is missing in data'}
+    return {'humid_sensor': humid_get(data['humid_sensor'])}
 
 
 def __cmd_get_latch(data):
@@ -314,17 +341,19 @@ def __cmd_get_version(data):
 def __cmd_get_count(data):
     if 'item' not in data:
         return {'s': 16, 'm': 'item is missing in data'}
-    valid_items = ['bricks', 'temp_sensors', 'latches', 'signals']
+    valid_items = ['bricks', 'temp_sensors', 'humid_sensors', 'latches', 'signals']
     if data['item'] not in valid_items:
         return {'s': 17, 'm': 'invalid item given. Needs to be one of: ' + str(valid_items)}
     c = 0
     if data['item'] == 'bricks':
         c = brick_count()
-    if data['item'] == 'temp_sensors':
+    elif data['item'] == 'temp_sensors':
         c = temp_sensor_count()
-    if data['item'] == 'latches':
+    elif data['item'] == 'humid_sensors':
+        c = humid_count()
+    elif data['item'] == 'latches':
         c = latch_count()
-    if data['item'] == 'signals':
+    elif data['item'] == 'signals':
         c = signal_count()
     return {'count': c}
 
@@ -335,6 +364,7 @@ admin_commands = {
     'set': __cmd_set,
     'delete_brick': __cmd_delete_brick,
     'get_temp_sensor': __cmd_get_temp_sensor,
+    'get_humid_sensor': __cmd_get_humid_sensor,
     'get_latch': __cmd_get_latch,
     'get_signal': __cmd_get_signal,
     'get_features': __cmd_get_features,
@@ -359,6 +389,11 @@ def __thread_save_execution(data):
             if 'temp' in brick['features'] and data['temp_sensor'] in brick['temp_sensors']:
                 brick_id = brick['_id']
                 break
+    elif 'humid_sensor' in data:
+        for brick in brick_all():
+            if 'humid' in brick['features'] and data['humid_sensor'] in brick['humid_sensors']:
+                brick_id = brick['_id']
+                break
 
     if brick_id is None and 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite' and not cherrypy.config['ignore_brick_identification']:  # pragma: no cover
         raise Exception(f"brick can't be identified by: {data}")
@@ -380,6 +415,8 @@ def admin_interface(data):
         return {'s': 3, 'm': 'invalid brick'}
     if 'temp_sensor' in data and not temp_sensor_exists(data['temp_sensor']):
         return {'s': 8, 'm': 'invalid temp_sensor'}
+    if 'humid_sensor' in data and not humid_exists(data['humid_sensor']):
+        return {'s': 32, 'm': 'invalid humid_sensor'}
     if 'latch' in data:
         brick_id, latch_id = data['latch'].split('_')
         if not latch_exists(brick_id, latch_id):

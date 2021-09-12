@@ -261,14 +261,14 @@ class TestFeatureTemp(BaseCherryPyTestCase):
         self.assertIn('brick/localhost/temp/s2 25', response.mqtt)
         self.assertIn('brick/localhost/temp/s3 24.5', response.mqtt)
 
-        # disableing latch 1 to send mqtt messages
+        # disableing s2 to send mqtt messages
         response = self.webapp_request(path='/admin', command='set', temp_sensor='s2', key='add_disable', value='mqtt')
         response = self.webapp_request(mqtt_test=True, t=[['s1', 24], ['s2', 25], ['s3', 24.5]])
         self.assertIn('brick/localhost/temp/s1 24', response.mqtt)
         self.assertNotIn('brick/localhost/temp/s2 25', response.mqtt)
         self.assertIn('brick/localhost/temp/s3 24.5', response.mqtt)
 
-        # enable latch 1 to send mqtt messages
+        # enable s2 to send mqtt messages
         response = self.webapp_request(path='/admin', command='set', temp_sensor='s2', key='del_disable', value='mqtt')
         response = self.webapp_request(mqtt_test=True, t=[['s1', 24], ['s2', 25], ['s3', 24.5]])
         self.assertIn('brick/localhost/temp/s1 24', response.mqtt)

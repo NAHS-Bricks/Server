@@ -1,4 +1,5 @@
 from connector.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_all, signal_get, signal_save, signal_delete
+from connector.mongodb import humid_get, humid_save
 from helpers.feature_versioning import feature_update
 import copy
 
@@ -29,6 +30,20 @@ def __store_t(brick, temps):
         temp_sensor_save(sensor)
 
 
+def __store_h(brick, humids):
+    if 'humid' not in brick['features']:  # pragma: no cover
+        return
+    for sensor_id, humid in humids:
+        sensor = humid_get(sensor_id)
+        sensor['prev_reading'] = sensor['last_reading']
+        sensor['prev_ts'] = sensor['last_ts']
+        sensor['last_reading'] = humid
+        sensor['last_ts'] = brick['last_ts']
+        if sensor_id not in brick['humid_sensors']:
+            brick['humid_sensors'].append(sensor_id)
+        humid_save(sensor)
+
+
 def __store_b(brick, voltage):
     if 'bat' not in brick['features']:  # pragma: no cover
         return
@@ -56,6 +71,16 @@ def __store_c(brick, corrs):
         if sensor['_id'] not in brick['temp_sensors']:
             brick['temp_sensors'].append(sensor['_id'])
         temp_sensor_save(sensor)
+
+
+def __store_k(brick, corrs):
+    if 'humid' not in brick['features']:  # pragma: no cover
+        return
+    for sensor, corr in [(humid_get(s), c) for s, c in corrs]:
+        sensor['corr'] = corr
+        if sensor['_id'] not in brick['humid_sensors']:
+            brick['humid_sensors'].append(sensor['_id'])
+        humid_save(sensor)
 
 
 def __store_x(brick, brick_type):
@@ -102,9 +127,11 @@ def __store_d(brick, default_delay):
 store = {
     'v': __store_v,
     't': __store_t,
+    'h': __store_h,
     'b': __store_b,
     'y': __store_y,
     'c': __store_c,
+    'k': __store_k,
     'x': __store_x,
     'p': __store_p,
     'l': __store_l,

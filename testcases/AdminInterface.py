@@ -23,6 +23,12 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin", command="set", temp_sensor="unknown", key='somekey', value='somevalue')
         self.assertEqual(response.json['s'], 8)
 
+    def test_invalid_humid_sensor(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path="/admin", command="set", humid_sensor="unknown", key='somekey', value='somevalue')
+        self.assertEqual(response.json['s'], 32)
+
     def test_invalid_latch(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
         self.assertEqual(response.json['s'], 0)
@@ -50,6 +56,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(path="/admin", command='get_temp_sensor')  # temp_sensor is missing in data
         self.assertEqual(response.json['s'], 12)
+        response = self.webapp_request(path="/admin", command='get_humid_sensor')  # humid_sensor is missing in data
+        self.assertEqual(response.json['s'], 33)
         response = self.webapp_request(path="/admin", command='get_latch')  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='get_signal')  # signal is missing in data
@@ -147,8 +155,9 @@ class TestAdminInterface(BaseCherryPyTestCase):
     def test_get_features(self):
         response = self.webapp_request(path="/admin", command='get_features')
         self.assertEqual(response.json['s'], 0)
-        self.assertEqual(len(response.json['features']), 5)
+        self.assertEqual(len(response.json['features']), 6)
         self.assertIn('temp', response.json['features'])
+        self.assertIn('humid', response.json['features'])
         self.assertIn('bat', response.json['features'])
         self.assertIn('sleep', response.json['features'])
         self.assertIn('latch', response.json['features'])

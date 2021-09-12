@@ -1,7 +1,7 @@
 from helpers.shared import send_telegram, calculate_bat_prediction
-from connector.mongodb import temp_sensor_get, latch_get
-from connector.influxdb import temp_store, bat_level_store, bat_charging_store, latch_store
-from connector.mqtt import temp_send, bat_level_send, bat_charging_send, latch_send
+from connector.mongodb import temp_sensor_get, humid_get, latch_get
+from connector.influxdb import temp_store, humid_store, bat_level_store, bat_charging_store, latch_store
+from connector.mqtt import temp_send, humid_send, bat_level_send, bat_charging_send, latch_send
 from datetime import datetime, timedelta
 import os
 
@@ -20,6 +20,21 @@ def __process_t(brick_new, brick_old):
             diff = abs(sensor['prev_reading'] - sensor['last_reading'])
             max_diff = diff if diff > max_diff else max_diff
         brick_new['temp_max_diff'] = max_diff
+
+
+def __process_h(brick_new, brick_old):
+    if 'humid' not in brick_new['features']:  # pragma: no cover
+        return
+    for sensor in [sensor for sensor in [humid_get(sensor) for sensor in brick_new['humid_sensors']] if sensor['last_reading'] is not None]:
+        if 'metric' not in sensor['disables']:
+            humid_store(sensor['last_reading'], sensor['_id'], sensor['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
+        if 'mqtt' not in sensor['disables']:
+            humid_send(sensor['_id'], sensor['last_reading'], brick_new['_id'])
+    if 'humid' in brick_old['features']:
+        max_diff = 0
+        for sensor in [sensor for sensor in [humid_get(s) for s in brick_new['humid_sensors']] if sensor['last_reading'] and sensor['prev_reading']]:
+            max_diff = max(max_diff, abs(sensor['prev_reading'] - sensor['last_reading']))
+        brick_new['humid_max_diff'] = max_diff
 
 
 def __process_b(brick_new, brick_old):
@@ -61,6 +76,8 @@ def __process_y(brick_new, brick_old):
         if 'temp' in brick_new['features']:
             result.append('request_temp_corr')
             result.append('request_temp_precision')
+        if 'humid' in brick_new['features']:
+            result.append('request_humid_corr')
         if 'latch' in brick_new['features']:
             result.append('update_latch_triggers')
         if 'bat' in brick_new['features']:
@@ -93,6 +110,7 @@ def __process_y(brick_new, brick_old):
 
 process = {
     't': __process_t,
+    'h': __process_h,
     'b': __process_b,
     'l': __process_l,
     'y': __process_y
