@@ -35,6 +35,12 @@ class TestSharedFunctions(BaseCherryPyTestCase):
         rl = 3.7393
         self.assertEqual(int(calculate_bat_prediction(None, dti, ri, dtl, rl)), 37)
 
+        # should be None due to init_ts being None
+        self.assertIsNone(calculate_bat_prediction(None, None, ri, dtl, rl))
+
+        # should be None due to init_voltage being None
+        self.assertIsNone(calculate_bat_prediction(None, dti, None, dtl, rl))
+
         # Edge-Case: ri and rl really close together, where ri is over first ref-date
         dti = int(datetime.strptime("2021-05-10T03:03:46Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
         ri = 4.304252

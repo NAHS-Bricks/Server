@@ -129,6 +129,21 @@ def __set_bat_solar_charging(data):
     return {}
 
 
+def __set_sleep_disabled(data):
+    if 'brick' not in data:
+        return {'s': 11, 'm': 'brick is missing in data'}
+    if not isinstance(data['value'], bool):
+        return {'s': 7, 'm': 'invalid value, needs to be a bool'}
+    brick = brick_get(data['brick'])
+    if 'sleep' not in brick['features']:
+        return {'s': 34, 'm': 'sleep not in brick-features'}
+    if not brick['features']['sleep'] >= 1.01:
+        return {'s': 35, 'm': 'feature version not satisfied (sleep >= 1.01)'}
+    brick['sleep_set_disabled'] = data['value']
+    brick_save(brick)
+    return {}
+
+
 def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -214,7 +229,8 @@ _set_direct = {
     'state_desc': __set_state_desc,
     'add_disable': __set_add_disable,
     'del_disable': __set_del_disable,
-    'bat_solar_charging': __set_bat_solar_charging
+    'bat_solar_charging': __set_bat_solar_charging,
+    'sleep_disabled': __set_sleep_disabled
 }
 
 

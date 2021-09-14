@@ -17,14 +17,14 @@ class TestFeatureAll(BaseCherryPyTestCase):
 
     def test_new_brick_without_init_but_versions(self):
         # Newly created brick without information, that it is initalized but with version info present
-        response = self.webapp_request(clear_state=True, v=self.v)
+        response = self.webapp_request(clear_state=True, v=self.v, d=60)
         if 'temp' not in response.state['features'] and 'bat' not in response.state['features'] and 'signal' not in response.state['features']:
             self.assertNotIn('r', response.json)
 
         self.assertIn('os', response.state['features'])
-        self.assertEqual(response.state['features']['os'], 1)
+        self.assertGreaterEqual(response.state['features']['os'], 1)
         self.assertIn('all', response.state['features'])
-        self.assertEqual(response.state['features']['all'], 1)
+        self.assertGreaterEqual(response.state['features']['all'], 1)
         self.assertIn('type', response.state)
         self.assertEqual(response.state['type'], None)
 
@@ -42,14 +42,14 @@ class TestFeatureAll(BaseCherryPyTestCase):
 
     def test_new_brick_without_init_but_versions_and_bricktype(self):
         # Newly created brick without information, that it is initalized but with version info and bricktype present
-        response = self.webapp_request(clear_state=True, v=self.v, x=1)
+        response = self.webapp_request(clear_state=True, v=self.v, d=60, x=1)
         if 'temp' not in response.state['features'] and 'bat' not in response.state['features'] and 'signal' not in response.state['features']:
             self.assertNotIn('r', response.json)
 
         self.assertIn('os', response.state['features'])
-        self.assertEqual(response.state['features']['os'], 1)
+        self.assertGreaterEqual(response.state['features']['os'], 1)
         self.assertIn('all', response.state['features'])
-        self.assertEqual(response.state['features']['all'], 1)
+        self.assertGreaterEqual(response.state['features']['all'], 1)
         self.assertIn('type', response.state)
         self.assertEqual(response.state['type'], 1)
 
@@ -76,9 +76,9 @@ class TestFeatureAll(BaseCherryPyTestCase):
         self.assertIn(5, response.json['r'])
 
         self.assertIn('os', response.state['features'])
-        self.assertEqual(response.state['features']['os'], 1)
+        self.assertGreaterEqual(response.state['features']['os'], 1)
         self.assertIn('all', response.state['features'])
-        self.assertEqual(response.state['features']['all'], 1)
+        self.assertGreaterEqual(response.state['features']['all'], 1)
         self.assertIn('type', response.state)
         self.assertEqual(response.state['type'], None)
 
@@ -104,11 +104,35 @@ class TestFeatureAll(BaseCherryPyTestCase):
         self.assertIn(5, response.json['r'])
 
         self.assertIn('os', response.state['features'])
-        self.assertEqual(response.state['features']['os'], 1)
+        self.assertGreaterEqual(response.state['features']['os'], 1)
         self.assertIn('all', response.state['features'])
-        self.assertEqual(response.state['features']['all'], 1)
+        self.assertGreaterEqual(response.state['features']['all'], 1)
         self.assertIn('type', response.state)
         self.assertEqual(response.state['type'], 1)
+
+
+@parameterized_class(getVersionParameter('all', minVersion={'all': 1.02}))
+class TestFeatureAllV102(BaseCherryPyTestCase):
+    def test_delay_default_is_requested(self):
+        response = self.webapp_request(clear_state=True, v=self.v)  # should be requested as delay_default is None
+        self.assertIsNone(response.state['delay_default'])
+        self.assertIn(8, response.json['r'])
+
+        response = self.webapp_request()  # still None should be requested again
+        self.assertIsNone(response.state['delay_default'])
+        self.assertIn(8, response.json['r'])
+
+        response = self.webapp_request(d=60)  # delay_default now set, should not be requested anymore
+        if 'r' in response.json:
+            self.assertNotIn(8, response.json['r'])
+        self.assertEqual(response.state['delay_default'], 60)
+
+        response = self.webapp_request(y=['i'])  # brick initialized - delay_default should be requested
+        self.assertIn(8, response.json['r'])
+
+        response = self.webapp_request()  # but dont re-request
+        if 'r' in response.json:
+            self.assertNotIn(8, response.json['r'])
 
 
 class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
@@ -152,7 +176,7 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
 
     def test_resending_features_is_not_resetting_variables(self):
         response = self.webapp_request(clear_state=True, v=[['all', 1.02], ['os', 1.0]])
-        self.assertEqual(response.state['delay_default'], 60)
+        self.assertIsNone(response.state['delay_default'])
 
         response = self.webapp_request(d=120)
         self.assertEqual(response.state['delay_default'], 120)
@@ -192,7 +216,7 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
 
     def test_delay_default_is_stored(self):
         response = self.webapp_request(clear_state=True, v=[['all', 1.02], ['os', 1.0]])
-        self.assertEqual(response.state['delay_default'], 60)
+        self.assertIsNone(response.state['delay_default'])
 
         response = self.webapp_request(d=120)
         self.assertEqual(response.state['delay_default'], 120)

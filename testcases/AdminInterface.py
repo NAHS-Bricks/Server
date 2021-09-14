@@ -84,6 +84,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 18)
         response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='bat_solar_charging', value=True)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='sleep_disabled', value=True)  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
@@ -151,6 +153,19 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertIn('localhost_0', response.signals)
         response = self.webapp_request(path="/admin", command='set', signal='localhost_0', key='signal', value=0)
         self.assertEqual(response.json['s'], 19)
+
+    def test_set_sleep_disabled(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        response = self.webapp_request(path="/admin", command='set', brick='localhost', key='sleep_disabled', value=0)  # invalid value, needs to be a bool
+        self.assertEqual(response.json['s'], 7)
+        response = self.webapp_request(path="/admin", command='set', brick='localhost', key='sleep_disabled', value=True)  # sleep not in brick-features
+        self.assertEqual(response.json['s'], 34)
+        response = self.webapp_request(v=admininterface_versions + [['sleep', 1]])  # add feature sleep, but with wrong version
+        response = self.webapp_request(path="/admin", command='set', brick='localhost', key='sleep_disabled', value=True)  # feature version not satisfied (sleep >= 1.01)
+        self.assertEqual(response.json['s'], 35)
+        response = self.webapp_request(v=admininterface_versions + [['sleep', 1.01]])  # now upgrade feature version to correct one
+        response = self.webapp_request(path="/admin", command='set', brick='localhost', key='sleep_disabled', value=True)  # should be fine now
+        self.assertEqual(response.json['s'], 0)
 
     def test_get_features(self):
         response = self.webapp_request(path="/admin", command='get_features')

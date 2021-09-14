@@ -1,4 +1,4 @@
-from invoke import task
+from invoke import task, call
 
 
 @task(name="dev-start")
@@ -41,9 +41,14 @@ def cleanup_development(c):
     pass
 
 
-@task(name="coverage", pre=[start_development])
-def coverage(c):
-    c.run("coverage erase && eval $(python-libfaketime) && coverage run -m unittest discover && coverage html && coverage report")
+@task(name="coverage", pre=[start_development], optional=['short', 'long'])
+def coverage(c, short=None, long=None):
+    scale = 'normal'
+    if short:
+        scale = 'short'
+    if long:
+        scale = 'long'
+    c.run(f"coverage erase && eval $(python-libfaketime) && TESTSCALE={scale} coverage run -m unittest discover && coverage html && coverage report")
 
 
 @task(pre=[cleanup_development], post=[coverage], name="clean-coverage")

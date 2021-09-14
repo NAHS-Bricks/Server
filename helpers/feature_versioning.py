@@ -13,7 +13,7 @@ def _all_initial(brick):
 
 
 def _all_102(brick):
-    brick['delay_default'] = 60
+    brick['delay_default'] = None
     brick['delay_overwrite'] = False
 
 
@@ -44,6 +44,11 @@ def _sleep_initial(brick):
     brick['sleep_increase_wait'] = 3
 
 
+def _sleep_101(brick):
+    brick['sleep_disabled'] = False
+    brick['sleep_set_disabled'] = None
+
+
 def _latch_initial(brick):
     brick['latch_count'] = 0
     brick['latch_triggerstate_received'] = False
@@ -60,7 +65,8 @@ _feature_updates = {
     },
     'os': {},
     'sleep': {
-        0.00: _sleep_initial
+        0.00: _sleep_initial,
+        1.01: _sleep_101
     },
     'bat': {
         0.00: _bat_initial

@@ -116,6 +116,8 @@ class Brickserver(object):
                     result['r'] = []
                 if k == 'update_delay':
                     result['d'] = brick['delay']
+                elif k == 'update_sleep_disabled':
+                    result['q'] = brick['sleep_set_disabled']
                 elif k == 'update_temp_precision':
                     result['p'] = brick['temp_precision']
                 elif k == 'update_latch_triggers':
@@ -143,6 +145,8 @@ class Brickserver(object):
                     result['r'].append(6)
                 elif k == 'request_signal_count':
                     result['r'].append(7)
+                elif k == 'request_delay_default':
+                    result['r'].append(8)
                 elif k == 'request_humid_corr':
                     result['r'].append(9)
 

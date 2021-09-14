@@ -61,6 +61,10 @@ def __store_y(brick, bools):
     brick['initalized'] = ('i' in bools)
     if brick['features']['all'] >= 1.02:
         brick['delay_overwrite'] = ('d' in bools)
+    if 'sleep' in brick['features'] and brick['features']['sleep'] >= 1.01:
+        brick['sleep_disabled'] = ('q' in bools)
+        if brick['sleep_set_disabled'] is None:
+            brick['sleep_set_disabled'] = brick['sleep_disabled']
 
 
 def __store_c(brick, corrs):

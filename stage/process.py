@@ -87,6 +87,8 @@ def __process_y(brick_new, brick_old):
         if 'signal' in brick_new['features']:
             result.append('request_signal_count')
             result.append('update_signal_states')
+        if brick_new['features']['all'] >= 1.02:
+            result.append('request_delay_default')
     if 'bat' in brick_new['features'] and not brick_new['bat_solar_charging']:
         if brick_new['bat_charging']:
             brick_new['bat_periodic_voltage_request'] -= 1

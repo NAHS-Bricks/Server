@@ -3,13 +3,17 @@ from datetime import datetime, timedelta
 
 
 def __feature_all(brick):
+    result = list()
+    if brick['features']['all'] >= 1.02 and brick['delay_default'] is None:
+        result.append('request_delay_default')
     if brick['features']['all'] >= 1.02 and brick['delay_overwrite']:
         brick['delay'] = (brick['delay_default'] if brick['delay_default'] is not None else 60)
-        return
-    if 'sleep' not in brick['features'] and brick['features']['all'] >= 1.02:
-        if not brick['delay'] == brick['delay_default']:
-            brick['delay'] = brick['delay_default']
-            return 'update_delay'
+    else:
+        if 'sleep' not in brick['features'] and brick['features']['all'] >= 1.02:
+            if brick['delay_default'] is not None and not brick['delay'] == brick['delay_default']:
+                brick['delay'] = brick['delay_default']
+                result.append('update_delay')
+    return result
 
 
 def __feature_bat(brick):
@@ -35,6 +39,7 @@ def __feature_bat(brick):
 def __feature_sleep(brick):
     if brick['features']['all'] >= 1.02 and brick['delay_overwrite']:
         return
+    result = list()
     prefered_delay = list()
     brick['sleep_increase_wait'] -= (0 if brick['sleep_increase_wait'] <= 0 else 1)
     # If power-cord is connected delay can be set to 60, except it's solar charged
@@ -62,13 +67,19 @@ def __feature_sleep(brick):
                 break
         else:
             prefered_delay.append(120)
+    if brick['features']['sleep'] >= 1.01 and brick['sleep_set_disabled'] is not None and not brick['sleep_disabled'] == brick['sleep_set_disabled']:
+        prefered_delay.append(10)
+        result.append('update_sleep_disabled')
 
     if len(prefered_delay) > 0:
         delay = sorted(prefered_delay)[0]
         if not delay == brick['delay']:
             brick['delay'] = delay
-            return 'update_delay'
-    return None
+            result.append('update_delay')
+    elif brick['features']['all'] >= 1.02 and brick['delay_default'] is not None and not brick['delay'] == brick['delay_default']:
+        brick['delay'] = brick['delay_default']
+        result.append('update_delay')
+    return result
 
 
 def __feature_temp(brick):

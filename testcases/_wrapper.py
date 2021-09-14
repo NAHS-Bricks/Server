@@ -20,27 +20,75 @@ mqtt_receiver = None
 mqtt_receiver_str = ""
 
 
-def getVersionParameter(myFeature, forbiddenCombinations=None):
+def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=None, minVersion=dict(), maxVersion=dict()):
+    testscale = os.environ.get('TESTSCALE')
+    if testscale is None:
+        testscale = 'normal'
+
     f = {
-        'sleep': ['sleep', 1],
+        'all': ['all', 1.02],
+        'os': ['os', 1],
+        'sleep': ['sleep', 1.01],
         'bat': ['bat', 1],
         'temp': ['temp', 1],
         'humid': ['humid', 1],
         'latch': ['latch', 1],
         'signal': ['signal', 1]
     }
-    if forbiddenCombinations is None:
-        forbiddenCombinations = list()
+
+    if isinstance(specificVersion, list):
+        for feature, version in specificVersion:
+            f[feature] = [feature, version]
+
     r = list()
     if not isinstance(myFeature, list):
         myFeature = list([myFeature])
-    v = list([['all', 1], ['os', 1]])
+    v = list([f.pop('all'), f.pop('os')])
     v += [f[my] for my in myFeature if my in f]
-    r.append({'name': 'standalone', 'v': v})
-    for k in [k for k in f if k not in myFeature and k not in forbiddenCombinations]:
-        v2 = copy.deepcopy(v)
-        v2.append(f[k])
-        r.append({'name': 'with_' + k, 'v': v2})
+    if testscale == 'long':
+        def combinations(base, comming):
+            result = list()
+            for multi in range(0, int((base[1] - 1) / 0.01) + 1):
+                if len(comming) > 1:
+                    for later in combinations(comming[0], comming[1:]):
+                        this = [[base[0], base[1] - multi * 0.01]]
+                        this += later
+                        if (this[0][0] not in minVersion or this[0][1] >= minVersion[this[0][0]]) and (this[0][0] not in maxVersion or this[0][1] <= maxVersion[this[0][0]]):
+                            result.append(this)
+                elif len(comming) == 1:
+                    for later in combinations(comming[0], comming[1:]):
+                        this = [[base[0], base[1] - multi * 0.01]]
+                        this += later
+                        if (this[0][0] not in minVersion or this[0][1] >= minVersion[this[0][0]]) and (this[0][0] not in maxVersion or this[0][1] <= maxVersion[this[0][0]]):
+                            result.append(this)
+                else:
+                    this = [[base[0], base[1] - multi * 0.01]]
+                    if (this[0][0] not in minVersion or this[0][1] >= minVersion[this[0][0]]) and (this[0][0] not in maxVersion or this[0][1] <= maxVersion[this[0][0]]):
+                        result.append(this)
+            return result
+        for c in combinations(v[0], v[1:]):
+            r.append({'name': str(c), 'v': c})
+    else:
+        r.append({'name': str(v), 'v': v})
+
+    if forbiddenCombinations is None:
+        forbiddenCombinations = list()
+    if isinstance(forbiddenCombinations, str):
+        if forbiddenCombinations == '*':
+            forbiddenCombinations = list(f.keys())
+        else:
+            forbiddenCombinations = list([forbiddenCombinations])
+
+    if not testscale == 'short':
+        for k in [k for k in f if k not in myFeature and k not in forbiddenCombinations]:
+            v2 = copy.deepcopy(v)
+            v2.append(f[k])
+            r.append({'name': f'with_{k}_v{v2[-1][1]}', 'v': v2})
+            if testscale == 'long' and v2[-1][1] > 1:
+                for multi in range(1, int((v2[-1][1] - 1) / 0.01) + 1):
+                    v3 = copy.deepcopy(v2)
+                    v3[-1][1] = v3[-1][1] - multi * 0.01
+                    r.append({'name': f'with_{k}_v{v3[-1][1]}', 'v': v3})
     return r
 
 
