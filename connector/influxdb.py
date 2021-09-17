@@ -2,8 +2,11 @@ from influxdb import InfluxDBClient
 from helpers.shared import config
 import json
 from datetime import datetime
+from multiprocessing import Process, Queue
 
 influxDB = InfluxDBClient(host=config['influx']['server'], port=int(config['influx']['port']))
+async_queue = Queue()
+async_process = None
 
 
 def setup_database():
@@ -40,6 +43,25 @@ def setup_database():
 setup_database()
 
 
+def start_async_worker():  # pragma: no cover
+    def _async_worker(msg_queue):
+        global influxDB
+        while True:
+            body, time_precision, retention_policy = msg_queue.get()
+            influxDB.write_points(body, time_precision=time_precision, retention_policy=retention_policy)
+
+    global async_queue
+    global async_process
+    if async_process is None:
+        async_process = Process(target=_async_worker, args=(async_queue, ), daemon=True)
+        async_process.start()
+
+
+def _write_points_async(body, time_precision=None, retention_policy=None):
+    global async_queue
+    async_queue.put((body, time_precision, retention_policy))
+
+
 def temp_store(celsius, sensor_id, ts, sensor_desc=None, brick_id=None, brick_desc=None):
     global influxDB
     # store to default (8weeks) to temps
@@ -51,7 +73,7 @@ def temp_store(celsius, sensor_id, ts, sensor_desc=None, brick_id=None, brick_de
     if brick_desc is not None and not brick_desc == '':
         body['tags']['brick_desc'] = brick_desc
     body = [body]
-    influxDB.write_points(body, time_precision='s')
+    _write_points_async(body, time_precision='s')
 
 
 def temp_delete(sensor_id):
@@ -74,7 +96,7 @@ def humid_store(humidity, sensor_id, ts, sensor_desc=None, brick_id=None, brick_
     if brick_desc is not None and not brick_desc == '':
         body['tags']['brick_desc'] = brick_desc
     body = [body]
-    influxDB.write_points(body, time_precision='s')
+    _write_points_async(body, time_precision='s')
 
 
 def humid_delete(sensor_id):
@@ -96,7 +118,7 @@ def bat_level_store(voltage, v_diff, runtime_prediction, brick_id, ts, brick_des
     if brick_desc is not None and not brick_desc == '':
         body['tags']['brick_desc'] = brick_desc
     body = [body]
-    influxDB.write_points(body, time_precision='s', retention_policy='26weeks')
+    _write_points_async(body, time_precision='s', retention_policy='26weeks')
 
 
 def bat_charging_store(charging, charging_standby, brick_id, ts, brick_desc=None):
@@ -108,7 +130,7 @@ def bat_charging_store(charging, charging_standby, brick_id, ts, brick_desc=None
     if brick_desc is not None and not brick_desc == '':
         body['tags']['brick_desc'] = brick_desc
     body = [body]
-    influxDB.write_points(body, time_precision='s', retention_policy='26weeks')
+    _write_points_async(body, time_precision='s', retention_policy='26weeks')
 
 
 def bat_stats_delete(brick_id):
@@ -130,7 +152,7 @@ def latch_store(state, latch_id, ts, latch_desc=None, brick_desc=None):
     if brick_desc is not None and not brick_desc == '':
         body['tags']['brick_desc'] = brick_desc
     body = [body]
-    influxDB.write_points(body, time_precision='s')
+    _write_points_async(body, time_precision='s')
 
 
 def latch_delete(brick_id, latch_id):

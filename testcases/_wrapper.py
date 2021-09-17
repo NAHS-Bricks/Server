@@ -8,6 +8,7 @@ from brickserver import Brickserver
 from pymongo import MongoClient
 from parameterized import parameterized_class
 from connector.mqtt import start_async_worker as mqtt_start_worker, _publish_async as mqtt_publish_async
+from connector.influxdb import start_async_worker as influxdb_start_worker
 import copy
 from threading import Thread
 import time
@@ -117,6 +118,7 @@ def mqtt_start_receiver():
 
 
 def setUpModule():
+    influxdb_start_worker()
     mqtt_start_worker()
     mqtt_start_receiver()
     cherrypy.config.update({'environment': 'test_suite'})

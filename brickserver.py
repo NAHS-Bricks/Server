@@ -8,6 +8,7 @@ import argparse
 from datetime import datetime, timedelta
 from connector.mongodb import mongodb_lock_acquire, mongodb_lock_release, brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
 from connector.mqtt import start_async_worker as start_mqtt_worker, signal_send
+from connector.influxdb import start_async_worker as start_influxdb_worker
 from stage.store import store as store_stage
 from stage.process import process as process_stage
 from stage.feature import feature as feature_stage
@@ -269,5 +270,6 @@ if __name__ == '__main__':
         sys.exit(0)
 
     start_mqtt_worker()
+    start_influxdb_worker()
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': config['server_port'], })
     cherrypy.quickstart(Brickserver())
