@@ -63,10 +63,10 @@ def _migrate_from_061():
         if 'events' in brick:
             brick.pop('events')
         brick_save(brick)
-    if 'events' in mongoDB.collection_names():
-        mongoDB.drop_collection('events')
-    if 'event_data' in mongoDB.collection_names():
-        mongoDB.drop_collection('event_data')
+    if 'events' in mongoDB().list_collection_names():
+        mongoDB().drop_collection('events')
+    if 'event_data' in mongoDB().list_collection_names():
+        mongoDB().drop_collection('event_data')
 
 
 _migrations = {
@@ -78,16 +78,21 @@ _migrations = {
 }
 
 
-def exec_migrate(current_version):
+def exec_migrate(current_version, test_suite=False):
     last_migration = util_get('last_migration')
     if 'version' in last_migration:  # else a fresh installation is expected, so no need to migrate anything
         last_version = last_migration['version']
-        print(f"Migrating from {last_version} to {current_version}")
+        if not test_suite:  # pragma: no cover
+            print(f"Migrating from {last_version} to {current_version}")
         for v in sorted(_migrations.keys()):
             if version_greater_or_equal_than(v, last_version) and version_less_than(v, current_version):
-                print(f"Executing migration: {v}")
+                if not test_suite:  # pragma: no cover
+                    print(f"Executing migration: {v}")
                 _migrations[v]()
     else:
-        print("Fresh installation detected. No migrations needed!")
+        if not test_suite:  # pragma: no cover
+            print("Fresh installation detected. No migrations needed!")
+        else:
+            return 'fresh_installation'
     last_migration['version'] = current_version
     util_save(last_migration)

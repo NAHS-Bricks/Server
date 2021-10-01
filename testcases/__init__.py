@@ -9,3 +9,4 @@ from .FeatureLatch import *
 from .FeatureSignal import *
 from .FeatureHumid import *
 from .ConnectorBrick import *
+from .Migrations import *
