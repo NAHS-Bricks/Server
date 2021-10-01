@@ -117,3 +117,7 @@ process = {
     'l': __process_l,
     'y': __process_y
 }
+
+
+def process_exec(brick_new, brick_old, delivered_data):
+    return [process[k](brick_new, brick_old) for k in delivered_data if k in process]

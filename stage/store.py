@@ -142,3 +142,7 @@ store = {
     's': __store_s,
     'd': __store_d
 }
+
+
+def store_exec(brick, delivered_data):
+    [store[k](brick, delivered_data[k]) for k in delivered_data if k in store]

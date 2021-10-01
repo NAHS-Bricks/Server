@@ -9,6 +9,8 @@ from pymongo import MongoClient
 from parameterized import parameterized_class
 from connector.mqtt import start_async_worker as mqtt_start_worker, _publish_async as mqtt_publish_async
 from connector.influxdb import start_async_worker as influxdb_start_worker
+from connector.brick import start_async_worker as brick_start_worker, activate as brick_activate
+from connector.mongodb import start_mongodb_connection
 import copy
 from threading import Thread
 import time
@@ -108,7 +110,7 @@ def mqtt_start_receiver():
             client.on_message = on_message
             client.connect(config['mqtt']['server'])
             client.loop_start()
-            client.subscribe("brick/#")
+            client.subscribe("brick/#", 2)
             while True:
                 time.sleep(10)
 
@@ -121,6 +123,8 @@ def setUpModule():
     influxdb_start_worker()
     mqtt_start_worker()
     mqtt_start_receiver()
+    brick_start_worker(test_suite=True)
+    start_mongodb_connection()
     cherrypy.config.update({'environment': 'test_suite'})
 
     # prevent the HTTP server from ever starting
@@ -233,3 +237,24 @@ class BaseCherryPyTestCase(unittest.TestCase):
             response.telegram = ""
 
         return response
+
+    def start_activator_test(self):
+        if os.path.isfile('/tmp/brick_activator'):
+            os.remove('/tmp/brick_activator')
+
+    def end_activator_test(self):
+        result = ""
+
+        # sending a special message, that test is done
+        brick_activate(brick_id='test_done')
+
+        # waiting for all messages to be received
+        while True:
+            if os.path.isfile('/tmp/brick_activator'):
+                with open('/tmp/brick_activator', 'r') as f:
+                    result = f.read()
+                if 'test_done' in result:
+                    break
+            time.sleep(0.01)
+
+        return result

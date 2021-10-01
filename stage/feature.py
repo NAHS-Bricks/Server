@@ -132,3 +132,7 @@ feature = {
     'signal': __feature_signal,
     'admin_override': __feature_admin_override
 }
+
+
+def feature_exec(brick):
+    return [feature[k](brick) for k in brick['features'] if k in feature]

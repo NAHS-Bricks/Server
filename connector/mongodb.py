@@ -5,10 +5,18 @@ import copy
 from bson.objectid import ObjectId
 from threading import Lock
 
-mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
-mongoDB = mongoClient.get_database(config['mongo']['database'])
+mongoClient = None
+mongoDB = None
 brick_locks = {}
 brick_locks_modifier_lock = Lock()
+
+
+def start_mongodb_connection():
+    global mongoClient
+    global mongoDB
+    if mongoClient is None:
+        mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
+        mongoDB = mongoClient.get_database(config['mongo']['database'])
 
 
 def mongodb_lock_acquire(brick_id):

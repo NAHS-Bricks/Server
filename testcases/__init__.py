@@ -8,3 +8,4 @@ from .FeatureTemp import *
 from .FeatureLatch import *
 from .FeatureSignal import *
 from .FeatureHumid import *
+from .ConnectorBrick import *

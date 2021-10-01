@@ -13,7 +13,9 @@ def start_async_worker():  # pragma: no cover
             if topic is not None and payload is not None:
                 mqttClient = mqtt.Client(client_id=config['mqtt']['clientid'], protocol=mqtt.MQTTv5, transport='tcp')
                 mqttClient.connect(config['mqtt']['server'], port=config['mqtt']['port'])
-                mqttClient.publish(topic, payload, qos=1)
+                mqttClient.loop_start()
+                mqttClient.publish(topic, payload, qos=2)
+                mqttClient.loop_stop()
                 mqttClient.disconnect()
 
     global async_queue

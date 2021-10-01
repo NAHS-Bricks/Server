@@ -6,12 +6,14 @@ import sys
 import copy
 import argparse
 from datetime import datetime, timedelta
-from connector.mongodb import mongodb_lock_acquire, mongodb_lock_release, brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
+from connector.mongodb import start_mongodb_connection, mongodb_lock_acquire, mongodb_lock_release, brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
 from connector.mqtt import start_async_worker as start_mqtt_worker, signal_send
 from connector.influxdb import start_async_worker as start_influxdb_worker
-from stage.store import store as store_stage
-from stage.process import process as process_stage
-from stage.feature import feature as feature_stage
+from connector.brick import start_async_worker as start_brick_worker
+from stage.store import store_exec as exec_store_stage
+from stage.process import process_exec as exec_process_stage
+from stage.feature import feature_exec as exec_feature_stage
+from stage.feedback import feedback_exec as exec_feedback_stage
 from helpers.current_version import current_brickserver_version
 from helpers.shared import config, send_telegram, get_deviceid
 from helpers.admin import admin_interface
@@ -70,7 +72,6 @@ class Brickserver(object):
             if os.path.isfile('/tmp/telegram_messages'):
                 os.remove('/tmp/telegram_messages')
 
-        result = {'s': 0}
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
             if not test_suite:  # pragma: no cover
@@ -95,68 +96,18 @@ class Brickserver(object):
                 data['y'] = list()
 
             # storing stage -- just take data and store them to intermediate brick-element
-            [store_stage[k](brick, data[k]) for k in data if k in store_stage]
+            exec_store_stage(brick, data)
 
             # processing stage -- compare new and old data and do calculations if nesseccary
-            process_requests = [process_stage[k](brick, brick_old) for k in data if k in process_stage]
+            process_requests = exec_process_stage(brick, brick_old, data)
 
             # feature-based processing stage
-            feature_requests = [feature_stage[k](brick) for k in brick['features'] if k in feature_stage]
+            feature_requests = exec_feature_stage(brick)
 
-            """
-            What the following line does:
-            Takes all entrys from process_requests + feature_requests and:
-              - drops None elements
-              - makes non list items to lists with one item aka if type(item) is not list return [item]
-              - passes trough all lists
-            this results in a list of lists, each of this lists is then unpacked in to one big list with all elements
-            with the use of {} duplicate elements are removed
-            """
-            for k in {x for t in [(p if type(p) is list else [p]) for p in process_requests + feature_requests if p] for x in t}:
-                if k.startswith('request_') and 'r' not in result:
-                    result['r'] = []
-                if k == 'update_delay':
-                    result['d'] = brick['delay']
-                elif k == 'update_sleep_disabled':
-                    result['q'] = brick['sleep_set_disabled']
-                elif k == 'update_temp_precision':
-                    result['p'] = brick['temp_precision']
-                elif k == 'update_latch_triggers':
-                    result['t'] = list()
-                    for i in range(0, brick['latch_count']):
-                        result['t'].append(sorted(latch_get(brick['_id'], i)['triggers']))
-                elif k == 'update_signal_states':
-                    result['o'] = list()
-                    for signal in signal_all(brick['_id']):
-                        result['o'].append(signal['state'])
-                        if signal['state_transmitted_ts'] is None:
-                            signal['state_transmitted_ts'] = brick['last_ts']
-                            signal_save(signal)
-                        if 'mqtt' not in signal['disables']:
-                            signal_send(signal['_id'], signal['state'], True)
-                elif k == 'request_versions':
-                    result['r'].append(1)
-                elif k == 'request_bat_voltage':
-                    result['r'].append(3)
-                elif k == 'request_temp_corr':
-                    result['r'].append(4)
-                elif k == 'request_type':
-                    result['r'].append(5)
-                elif k == 'request_temp_precision':
-                    result['r'].append(6)
-                elif k == 'request_signal_count':
-                    result['r'].append(7)
-                elif k == 'request_delay_default':
-                    result['r'].append(8)
-                elif k == 'request_humid_corr':
-                    result['r'].append(9)
+            # feedback stage -- generates feedback to be send to brick
+            feedback = exec_feedback_stage(brick, process_requests, feature_requests)
 
-            # special-case: requests are made and feature sleep is present or all is at least v1.02: override delay to 10 -- except admin_override for delay is present or delay_overwrite is True
-            if 'r' in result and ('admin_override' not in brick or 'delay' not in brick['admin_override']) and ('sleep' in brick['features'] or brick['features']['all'] >= 1.02) and not (brick['features']['all'] >= 1.02 and brick['delay_overwrite']):
-                brick['delay'] = 10
-                result['d'] = 10
-
-            # remove admin_override form brick if present (processing done, so it's no longer needed)
+            # remove admin_override form brick if present (stages done, so it's no longer needed)
             brick['features'].pop('admin_override', None)
             brick.pop('admin_override', None)
 
@@ -165,9 +116,11 @@ class Brickserver(object):
 
             # release lock on brick object
             mongodb_lock_release(brick_id)
-        if not test_suite:  # pragma: no cover
-            print("Feedback: " + json.dumps(result))
-        return result
+
+            if not test_suite:  # pragma: no cover
+                print("Feedback: " + json.dumps(feedback))
+            return feedback
+        return {'s': 1}
 
     """
     Admin interface to override some values
@@ -266,10 +219,13 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if args.migrate:
+        start_mongodb_connection()
         exec_migrate(current_brickserver_version)
         sys.exit(0)
 
     start_mqtt_worker()
     start_influxdb_worker()
+    start_brick_worker()
+    start_mongodb_connection()
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': config['server_port'], })
     cherrypy.quickstart(Brickserver())

@@ -6,6 +6,7 @@ from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete,
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
 from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete
 from connector.mqtt import signal_send
+from connector.brick import activate as brick_activator
 from helpers.feature_versioning import features_available
 from helpers.current_version import current_brickserver_version
 import time
@@ -416,6 +417,8 @@ def __thread_save_execution(data):
 
     mongodb_lock_acquire(brick_id)
     result = admin_commands[data['command']](data)
+    if 'activate' in data and data['activate']:
+        brick_activator(brick_id=brick_id)
     mongodb_lock_release(brick_id)
     return result
 
