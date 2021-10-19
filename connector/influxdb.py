@@ -48,7 +48,10 @@ def start_async_worker():  # pragma: no cover
         global influxDB
         while True:
             body, time_precision, retention_policy = msg_queue.get()
-            influxDB.write_points(body, time_precision=time_precision, retention_policy=retention_policy)
+            try:
+                influxDB.write_points(body, time_precision=time_precision, retention_policy=retention_policy)
+            except Exception as e:
+                print(f"InfluxDB Connector Error: {e}")
 
     global async_queue
     global async_process
