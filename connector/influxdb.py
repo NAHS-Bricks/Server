@@ -60,6 +60,15 @@ def start_async_worker():  # pragma: no cover
         async_process.start()
 
 
+def is_connected():
+    global influxDB
+    try:
+        influxDB.ping()
+        return True
+    except Exception:
+        return False
+
+
 def _write_points_async(body, time_precision=None, retention_policy=None):
     global async_queue
     async_queue.put((body, time_precision, retention_policy))

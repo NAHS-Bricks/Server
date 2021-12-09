@@ -6,13 +6,18 @@ async_queue = Queue()
 async_process = None
 
 
+def _mqttClient():
+    mqttClient = mqtt.Client(client_id=config['mqtt']['clientid'], protocol=mqtt.MQTTv5, transport='tcp')
+    mqttClient.connect(config['mqtt']['server'], port=config['mqtt']['port'])
+    return mqttClient
+
+
 def start_async_worker():  # pragma: no cover
     def _async_worker(msg_queue):
         while True:
             topic, payload = msg_queue.get()
             if topic is not None and payload is not None:
-                mqttClient = mqtt.Client(client_id=config['mqtt']['clientid'], protocol=mqtt.MQTTv5, transport='tcp')
-                mqttClient.connect(config['mqtt']['server'], port=config['mqtt']['port'])
+                mqttClient = _mqttClient()
                 mqttClient.loop_start()
                 mqttClient.publish(topic, payload, qos=2)
                 mqttClient.loop_stop()
@@ -23,6 +28,15 @@ def start_async_worker():  # pragma: no cover
     if async_process is None:
         async_process = Process(target=_async_worker, args=(async_queue, ), daemon=True)
         async_process.start()
+
+
+def is_connected():
+    try:
+        mqttClient = _mqttClient()
+        mqttClient.disconnect()
+        return True
+    except Exception:
+        return False
 
 
 def _publish_async(topic=None, payload=None):

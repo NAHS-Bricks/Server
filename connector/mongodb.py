@@ -15,7 +15,7 @@ def start_mongodb_connection():
     global mongoClient
     global _mongoDB
     if mongoClient is None:
-        mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
+        mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']), serverSelectionTimeoutMS=500)
         _mongoDB = mongoClient.get_database(config['mongo']['database'])
 
 
@@ -24,6 +24,15 @@ def mongoDB():
     if _mongoDB is None:
         start_mongoDB_connection()
     return _mongoDB
+
+
+def is_connected():
+    global mongoClient
+    try:
+        mongoClient.admin.command('ismaster')
+        return True
+    except Exception:
+        return False
 
 
 def mongodb_lock_acquire(brick_id):

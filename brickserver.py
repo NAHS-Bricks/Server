@@ -6,9 +6,11 @@ import sys
 import copy
 import argparse
 from datetime import datetime, timedelta
-from connector.mongodb import start_mongodb_connection, mongodb_lock_acquire, mongodb_lock_release, brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
-from connector.mqtt import start_async_worker as start_mqtt_worker, signal_send
-from connector.influxdb import start_async_worker as start_influxdb_worker
+from connector.mongodb import start_mongodb_connection, mongodb_lock_acquire, mongodb_lock_release, is_connected as mongodb_connected
+from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
+from connector.mongodb import brick_count, temp_sensor_count, humid_count, latch_count, signal_count
+from connector.mqtt import start_async_worker as start_mqtt_worker, is_connected as mqtt_connected, signal_send
+from connector.influxdb import start_async_worker as start_influxdb_worker, is_connected as influxdb_connected
 from connector.brick import start_async_worker as start_brick_worker
 from stage.store import store_exec as exec_store_stage
 from stage.process import process_exec as exec_process_stage
@@ -71,6 +73,20 @@ class Brickserver(object):
         if test_suite:  # pragma: no cover
             if os.path.isfile('/tmp/telegram_messages'):
                 os.remove('/tmp/telegram_messages')
+
+        if cherrypy.request.method == "GET":
+            health = {
+                'version': current_brickserver_version,
+                'mongodb_connected': mongodb_connected(),
+                'influxdb_connected': influxdb_connected(),
+                'mqtt_connected': mqtt_connected(),
+                'brick_count': brick_count(),
+                'temp_sensor_count': temp_sensor_count(),
+                'humid_sensor_count': humid_count(),
+                'latch_count': latch_count(),
+                'signal_count': signal_count()
+            }
+            return health
 
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
@@ -138,6 +154,7 @@ class Brickserver(object):
 
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
+            print("Admin: " + json.dumps(data))
             return admin_interface(data)
         else:
             return {'s': 99}
