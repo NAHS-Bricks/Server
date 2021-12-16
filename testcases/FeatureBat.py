@@ -321,3 +321,92 @@ class TestFeatureBat(BaseCherryPyTestCase):
 
         response = self.webapp_request(mqtt_test=True)
         self.assertNotIn('brick/localhost/bat/', response.mqtt)
+
+
+@parameterized_class(getVersionParameter('bat', specificVersion=[['bat', 1.01]]))
+class TestFeatureBatV101(BaseCherryPyTestCase):
+    def test_version_specific_attributes(self):
+        response = self.webapp_request(clear_state=True, v=self.v)
+        self.assertIn('bat_adc5V', response.state)
+        self.assertIsNone(response.state['bat_adc5V'])
+
+    def test_delivered_adc5V_is_stored(self):
+        response = self.webapp_request(clear_state=True, v=self.v)
+        self.assertIsNone(response.state['bat_adc5V'])
+
+        response = self.webapp_request(a=800)
+        self.assertEqual(response.state['bat_adc5V'], 800)
+
+        response = self.webapp_request(a=900)
+        self.assertEqual(response.state['bat_adc5V'], 900)
+
+    def test_adc5V_attribute_is_reset_on_init(self):
+        response = self.webapp_request(clear_state=True, v=self.v, a=800)
+        self.assertEqual(response.state['bat_adc5V'], 800)
+
+        response = self.webapp_request(y=['i'])
+        self.assertIsNone(response.state['bat_adc5V'])
+
+    def test_adc5V_value_is_send_as_feedback(self):
+        response = self.webapp_request(clear_state=True, v=self.v, b=4.27, a=800)
+        self.assertNotIn('a', response.json)
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=820)
+
+        response = self.webapp_request()
+        self.assertIn('a', response.json)
+        self.assertEqual(response.json['a'], 820)
+
+    def test_adc5V_is_requested(self):
+        # if bat_adc5V is None
+        response = self.webapp_request(clear_state=True, v=self.v)
+        self.assertIsNone(response.state['bat_adc5V'])
+        self.assertIn('r', response.json)
+        self.assertIn(10, response.json['r'])
+
+        # if brick send an init
+        response = self.webapp_request(a=800)
+        if 'r' in response.json:
+            self.assertNotIn(10, response.json['r'])
+
+        response = self.webapp_request(y=['i'])
+        self.assertIn('r', response.json)
+        self.assertIn(10, response.json['r'])
+
+    def test_bat_init_ts_is_reset_on_adv5V_set(self):
+        response = self.webapp_request(clear_state=True, v=self.v, b=4.27, a=800)
+        self.assertEqual(response.state['bat_init_voltage'], 4.27)
+        self.assertIsNotNone(response.state['bat_init_ts'])
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=820)
+
+        self.assertIsNone(response.state['bat_init_voltage'])
+        self.assertIsNone(response.state['bat_init_ts'])
+
+        # this results in requesting the bat_voltage
+        response = self.webapp_request()
+        self.assertIn('r', response.json)
+        self.assertIn(3, response.json['r'])
+
+    def test_admin_interface_set_adc5V_values(self):
+        response = self.webapp_request(clear_state=True)
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=820)  # bat not in brick-features
+        self.assertEqual(response.json['s'], 36)
+
+        response = self.webapp_request(v=self.v, b=4.27, a=800)
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=820)
+        self.assertEqual(response.json['s'], 0)
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=-1)
+        self.assertEqual(response.json['s'], 7)
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=0)
+        self.assertEqual(response.json['s'], 0)
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=1023)
+        self.assertEqual(response.json['s'], 0)
+
+        response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=1024)
+        self.assertEqual(response.json['s'], 7)

@@ -17,23 +17,28 @@ def __feature_all(brick):
 
 
 def __feature_bat(brick):
+    result = list()
     if brick['bat_last_ts']:
         dt_now = datetime.fromtimestamp(brick['last_ts'])
         dt_last = datetime.fromtimestamp(brick['bat_last_ts'])
         if (dt_last.hour % 12) == 7:
             # align to half past 7
             if dt_now >= (dt_last + timedelta(hours=12)).replace(minute=30, second=0):
-                return 'request_bat_voltage'
+                result.append('request_bat_voltage')
         elif (dt_last.hour % 12) in range(1, 7):
             # expand the time a bit
             if dt_now >= dt_last + timedelta(hours=12.5):
-                return 'request_bat_voltage'
+                result.append('request_bat_voltage')
         else:
             # shorten the time a bit
             if dt_now >= dt_last + timedelta(hours=11.5):
-                return 'request_bat_voltage'
+                result.append('request_bat_voltage')
     else:
-        return 'request_bat_voltage'
+        result.append('request_bat_voltage')
+
+    if brick['features']['bat'] >= 1.01 and brick['bat_adc5V'] is None:
+        result.append('request_bat_adc5V')
+    return result
 
 
 def __feature_sleep(brick):
@@ -112,8 +117,12 @@ def __feature_admin_override(brick):
         brick['delay'] = brick['admin_override']['delay']
         brick['sleep_increase_wait'] = 3
         result.append('update_delay')
-    if 'bat' in brick['features'] and 'bat_voltage' in brick['admin_override'] and brick['admin_override']['bat_voltage']:
-        result.append('request_bat_voltage')
+    if 'bat' in brick['features']:
+        if 'bat_voltage' in brick['admin_override'] and brick['admin_override']['bat_voltage']:
+            result.append('request_bat_voltage')
+        if 'bat_adc5V' in brick['admin_override']:
+            result.append('update_bat_adc5V')
+            result.append('request_bat_voltage')
     if 'temp' in brick['features'] and 'temp_precision' in brick['admin_override']:
         result.append('update_temp_precision')
     if 'latch' in brick['features'] and 'latch_triggers' in brick['admin_override']:

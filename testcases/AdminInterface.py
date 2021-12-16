@@ -86,6 +86,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='sleep_disabled', value=True)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='bat_adc5V', value=800)  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)

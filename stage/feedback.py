@@ -23,6 +23,8 @@ def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_ac
             result['q'] = brick['sleep_set_disabled']
         elif k == 'update_temp_precision':
             result['p'] = brick['temp_precision']
+        elif k == 'update_bat_adc5V':
+            result['a'] = brick['bat_adc5V']
         elif k == 'update_latch_triggers':
             result['t'] = list()
             for i in range(0, brick['latch_count']):
@@ -53,6 +55,8 @@ def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_ac
             result['r'].append(8)
         elif k == 'request_humid_corr':
             result['r'].append(9)
+        elif k == 'request_bat_adc5V':
+            result['r'].append(10)
 
     # special-case: requests are made and feature sleep is present or all is at least v1.02: override delay to 10 -- except admin_override for delay is present or delay_overwrite is True
     if 'r' in result and ('admin_override' not in brick or 'delay' not in brick['admin_override']) and ('sleep' in brick['features'] or brick['features']['all'] >= 1.02) and not (brick['features']['all'] >= 1.02 and brick['delay_overwrite']):

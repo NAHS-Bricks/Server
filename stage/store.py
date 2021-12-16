@@ -128,6 +128,12 @@ def __store_d(brick, default_delay):
     brick['delay_default'] = int(default_delay)
 
 
+def __store_a(brick, adc5V):
+    if 'bat' not in brick['features'] or brick['features']['bat'] < 1.01:  # pragma: no cover
+        return
+    brick['bat_adc5V'] = adc5V
+
+
 store = {
     'v': __store_v,
     't': __store_t,
@@ -140,7 +146,8 @@ store = {
     'p': __store_p,
     'l': __store_l,
     's': __store_s,
-    'd': __store_d
+    'd': __store_d,
+    'a': __store_a
 }
 
 

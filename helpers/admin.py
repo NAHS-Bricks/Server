@@ -159,6 +159,22 @@ def __set_temp_precision(data):
     return {}
 
 
+def __set_bat_adc5v(data):
+    if 'brick' not in data:
+        return {'s': 11, 'm': 'brick is missing in data'}
+    brick = brick_get(data['brick'])
+    if 'bat' not in brick['features']:
+        return {'s': 36, 'm': 'bat not in brick-features'}
+    if data['value'] not in range(0, 1024):
+        return {'s': 7, 'm': 'invalid value range(0, 1023)'}
+    brick['bat_adc5V'] = data['value']
+    brick['bat_init_ts'] = None
+    brick['bat_init_voltage'] = None
+    brick['admin_override'][data['key']] = data['value']
+    brick_save(brick)
+    return {}
+
+
 def __set_add_trigger(data):
     if 'latch' not in data:
         return {'s': 13, 'm': 'latch is missing in data'}
@@ -237,6 +253,7 @@ _set_direct = {
 
 _set_indirect = {
     'temp_precision': __set_temp_precision,
+    'bat_adc5V': __set_bat_adc5v,
     'add_trigger': __set_add_trigger,
     'del_trigger': __set_del_trigger,
     'signal': __set_signal

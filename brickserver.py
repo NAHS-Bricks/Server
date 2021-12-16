@@ -29,6 +29,7 @@ if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):  # pragma:
 class Brickserver(object):
     """
     Input json keys:
+    a = adv5V value as int
     t = list of sensors with temps, where sensor and temp are lists themself (eg: [['s1', t1], ['s2', t2]] )
     c = list of sensors with corr (temperature), where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
     l = list of latch states, where the index of a state is the id of the latch input (eg: [0, 1] )
@@ -49,6 +50,7 @@ class Brickserver(object):
     d = delay_default value
 
     Output json keys:
+    a = adv5V value for brick to use (int between 0 and 1023)
     s = state is 0 for ok and 1 for failure
     d = delay value for brick to use
     p = temp_precision for temp-sensors (int between 9 and 12)
@@ -63,6 +65,7 @@ class Brickserver(object):
         7 = signal_count is requested
         8 = delay_default is requested
         9 = humid-sensor correction values are requested
+        10 = adc5V is requested
     q = sets sleep_disabled (true or false)
     """
     @cherrypy.expose

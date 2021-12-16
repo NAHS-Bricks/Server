@@ -84,17 +84,18 @@ def __process_y(brick_new, brick_old):
             result.append('request_bat_voltage')
             brick_new['bat_init_ts'] = None
             brick_new['bat_init_voltage'] = None
+            if brick_new['features']['bat'] >= 1.01:
+                brick_new['bat_adc5V'] = None
         if 'signal' in brick_new['features']:
             result.append('request_signal_count')
             result.append('update_signal_states')
         if brick_new['features']['all'] >= 1.02:
             result.append('request_delay_default')
-    if 'bat' in brick_new['features'] and not brick_new['bat_solar_charging']:
-        if brick_new['bat_charging']:
-            brick_new['bat_periodic_voltage_request'] -= 1
-            if brick_new['bat_periodic_voltage_request'] <= 0:
-                brick_new['bat_periodic_voltage_request'] = 10
-                result.append('request_bat_voltage')
+    if 'bat' in brick_new['features'] and not brick_new['bat_solar_charging'] and brick_new['bat_charging']:
+        brick_new['bat_periodic_voltage_request'] -= 1
+        if brick_new['bat_periodic_voltage_request'] <= 0:
+            brick_new['bat_periodic_voltage_request'] = 10
+            result.append('request_bat_voltage')
     if 'bat' in brick_new['features'] and 'bat' in brick_old['features']:
         if not brick_new['bat_charging'] == brick_old['bat_charging'] or not brick_new['bat_charging_standby'] == brick_old['bat_charging_standby']:
             bat_charging_store(brick_new['bat_charging'], brick_new['bat_charging_standby'], brick_new['_id'], brick_new['last_ts'], brick_new['desc'])
