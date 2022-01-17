@@ -134,6 +134,12 @@ def __store_a(brick, adc5V):
     brick['bat_adc5V'] = adc5V
 
 
+def __store_m(brick, sketchMD5):
+    if 'os' not in brick['features'] or brick['features']['os'] < 1.01:  # pragma: no cover
+        return
+    brick['sketchMD5'] = sketchMD5
+
+
 store = {
     'v': __store_v,
     't': __store_t,
@@ -147,7 +153,8 @@ store = {
     'l': __store_l,
     's': __store_s,
     'd': __store_d,
-    'a': __store_a
+    'a': __store_a,
+    'm': __store_m
 }
 
 

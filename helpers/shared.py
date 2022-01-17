@@ -22,6 +22,23 @@ config = {
         'server': 'localhost',
         'port': 1883,
         'clientid': 'brickserver'
+    },
+    's3': {
+        'server': 'localhost',
+        'port': 9000,
+        'bucket': 'brickserver',
+        'access_key': 'brickserver',
+        'access_secret': 'password'
+    },
+    'ds': {
+        'server': 's3.eu-central-003.backblazeb2.com',
+        'port': 443,
+        'bucket': 'BrickServer-Downstream',
+        'access_key': '00364962f9c8e700000000005',
+        'access_secret': 'K003E2hhtN3dEH85EWxWfvCNL8wVmbI'
+    },
+    'allow': {
+        'ds': False
     }
 }
 if os.path.isfile('config.json'):

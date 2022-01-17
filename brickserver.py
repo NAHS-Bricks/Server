@@ -5,13 +5,19 @@ import os
 import sys
 import copy
 import argparse
+import tempfile
+import zipfile
 from datetime import datetime, timedelta
+from cherrypy.lib import file_generator
 from connector.mongodb import start_mongodb_connection, mongodb_lock_acquire, mongodb_lock_release, is_connected as mongodb_connected
 from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
 from connector.mongodb import brick_count, temp_sensor_count, humid_count, latch_count, signal_count
+from connector.mongodb import fwmetadata_save, fwmetadata_count, fwmetadata_latest
 from connector.mqtt import start_async_worker as start_mqtt_worker, is_connected as mqtt_connected, signal_send
 from connector.influxdb import start_async_worker as start_influxdb_worker, is_connected as influxdb_connected
 from connector.brick import start_async_worker as start_brick_worker
+from connector.s3 import is_connected as s3_connected, firmware_save, firmware_get, firmware_exists, firmware_filename
+from connector.ds import is_connected as ds_connected
 from stage.store import store_exec as exec_store_stage
 from stage.process import process_exec as exec_process_stage
 from stage.feature import feature_exec as exec_feature_stage
@@ -48,6 +54,7 @@ class Brickserver(object):
     p = temp_precision for temp-sensors as int
     s = signal_count (number of signal outputs available on brick)
     d = delay_default value
+    m = sketchMD5
 
     Output json keys:
     a = adv5V value for brick to use (int between 0 and 1023)
@@ -66,6 +73,8 @@ class Brickserver(object):
         8 = delay_default is requested
         9 = humid-sensor correction values are requested
         10 = adc5V is requested
+        11 = sketchMD5 is requested
+        12 = otaUpdate is requested
     q = sets sleep_disabled (true or false)
     """
     @cherrypy.expose
@@ -83,12 +92,17 @@ class Brickserver(object):
                 'mongodb_connected': mongodb_connected(),
                 'influxdb_connected': influxdb_connected(),
                 'mqtt_connected': mqtt_connected(),
+                's3_connected': s3_connected(),
                 'brick_count': brick_count(),
                 'temp_sensor_count': temp_sensor_count(),
                 'humid_sensor_count': humid_count(),
                 'latch_count': latch_count(),
-                'signal_count': signal_count()
+                'signal_count': signal_count(),
+                'fwmetadata_count': fwmetadata_count(),
+                'ds_allowed': config['allow']['ds']
             }
+            if config['allow']['ds']:
+                health['ds_connected'] = ds_connected()
             return health
 
         if 'json' in dir(cherrypy.request):
@@ -157,7 +171,8 @@ class Brickserver(object):
 
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
-            print("Admin: " + json.dumps(data))
+            if not test_suite:  # pragma: no cover
+                print("Admin: " + json.dumps(data))
             return admin_interface(data)
         else:
             return {'s': 99}
@@ -226,6 +241,75 @@ class Brickserver(object):
         cron_data['last_ts'] = ts_now
         util_save(cron_data)
         return {'s': 0}
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def upload(self, firmware=None):
+        if firmware is not None:
+            size = 0
+            with tempfile.SpooledTemporaryFile(max_size=2105345) as tmp_file:
+                while True:
+                    data = firmware.file.read(8192)
+                    if not data:
+                        break
+                    tmp_file.write(data)
+                    size += len(data)
+                    if size > 2097152:
+                        return {'s': 2, 'm': 'file size is to big'}
+                tmp_file.seek(0)
+                with zipfile.ZipFile(tmp_file, 'r') as zip_file:
+                    if 'metadata.json' not in zip_file.namelist():
+                        return {'s': 3, 'm': 'metadata.json is missing in firmware package'}
+                    if 'firmware.bin' not in zip_file.namelist():
+                        return {'s': 4, 'm': 'firmware.bin is missing in firmware package'}
+                    try:
+                        metadata = json.loads(zip_file.read('metadata.json').decode('utf-8'))
+                    except Exception:
+                        return {'s': 9, 'm': 'metadata.json is not a valid json file'}
+                    if 'brick_type' not in metadata:
+                        return {'s': 5, 'm': 'brick_type missing in metadata'}
+                    if 'version' not in metadata:
+                        return {'s': 6, 'm': 'version missing in metadata'}
+                    if 'sketchMD5' not in metadata:
+                        return {'s': 7, 'm': 'sketchMD5 missing in metadata'}
+                    if 'content' not in metadata:
+                        return {'s': 8, 'm': 'content missing in metadata'}
+                    fwmetadata_save(metadata)
+                    firmware_save(zip_file.open('firmware.bin'), fwmetadata=metadata)
+        else:
+            return {'s': 1, 'm': 'missing firmware package'}
+        return {'s': 0}
+
+    @cherrypy.expose
+    def ota(self):
+        brick_ip = cherrypy.request.remote.ip
+        brick_id = get_deviceid(brick_ip)
+
+        # acquire lock on brick object and load it from db
+        mongodb_lock_acquire(brick_id)
+        brick = brick_get(brick_id)
+
+        fwm = fwmetadata_latest(brick['type'])
+
+        if 'os' in brick['features'] and brick['features']['os'] >= 1.01:
+            if fwm is not None and (brick['sketchMD5'] is None or not brick['sketchMD5'] == fwm['sketchMD5']) and firmware_exists(fwmetadata=fwm):
+                brick['otaUpdate'] = 'running'
+            else:
+                brick['otaUpdate'] = 'skipped'
+
+            brick_save(brick)
+
+        # release lock on brick object
+        mongodb_lock_release(brick_id)
+
+        if 'otaUpdate' in brick and brick['otaUpdate'] == 'running':
+            cherrypy.response.headers['Content-Type'] = "application/octet-stream"
+            cherrypy.response.headers['Content-Disposition'] = 'attachment; filename="' + firmware_filename(fwmetadata=fwm) + '"'
+            cherrypy.response.headers['x-MD5'] = fwm['sketchMD5']
+            return file_generator(firmware_get(fwmetadata=fwm))
+        else:
+            cherrypy.response.status = 304
+            return
 
 
 if __name__ == '__main__':

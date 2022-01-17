@@ -1,4 +1,6 @@
 from ._wrapper import *
+from connector.mongodb import fwmetadata_save
+from connector.s3 import firmware_exists
 
 admininterface_versions = [['os', 1.0], ['all', 1.0]]
 
@@ -87,6 +89,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='sleep_disabled', value=True)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='bat_adc5V', value=800)  # brick is missing in data
+        self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='otaupdate', value='requested')  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
 
     def test_brick_desc(self):
@@ -179,3 +183,220 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertIn('sleep', response.json['features'])
         self.assertIn('latch', response.json['features'])
         self.assertIn('signal', response.json['features'])
+
+    def test_getting_fwmetadata(self):
+        response = self.webapp_request(clear_state=True)
+        fwmetadata_save({'brick_type': 1, 'version': '202112301800', 'sketchMD5': '1234', 'content': {'fw': 1}})
+        fwmetadata_save({'brick_type': 1, 'version': '202112301900', 'sketchMD5': '5678', 'content': {'fw': 2}})
+        fwmetadata_save({'brick_type': 2, 'version': '202112302000', 'sketchMD5': '1234', 'content': {'fw': 3}})
+
+        response = self.webapp_request(path="/admin", command='get_firmwares')
+        self.assertEqual(len(response.json['firmwares']), 3)
+        response = self.webapp_request(path="/admin", command='get_firmwares', brick_type=1)
+        self.assertEqual(len(response.json['firmwares']), 2)
+        response = self.webapp_request(path="/admin", command='get_firmwares', brick_type=2)
+        self.assertEqual(len(response.json['firmwares']), 1)
+        response = self.webapp_request(path="/admin", command='get_firmwares', brick_type=3)
+        self.assertEqual(len(response.json['firmwares']), 0)
+
+        response = self.webapp_request(path="/admin", command='get_firmware')  # missing specifiers
+        self.assertEqual(response.json['s'], 37)
+        response = self.webapp_request(path="/admin", command='get_firmware', brick_type=1)  # missing specifiers
+        self.assertEqual(response.json['s'], 37)
+
+        response = self.webapp_request(path="/admin", command='get_firmware', version='202112301800')  # missing specifiers
+        self.assertEqual(response.json['s'], 37)
+        response = self.webapp_request(path="/admin", command='get_firmware', version='202112301800', brick_type=1)
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.json['firmware']['content']['fw'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', version='202112301800', brick_type=2)
+        self.assertEqual(response.json['s'], 0)
+        self.assertIsNone(response.json['firmware'])
+
+        response = self.webapp_request(path="/admin", command='get_firmware', sketchmd5='1234')  # missing specifiers
+        self.assertEqual(response.json['s'], 37)
+        response = self.webapp_request(path="/admin", command='get_firmware', sketchmd5='1234', brick_type=1)
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.json['firmware']['content']['fw'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', sketchmd5='1234', brick_type=2)
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.json['firmware']['content']['fw'], 3)
+        response = self.webapp_request(path="/admin", command='get_firmware', sketchmd5='5678', brick_type=2)
+        self.assertEqual(response.json['s'], 0)
+        self.assertIsNone(response.json['firmware'])
+
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=1)
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.json['firmware']['content']['fw'], 2)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=2)
+        self.assertEqual(response.json['s'], 0)
+        self.assertEqual(response.json['firmware']['content']['fw'], 3)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=3)
+        self.assertEqual(response.json['s'], 0)
+        self.assertIsNone(response.json['firmware'])
+
+    def test_fetching_firmware(self):
+        test_versions = [['os', 2], ['all', 1]]
+        test_bricktype = 1
+        test_sketchMD5 = '1234'
+        test_version = ''
+        response = self.webapp_request(clear_state=True, v=test_versions, x=test_bricktype, m=test_sketchMD5)
+        response = self.webapp_request(path="/admin", command='fetch_firmware')  # invalid value for what
+        self.assertEqual(response.json['s'], 7)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='invalid')  # invalid value for what
+        self.assertEqual(response.json['s'], 7)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 0)
+
+        # latest
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='latest')  # no brick_type (so for all used brick_types)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertNotEqual(response.json['firmware']['sketchMD5'], test_sketchMD5)
+        test_sketchMD5 = response.json['firmware']['sketchMD5']  # saving for later use
+        test_version = response.json['firmware']['version']  # saving for later use
+
+        response = self.webapp_request(clear_state=True, v=test_versions, x=test_bricktype, m=test_sketchMD5)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 0)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='latest', brick_type=test_bricktype)  # now just for this brick_type
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertEqual(response.json['firmware']['sketchMD5'], test_sketchMD5)
+
+        self.assertNotEqual(test_bricktype, 2)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='latest', brick_type=2)  # now for a brick_type that is not used, but firmware should be pulled
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 2)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=2)
+        self.assertNotEqual(response.json['firmware']['sketchMD5'], test_sketchMD5)
+
+        # used
+        response = self.webapp_request(clear_state=True, v=test_versions, x=test_bricktype, m=test_sketchMD5)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 0)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='used')  # for all available bricks (in use)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertEqual(response.json['firmware']['sketchMD5'], test_sketchMD5)
+
+        response = self.webapp_request(clear_state=True, v=test_versions, x=test_bricktype, m=test_sketchMD5)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 0)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='used', brick='localhost')  # for a specific brick
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertEqual(response.json['firmware']['sketchMD5'], test_sketchMD5)
+
+        # specific
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='specific', version=test_version)  # brick_type is missing
+        self.assertEqual(response.json['s'], 38)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='specific', brick_type=test_bricktype)  # verison is missing
+        self.assertEqual(response.json['s'], 39)
+
+        response = self.webapp_request(clear_state=True, v=test_versions, x=test_bricktype, m=test_sketchMD5)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 0)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='specific', brick_type=test_bricktype, version=test_version)  # not yet fetched
+        self.assertEqual(len(response.json['fetched']['metadata']), 1)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertEqual(response.json['firmware']['sketchMD5'], test_sketchMD5)
+
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='specific', brick_type=test_bricktype, version=test_version)  # allready fetched
+        self.assertEqual(len(response.json['fetched']['metadata']), 0)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+
+        # bin
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='bin', version=test_version)  # brick_type is missing
+        self.assertEqual(response.json['s'], 38)
+
+        response = self.webapp_request(clear_state=True, v=test_versions, x=test_bricktype, m=test_sketchMD5)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='specific', brick_type=test_bricktype, version=test_version)  # pre fetching metadata
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertFalse(response.json['firmware']['bin'])  # bin not yet fetched
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='bin', brick_type=test_bricktype, version=test_version)  # fetching bin with metadata present
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertTrue(response.json['firmware']['bin'])  # bin now fetched
+
+        response = self.webapp_request(clear_state=True, v=test_versions, x=test_bricktype, m=test_sketchMD5)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 0)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='bin', brick_type=test_bricktype)  # fetching bin with metadata not present (should fetch both)
+        self.assertEqual(len(response.json['fetched']['firmware']), 1)  # reports bin fethed
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)  # metadata fetched
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=test_bricktype)
+        self.assertTrue(response.json['firmware']['bin'])  # bin also fetched
+
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='bin', brick_type=test_bricktype, version=test_version)  # bin and metadata allready presend should fetch nothing
+        self.assertEqual(len(response.json['fetched']['firmware']), 0)  # nothing fetched report
+
+    def test_deleteing_firmware(self):
+        test_versions = [['os', 2], ['all', 1]]
+        response = self.webapp_request(clear_state=True, v=test_versions, x=1, m='5678')
+
+        # prepare data to be deleted
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='bin', brick_type=1)
+        response = self.webapp_request(path="/admin", command='fetch_firmware', what='bin', brick_type=2)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 2)
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=1)
+        self.assertTrue(response.json['firmware']['bin'])
+        test_1_version = response.json['firmware']['version']   # saving for later use
+        response = self.webapp_request(path="/admin", command='get_firmware', latest=2)
+        self.assertTrue(response.json['firmware']['bin'])
+        test_2_version = response.json['firmware']['version']  # saving for later use
+        fwmetadata_save({'brick_type': 1, 'version': '202112301800', 'sketchMD5': '1234', 'content': {'fw': 1}})
+        fwmetadata_save({'brick_type': 1, 'version': '202112301900', 'sketchMD5': '5678', 'content': {'fw': 2}})
+        fwmetadata_save({'brick_type': 2, 'version': '202112302000', 'sketchMD5': '1234', 'content': {'fw': 3}})
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 5)
+
+        # specifiers missing
+        response = self.webapp_request(path="/admin", command='delete_firmware')
+        self.assertEqual(response.json['s'], 37)
+
+        # only_bin
+        response = self.webapp_request(path="/admin", command='get_firmware', brick_type=1, version=test_1_version)
+        self.assertTrue(response.json['firmware']['bin'])
+        response = self.webapp_request(path="/admin", command='delete_firmware', brick_type=1, version=test_1_version, bin_only=True)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 5)
+        response = self.webapp_request(path="/admin", command='get_firmware', brick_type=1, version=test_1_version)
+        self.assertFalse(response.json['firmware']['bin'])
+        response = self.webapp_request(path="/admin", command='delete_firmware', brick_type=1, version=test_1_version)  # cleaning out remaining metadata
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 4)
+
+        # bin and metadata in one go
+        self.assertTrue(firmware_exists(brick_type=2, version=test_2_version))
+        response = self.webapp_request(path="/admin", command='delete_firmware', brick_type=2, version=test_2_version)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 3)
+        self.assertFalse(firmware_exists(brick_type=2, version=test_2_version))
+
+        # with brick_type and version specified
+        response = self.webapp_request(path="/admin", command='delete_firmware', brick_type=1, version='202112301800')
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 2)
+
+        # with brick_type and sketchMD5 specified
+        response = self.webapp_request(path="/admin", command='delete_firmware', brick_type=2, sketchmd5='1234')
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 1)
+
+        # with latest specified
+        response = self.webapp_request(path="/admin", command='delete_firmware', latest=1)
+        response = self.webapp_request(path="/admin", command='get_count', item='firmwares')
+        self.assertEqual(response.json['count'], 0)

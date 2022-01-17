@@ -15,15 +15,21 @@ def start_development(c):
     if 'dev-mosquitto' not in r.stdout:
         print("Starting mosquitto")
         c.run("cp install/mosquitto.conf /media/ramdisk/mosquitto.conf")
-        c.run("sudo docker run --name dev-mosquitto --rm -v /media/ramdisk/mosquitto.conf:/mosquitto/config/mosquitto.conf -p 1883:1883 -p 9001:9001 -d eclipse-mosquitto:2.0")
+        c.run("sudo docker run --name dev-mosquitto --rm -v /media/ramdisk/mosquitto.conf:/mosquitto/config/mosquitto.conf -p 1883:1883 -d eclipse-mosquitto:2.0")
+    r = c.run("sudo docker ps -f name=dev-minio", hide=True)
+    if 'dev-minio' not in r.stdout:
+        print("Starting MinIO")
+        c.run("sudo mkdir -p /media/ramdisk/minio; sudo chown -R 1001:root /media/ramdisk/minio")
+        c.run('sudo docker run --name dev-minio --rm -v /media/ramdisk/minio:/data -p 9000:9000 -p 9001:9001 --env MINIO_ACCESS_KEY="brickserver" --env MINIO_SECRET_KEY="password" -d bitnami/minio:2022')
     c.run("python install/wait_for_influxdb.py")
     c.run("python install/wait_for_mosquitto.py")
     c.run("python install/wait_for_mongodb.py")
+    c.run("python install/wait_for_minio.py")
 
 
 @task(name="dev-stop")
 def stop_development(c):
-    for name in ['dev-mongo', 'dev-influx', 'dev-mosquitto']:
+    for name in ['dev-mongo', 'dev-influx', 'dev-mosquitto', 'dev-minio']:
         r = c.run(f"sudo docker ps -f name={name}", hide=True)
         if name in r.stdout:
             print(f"Stopping {name}")
@@ -34,6 +40,8 @@ def stop_development(c):
     c.run('sudo rm -rf /media/ramdisk/influxdb')
     print('Removing conf for dev-mosquitto')
     c.run('sudo rm -rf /media/ramdisk/mosquitto.conf')
+    print('Removing storage for dev-minio')
+    c.run('sudo rm -rf /media/ramdisk/minio')
 
 
 @task(pre=[stop_development], post=[start_development], name="dev-clean")

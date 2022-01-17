@@ -15,12 +15,18 @@ import copy
 from threading import Thread
 import time
 import paho.mqtt.client as mqtt
+from helpers.shared import config
+import boto3
+from botocore.exceptions import ClientError as BotoClientError
+import requests
 
 local = httputil.Host('127.0.0.1', 50000, '')
 remote = httputil.Host('127.0.0.1', 50001, '')
 
 mqtt_receiver = None
 mqtt_receiver_str = ""
+s3_resource = boto3.resource('s3', endpoint_url=f"http://{config['s3']['server']}:{config['s3']['port']}", aws_access_key_id=config['s3']['access_key'], aws_secret_access_key=config['s3']['access_secret'])
+s3_bucket = s3_resource.Bucket(config['s3']['bucket'])
 
 
 def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=None, minVersion=dict(), maxVersion=dict()):
@@ -30,7 +36,7 @@ def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=N
 
     f = {
         'all': ['all', 1.02],
-        'os': ['os', 1],
+        'os': ['os', 1.01],
         'sleep': ['sleep', 1.01],
         'bat': ['bat', 1],
         'temp': ['temp', 1],
@@ -145,36 +151,49 @@ teardown_module = tearDownModule
 
 
 class BaseCherryPyTestCase(unittest.TestCase):
-    def webapp_request(self, path='/', clear_state=False, ignore_brick_id=False, mqtt_test=False, **kwargs):
+    def webapp_request(self, path='/', method='POST', clear_state=False, ignore_brick_id=False, mqtt_test=False, **kwargs):
         global mqtt_receiver_str
+        global s3_bucket
         mqtt_receiver_str = ""
-        if clear_state and os.path.isfile('config.json'):
-            with open('config.json', 'r') as f:
-                config = json.loads(f.read().strip())
+        if clear_state:
             mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
             mongoDB = mongoClient.get_database(config['mongo']['database'])
             for c in mongoDB.list_collections():
                 mongoDB.get_collection(c['name']).drop()
+            try:
+                s3_bucket.objects.all().delete()
+            except BotoClientError:  # this client error is raised with RequestTimeTooSkewed when FreezeTime is used
+                pass
         cherrypy.config.update({'ignore_brick_identification': ignore_brick_id})
 
         headers = [('Host', '127.0.0.1')]
-
-        if kwargs:
-            qs = json.dumps(kwargs)
-        else:
-            qs = "{}"
-        headers.append(('content-type', 'application/json'))
-        headers.append(('content-length', f'{len(qs)}'))
-        fd = io.BytesIO(qs.encode())
-        qs = None
 
         # Get our application and run the request against it
         app = cherrypy.tree.apps['']
         # Let's fake the local and remote addresses
         # Let's also use a non-secure scheme: 'http'
         request, response = app.get_serving(local, remote, 'http', 'HTTP/1.1')
+
+        if kwargs:
+            if 'files' in kwargs:
+                prepped = requests.Request('POST', 'http://localhost', files=kwargs['files']).prepare()
+                fd = io.BytesIO(prepped.body)
+                for k, v in prepped.headers.items():
+                    headers.append((k, v))
+            else:
+                qs = json.dumps(kwargs)
+                headers.append(('content-type', 'application/json'))
+                headers.append(('content-length', f'{len(qs)}'))
+                fd = io.BytesIO(qs.encode())
+        else:
+            qs = "{}"
+            headers.append(('content-type', 'application/json'))
+            headers.append(('content-length', f'{len(qs)}'))
+            fd = io.BytesIO(qs.encode())
+        qs = None
+
         try:
-            response = request.run('POST', path, qs, 'HTTP/1.1', headers, fd)
+            response = request.run(method.upper(), path, qs, 'HTTP/1.1', headers, fd)
         finally:
             if fd:
                 fd.close()
@@ -202,38 +221,30 @@ class BaseCherryPyTestCase(unittest.TestCase):
         else:
             response.mqtt = ''
 
-        if os.path.isfile('config.json'):
-            with open('config.json', 'r') as f:
-                config = json.loads(f.read().strip())
-            mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
-            mongoDB = mongoClient.get_database(config['mongo']['database'])
-            response.state = mongoDB.bricks.find_one({'_id': 'localhost'})
-            if response.state is None:
-                response.state = {}
-            response.temp_sensors = {}
-            for sensor in mongoDB.temp_sensors.find({}):
-                response.temp_sensors[sensor['_id']] = sensor
-            response.humid_sensors = {}
-            for sensor in mongoDB.humid_sensors.find({}):
-                response.humid_sensors[sensor['_id']] = sensor
-            response.latches = {}
-            for latch in mongoDB.latches.find({}):
-                response.latches[latch['_id']] = latch
-            response.signals = {}
-            for signal in mongoDB.signals.find({}):
-                response.signals[signal['_id']] = signal
-            response.cron_data = mongoDB.util.find_one({'_id': 'cron_data'})
-            if response.cron_data is None:
-                response.cron_data = {}
-            if os.path.isfile('/tmp/telegram_messages'):
-                with open('/tmp/telegram_messages', 'r') as f:
-                    response.telegram = f.read().strip()
-            else:
-                response.telegram = ""
-        else:
+        mongoClient = MongoClient(host=config['mongo']['server'], port=int(config['mongo']['port']))
+        mongoDB = mongoClient.get_database(config['mongo']['database'])
+        response.state = mongoDB.bricks.find_one({'_id': 'localhost'})
+        if response.state is None:
             response.state = {}
-            response.temp_sensors = {}
+        response.temp_sensors = {}
+        for sensor in mongoDB.temp_sensors.find({}):
+            response.temp_sensors[sensor['_id']] = sensor
+        response.humid_sensors = {}
+        for sensor in mongoDB.humid_sensors.find({}):
+            response.humid_sensors[sensor['_id']] = sensor
+        response.latches = {}
+        for latch in mongoDB.latches.find({}):
+            response.latches[latch['_id']] = latch
+        response.signals = {}
+        for signal in mongoDB.signals.find({}):
+            response.signals[signal['_id']] = signal
+        response.cron_data = mongoDB.util.find_one({'_id': 'cron_data'})
+        if response.cron_data is None:
             response.cron_data = {}
+        if os.path.isfile('/tmp/telegram_messages'):
+            with open('/tmp/telegram_messages', 'r') as f:
+                response.telegram = f.read().strip()
+        else:
             response.telegram = ""
 
         return response

@@ -35,7 +35,7 @@ def is_connected():
         mqttClient = _mqttClient()
         mqttClient.disconnect()
         return True
-    except Exception:
+    except Exception:  # pragma: no cover
         return False
 
 

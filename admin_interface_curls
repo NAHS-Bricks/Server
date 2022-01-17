@@ -9,4 +9,11 @@ curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "brick":
 
 curl -X POST -H "Content-Type: application/json" -d '{"command": "set", "latch": "807d3a6ea260_0", "key": "add_trigger", "value": 0}' http://localhost:8081/admin
 
-curl -X POST -H "Content-Type: application/json" -d '{"v": [["all", 1], ["os", 1], ["sleep", 1], ["signal", 1]], "s": 2}' http://localhost:8081/
+curl -X POST -H "Content-Type: application/json" -d '{"v": [["all", 1], ["os", 1.01], ["sleep", 1], ["signal", 1]], "s": 2, "x": 1, "m": "1234"}' http://localhost:8081/
+curl -X POST -H "Content-Type: application/json" -d '{"v": [["all", 1], ["os", 2], ["sleep", 1], ["bat", 2], ["signal", 1]], "s": 2, "x": 1, "m": "1234", "b": 4.25, "a": 886}' http://localhost:8081/
+
+
+from connector.mongodb import *
+start_mongodb_connection()
+fwmetadata_save({'brick_type': 1, 'version': 202112291800, 'sketchMD5': '1234', 'content': {'nahs-Brick-OS': '2.0.0', 'nahs-Brick-Feature-Temp': '1.5.0', 'nahs-Brick-Feature-Bat': '1.0.0'}})
+fwmetadata_save({'brick_type': 1, 'version': 202112291900, 'sketchMD5': '5678', 'content': {'nahs-Brick-OS': '2.0.0', 'nahs-Brick-Feature-Temp': '1.5.1', 'nahs-Brick-Feature-Sleep': '1.2.5', 'nahs-Brick-Feature-Bat': '1.0.0'}})

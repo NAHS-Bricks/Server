@@ -17,6 +17,10 @@ def _all_102(brick):
     brick['delay_overwrite'] = False
 
 
+def _os_101(brick):
+    brick['sketchMD5'] = None
+
+
 def _temp_initial(brick):
     brick['temp_sensors'] = list()
     brick['temp_precision'] = None
@@ -67,7 +71,9 @@ _feature_updates = {
         0.00: _all_initial,
         1.02: _all_102
     },
-    'os': {},
+    'os': {
+        1.01: _os_101
+    },
     'sleep': {
         0.00: _sleep_initial,
         1.01: _sleep_101

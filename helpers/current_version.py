@@ -1,5 +1,5 @@
 """
-this file is automatically overwritten by deployment changes to this file are only relevant during development
+this file is automatically overwritten by deployment; changes to this file are only relevant during development
 """
 
-current_brickserver_version = '0.7.0'
+current_brickserver_version = '0.8.0'

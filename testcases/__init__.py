@@ -1,6 +1,10 @@
 from .AdminInterface import *
+from .UploadInterface import *
+from .OtaInterface import *
 from .CronInterface import *
+from .HealthInterface import *
 from .SharedFunctions import *
+from .FeatureOs import *
 from .FeatureAll import *
 from .FeatureSleep import *
 from .FeatureBat import *
@@ -9,4 +13,5 @@ from .FeatureLatch import *
 from .FeatureSignal import *
 from .FeatureHumid import *
 from .ConnectorBrick import *
+from .ConnectorS3 import *
 from .Migrations import *

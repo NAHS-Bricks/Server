@@ -65,7 +65,7 @@ def is_connected():
     try:
         influxDB.ping()
         return True
-    except Exception:
+    except Exception:  # pragma: no cover
         return False
 
 

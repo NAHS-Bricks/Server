@@ -2,6 +2,23 @@ from connector.mongodb import temp_sensor_get, humid_get, signal_all
 from datetime import datetime, timedelta
 
 
+def __feature_os(brick):
+    result = list()
+    if brick['features']['os'] >= 1.01:
+        if 'otaUpdate' in brick:
+            if brick['otaUpdate'] == 'requested':
+                result.append('request_otaUpdate')
+            elif brick['initalized']:
+                brick['otaUpdate'] = 'done'
+            else:
+                brick.pop('otaUpdate', None)
+        if brick['sketchMD5'] is None and not brick['initalized']:
+            result.append('request_sketchMD5')
+        if brick['initalized']:
+            brick['sketchMD5'] = None
+    return result
+
+
 def __feature_all(brick):
     result = list()
     if brick['features']['all'] >= 1.02 and brick['delay_default'] is None:
@@ -133,6 +150,7 @@ def __feature_admin_override(brick):
 
 
 feature = {
+    'os': __feature_os,
     'all': __feature_all,
     'bat': __feature_bat,
     'sleep': __feature_sleep,

@@ -11,12 +11,15 @@ backup_dir = "/var/backup"
 storagedir_mongo = "/var/data/mongodb"
 storagedir_influx = "/var/data/influxdb"
 storagedir_mosquitto = "/var/data/mosquitto"
+storagedir_minio = "/var/data/minio"
 mongodb_image = 'mongo:4.4'
 influxdb_image = 'influxdb:1.8'
 mosquitto_image = 'eclipse-mosquitto:2.0'
+minio_image = 'bitnami/minio:2022'
 mongodb_service = "docker.mongodb.service"
 influxdb_service = 'docker.influxdb.service'
 mosquitto_service = 'docker.mosquitto.service'
+minio_service = 'docker.minio.service'
 
 
 def docker_pull(c, image):
@@ -122,6 +125,7 @@ def upload_deploy_helpers(c):
     c.put("install/wait_for_mongodb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_mongodb.py"))
     c.put("install/wait_for_influxdb.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_influxdb.py"))
     c.put("install/wait_for_mosquitto.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_mosquitto.py"))
+    c.put("install/wait_for_mosquitto.py", remote=os.path.join("/tmp/brickserver-deploy", "wait_for_minio.py"))
 
 
 def cleanup_deploy_helpers(c):
@@ -141,9 +145,11 @@ def upload_project_files(c):
 
 
 def create_directorys(c):
-    for d in [project_dir, storagedir_mongo, storagedir_influx, storagedir_mosquitto, backup_dir]:
+    for d in [project_dir, storagedir_mongo, storagedir_influx, storagedir_mosquitto, backup_dir, storagedir_minio]:
         print(f"Creating {d}")
         c.run(f"mkdir -p {d}", warn=True, hide=True)
+    print(f"Changing ownership of: {storagedir_minio}")
+    c.run(f"chown 1001:root {storagedir_minio}")
 
 
 def install_apt_package(c, package):
@@ -182,6 +188,11 @@ def wait_for_mosquitto(c):
     c.run(f"cd {project_dir}; {os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_mosquitto.py")
 
 
+def wait_for_minio(c):
+    print("Waiting for minio to be started")
+    c.run(f"cd {project_dir}; {os.path.join(project_dir, 'venv/bin/python3')} /tmp/brickserver-deploy/wait_for_minio.py")
+
+
 def backup_mongodb(c):
     if c.run(f"systemctl is-active {mongodb_service}", warn=True, hide=True).ok:
         backup_path = os.path.join(backup_dir, 'mongodb-' + datetime.now().isoformat() + '.tar.gz')
@@ -211,6 +222,7 @@ def deploy(c):
     docker_pull(c, mongodb_image)
     docker_pull(c, influxdb_image)
     docker_pull(c, mosquitto_image)
+    docker_pull(c, minio_image)
     upload_deploy_helpers(c)
     # Timecritical stuff (when service allready runs) - start
     create_directorys(c)
@@ -221,6 +233,7 @@ def deploy(c):
     systemctl_stop(c, mongodb_service)
     systemctl_stop(c, influxdb_service)
     systemctl_stop(c, mosquitto_service)
+    systemctl_stop(c, minio_service)
     drop_event_system(c)
     upload_project_files(c)
     write_brickserver_version(c)
@@ -229,6 +242,7 @@ def deploy(c):
     systemctl_install_service(c, 'docker.service', mongodb_service, [('__additional__', ''), ('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
     systemctl_install_service(c, 'docker.service', influxdb_service, [('__additional__', ''), ('__storage__', storagedir_influx + ':/var/lib/influxdb'), ('__port__', '8086:8086'), ('__image__', influxdb_image)])
     systemctl_install_service(c, 'docker.service', mosquitto_service, [('__additional__', ''), ('__storage__', os.path.join(storagedir_mosquitto, 'mosquitto.conf') + ':/mosquitto/config/mosquitto.conf'), ('__port__', '1883:1883'), ('__image__', mosquitto_image)])
+    systemctl_install_service(c, 'docker.service', minio_service, [('__additional__', '--env MINIO_ACCESS_KEY="brickserver" --env MINIO_SECRET_KEY="password"'), ('__storage__', storagedir_minio + ':/data'), ('__port__', '9000:9000'), ('__image__', minio_image)])
     c.run("systemctl daemon-reload")
     install_rsyslog(c)
     install_cron(c)
@@ -236,9 +250,11 @@ def deploy(c):
     systemctl_start(c, mongodb_service)
     systemctl_start(c, influxdb_service)
     systemctl_start(c, mosquitto_service)
+    systemctl_start(c, minio_service)
     wait_for_mongodb(c)
     wait_for_influxdb(c)
     wait_for_mosquitto(c)
+    wait_for_minio(c)
     execute_migrations(c)
     systemctl_start(c, 'brickserver')
     systemctl_start(c, 'cron')

@@ -57,6 +57,10 @@ def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_ac
             result['r'].append(9)
         elif k == 'request_bat_adc5V':
             result['r'].append(10)
+        elif k == 'request_sketchMD5':
+            result['r'].append(11)
+        elif k == 'request_otaUpdate':
+            result['r'].append(12)
 
     # special-case: requests are made and feature sleep is present or all is at least v1.02: override delay to 10 -- except admin_override for delay is present or delay_overwrite is True
     if 'r' in result and ('admin_override' not in brick or 'delay' not in brick['admin_override']) and ('sleep' in brick['features'] or brick['features']['all'] >= 1.02) and not (brick['features']['all'] >= 1.02 and brick['delay_overwrite']):

@@ -4,9 +4,12 @@ from connector.mongodb import temp_sensor_exists, temp_sensor_delete, temp_senso
 from connector.mongodb import humid_exists, humid_delete, humid_get, humid_save, humid_count
 from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete, latch_count
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
+from connector.mongodb import fwmetadata_get, fwmetadata_all, fwmetadata_count, fwmetadata_search, fwmetadata_latest, fwmetadata_delete
 from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete
+from connector.ds import dsfirmware_get, dsfirmware_get_latest, dsfirmware_get_used, dsfirmware_get_bin
 from connector.mqtt import signal_send
 from connector.brick import activate as brick_activator
+from connector.s3 import firmware_exists, firmware_delete, firmware_filename
 from helpers.feature_versioning import features_available
 from helpers.current_version import current_brickserver_version
 import time
@@ -145,6 +148,19 @@ def __set_sleep_disabled(data):
     return {}
 
 
+def __set_otaupdate(data):
+    if 'brick' not in data:
+        return {'s': 11, 'm': 'brick is missing in data'}
+    if data['value'] not in ['requested', 'canceled']:
+        return {'s': 7, 'm': 'invalid value, needs to be a "requested" or "canceled"'}
+    brick = brick_get(data['brick'])
+    if not brick['features']['os'] >= 1.01:
+        return {'s': 35, 'm': 'feature version not satisfied (os >= 1.01)'}
+    brick['otaUpdate'] = data['value']
+    brick_save(brick)
+    return {}
+
+
 def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -247,7 +263,8 @@ _set_direct = {
     'add_disable': __set_add_disable,
     'del_disable': __set_del_disable,
     'bat_solar_charging': __set_bat_solar_charging,
-    'sleep_disabled': __set_sleep_disabled
+    'sleep_disabled': __set_sleep_disabled,
+    'otaupdate': __set_otaupdate
 }
 
 
@@ -361,6 +378,81 @@ def __cmd_get_signal(data):
     return {'signal': signal_get(brick_id, signal_id)}
 
 
+def __cmd_get_firmware(data):
+    if 'brick_type' in data and 'version' in data and data['brick_type'] is not None and data['version'] is not None:
+        fw = fwmetadata_get(brick_type=data['brick_type'], version=data['version'])
+    elif 'brick_type' in data and 'sketchmd5' in data and data['brick_type'] is not None and data['sketchmd5'] is not None:
+        fw = fwmetadata_search(brick_type=data['brick_type'], sketchMD5=data['sketchmd5'])
+    elif 'latest' in data and data['latest'] is not None:
+        fw = fwmetadata_latest(brick_type=data['latest'])
+    else:
+        return {'s': 37, 'm': 'specifiers are missing possible is: (brick_type and version) or (brick_type and sketchmd5) or latest'}
+    if fw is not None:
+        fw['bin'] = firmware_exists(fwmetadata=fw)
+    return {'firmware': fw}
+
+
+def __cmd_get_firmwares(data):
+    if 'brick_type' in data and data['brick_type'] is not None and not data['brick_type'] == '':
+        fws = fwmetadata_all(brick_type=data['brick_type'])
+    else:
+        fws = fwmetadata_all()
+    result = list()
+    for fw in fws:
+        fw['bin'] = firmware_exists(fwmetadata=fw)
+        result.append(fw)
+    return {'firmwares': result}
+
+
+def __cmd_fetch_firmware(data):
+    what = ['latest', 'used', 'specific', 'bin']
+    if data.get('what') not in what:
+        return {'s': 7, 'm': f"invalid value: what is '{data.get('what')}' but needs to be one of: {what}"}
+    result = dict()
+    if data.get('what') == 'specific':
+        if data.get('brick_type') is None:
+            return {'s': 38, 'm': 'brick_type is missing in data'}
+        if data.get('version') is None:
+            return {'s': 39, 'm': 'version is missing in data'}
+        fw_name = dsfirmware_get(brick_type=data.get('brick_type'), version=data.get('version'))
+        if fw_name is not None:
+            result = {'metadata': [fw_name]}
+        else:
+            result = {'metadata': []}
+    elif data.get('what') == 'bin':
+        if data.get('brick_type') is None:
+            return {'s': 38, 'm': 'brick_type is missing in data'}
+        fw_name = dsfirmware_get_bin(brick_type=data.get('brick_type'), version=data.get('version'))
+        if fw_name is not None:
+            result = {'firmware': [fw_name + '.bin']}
+        else:
+            result = {'firmware': []}
+    elif data.get('what') == 'latest':
+        result = {'metadata': dsfirmware_get_latest(brick_type=data.get('brick_type'))}
+    elif data.get('what') == 'used':
+        result = {'metadata': dsfirmware_get_used(brick_id=data.get('brick'))}
+    return {'fetched': result}
+
+
+def __cmd_delete_firmware(data):
+    if 'brick_type' in data and 'version' in data and data['brick_type'] is not None and data['version'] is not None:
+        fw = fwmetadata_get(brick_type=data['brick_type'], version=data['version'])
+    elif 'brick_type' in data and 'sketchmd5' in data and data['brick_type'] is not None and data['sketchmd5'] is not None:
+        fw = fwmetadata_search(brick_type=data['brick_type'], sketchMD5=data['sketchmd5'])
+    elif 'latest' in data and data['latest'] is not None:
+        fw = fwmetadata_latest(brick_type=data['latest'])
+    else:
+        return {'s': 37, 'm': 'specifiers are missing possible is: (brick_type and version) or (brick_type and sketchmd5) or latest'}
+    result = dict()
+    if firmware_exists(fwmetadata=fw):
+        firmware_delete(fwmetadata=fw)
+        result['firmware'] = firmware_filename(fwmetadata=fw)
+    if not data.get('bin_only', False):
+        fwmetadata_delete(metadata=fw)
+        result['metadata'] = fw.get('_id')
+    return {'deleted': result}
+
+
 def __cmd_get_features(data):
     features = features_available()
     features.remove('all')
@@ -375,7 +467,7 @@ def __cmd_get_version(data):
 def __cmd_get_count(data):
     if 'item' not in data:
         return {'s': 16, 'm': 'item is missing in data'}
-    valid_items = ['bricks', 'temp_sensors', 'humid_sensors', 'latches', 'signals']
+    valid_items = ['bricks', 'temp_sensors', 'humid_sensors', 'latches', 'signals', 'firmwares']
     if data['item'] not in valid_items:
         return {'s': 17, 'm': 'invalid item given. Needs to be one of: ' + str(valid_items)}
     c = 0
@@ -389,6 +481,8 @@ def __cmd_get_count(data):
         c = latch_count()
     elif data['item'] == 'signals':
         c = signal_count()
+    elif data['item'] == 'firmwares':
+        c = fwmetadata_count()
     return {'count': c}
 
 
@@ -401,6 +495,10 @@ admin_commands = {
     'get_humid_sensor': __cmd_get_humid_sensor,
     'get_latch': __cmd_get_latch,
     'get_signal': __cmd_get_signal,
+    'get_firmware': __cmd_get_firmware,
+    'get_firmwares': __cmd_get_firmwares,
+    'fetch_firmware': __cmd_fetch_firmware,
+    'delete_firmware': __cmd_delete_firmware,
     'get_features': __cmd_get_features,
     'get_version': __cmd_get_version,
     'get_count': __cmd_get_count
@@ -408,7 +506,7 @@ admin_commands = {
 
 
 def __thread_save_execution(data):
-    if data['command'].startswith('get_'):
+    if data['command'].startswith('get_') or data['command'].startswith('fetch_') or data['command'] == 'delete_firmware':
         return admin_commands[data['command']](data)
 
     brick_id = None

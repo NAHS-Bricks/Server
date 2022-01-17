@@ -1,4 +1,4 @@
-from pymongo import MongoClient, ASCENDING
+from pymongo import MongoClient, ASCENDING, DESCENDING
 from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, humid_defaults
 from helpers.feature_versioning import feature_update
 import copy
@@ -21,7 +21,7 @@ def start_mongodb_connection():
 
 def mongoDB():
     global _mongoDB
-    if _mongoDB is None:
+    if _mongoDB is None:  # pragma: no cover
         start_mongoDB_connection()
     return _mongoDB
 
@@ -31,7 +31,7 @@ def is_connected():
     try:
         mongoClient.admin.command('ismaster')
         return True
-    except Exception:
+    except Exception:  # pragma: no cover
         return False
 
 
@@ -373,6 +373,90 @@ def signal_count():
     """
     global _mongoDB
     return _mongoDB.signals.count_documents({})
+
+
+"""
+fwmetadata
+"""
+
+
+def fwmetadata_get(brick_type, version):
+    """
+    Returns FirmwareMetadata from DB or None if it doesn't exist in DB
+    """
+    global _mongoDB
+    mid = f"{brick_type}_{version}"
+    return _mongoDB.fwmetadata.find_one({'_id': mid})
+
+
+def fwmetadata_save(metadata):
+    """
+    Saves FirmwareMetadata to DB
+    """
+    global _mongoDB
+    if '_id' not in metadata:
+        metadata['_id'] = f"{metadata['brick_type']}_{metadata['version']}"
+    if 'dev' not in metadata:
+        metadata['dev'] = False
+    _mongoDB.fwmetadata.replace_one({'_id': metadata['_id']}, metadata, True)
+
+
+def fwmetadata_delete(metadata):
+    """
+    Removes FirmwareMetadata from DB
+    """
+    global _mongoDB
+    if '_id' not in metadata:  # pragma: no cover
+        metadata['_id'] = f"{metadata['brick_type']}_{metadata['version']}"
+    _mongoDB.fwmetadata.delete_one({'_id': metadata['_id']})
+
+
+def fwmetadata_exists(brick_type, version):
+    """
+    Returns True or False whether FirmwareMetadata is stored in DB or not
+    """
+    global _mongoDB
+    mid = f"{brick_type}_{version}"
+    fm = _mongoDB.fwmetadata.find_one({'_id': mid})
+    if fm is not None:
+        return True
+    return False
+
+
+def fwmetadata_all(brick_type=None):
+    """
+    Returns an iterator to all FirmwareMetadata in DB if brick_type is None
+    Otherwise returns an iterator to all FirmwareMetadata of a specific brick_type
+    """
+    global _mongoDB
+    if brick_type is None:
+        return _mongoDB.fwmetadata.find({}).sort("_id", ASCENDING)
+    else:
+        return _mongoDB.fwmetadata.find({'brick_type': brick_type}).sort("_id", ASCENDING)
+
+
+def fwmetadata_search(brick_type, sketchMD5):
+    """
+    Returns FirmwareMetadata with a specific brick_type and sketchMD5 or None if it not exits
+    """
+    global _mongoDB
+    return _mongoDB.fwmetadata.find_one({'brick_type': brick_type, 'sketchMD5': sketchMD5})
+
+
+def fwmetadata_latest(brick_type):
+    """
+    Returns FirmwareMetadata with newest version for given brick_type
+    """
+    global _mongoDB
+    return _mongoDB.fwmetadata.find_one({'brick_type': brick_type}, sort=[('_id', DESCENDING)], limit=1)
+
+
+def fwmetadata_count():
+    """
+    Returns number of FirmwareMetadata present in DB
+    """
+    global _mongoDB
+    return _mongoDB.fwmetadata.count_documents({})
 
 
 """
