@@ -323,7 +323,7 @@ class TestFeatureBat(BaseCherryPyTestCase):
         self.assertNotIn('brick/localhost/bat/', response.mqtt)
 
 
-@parameterized_class(getVersionParameter('bat', specificVersion=[['bat', 1.01]]))
+@parameterized_class(getVersionParameter('bat', specificVersion=[['bat', 1.01]], minVersion={'bat': 1.01}))
 class TestFeatureBatV101(BaseCherryPyTestCase):
     def test_version_specific_attributes(self):
         response = self.webapp_request(clear_state=True, v=self.v)
