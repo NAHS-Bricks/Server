@@ -148,12 +148,6 @@ def version_greater_or_equal_than(a, b):
     return True
 
 
-prediction_ref = list()
-for line in open('bat_prediction_reference.dat', 'r').read().strip().split('\n'):
-    ts, v = line.split(';')
-    prediction_ref.append((int(ts), float(v)))
-
-
 def calculate_bat_prediction(brick=None, init_ts=None, init_voltage=None, last_ts=None, last_voltage=None):
     if brick is not None:
         init_ts = brick['bat_init_ts']
@@ -164,18 +158,8 @@ def calculate_bat_prediction(brick=None, init_ts=None, init_voltage=None, last_t
         return None
     if last_voltage >= init_voltage or init_ts == last_ts:
         return None
-    ref_init_ts = None
-    ref_last_ts = None
-    for ref_ts, ref_voltage in prediction_ref:
-        if ref_init_ts is None and init_voltage >= ref_voltage:
-            ref_init_ts = ref_ts
-            continue
-        if last_voltage > ref_voltage:
-            ref_last_ts = ref_ts
-            break
-    if ref_last_ts is None:
-        ref_last_ts = prediction_ref[-1][0]
 
-    factor = (datetime.fromtimestamp(prediction_ref[-1][0]) - datetime.fromtimestamp(ref_last_ts)).total_seconds() / (datetime.fromtimestamp(ref_last_ts) - datetime.fromtimestamp(ref_init_ts)).total_seconds()
-    prediction = (datetime.fromtimestamp(last_ts) - datetime.fromtimestamp(init_ts)).total_seconds() * factor
-    return (prediction / 60 / 60 / 24)
+    r = ((((last_ts - init_ts) / (last_voltage - init_voltage)) * (3.4 - init_voltage)) - (last_ts - init_ts)) / 86400
+    if last_voltage > 4.08:
+        r *= (last_voltage - 4.08) * 10 + 1
+    return r
