@@ -1,5 +1,6 @@
 from connector.mongodb import signal_all, signal_save, latch_get
 from connector.mqtt import signal_send
+from connector.influxdb import signal_store
 
 
 def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_activator=False):
@@ -39,6 +40,8 @@ def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_ac
                         signal_save(signal)
                     if 'mqtt' not in signal['disables']:
                         signal_send(signal['_id'], signal['state'], True)
+                    if 'metric' not in signal['disables']:
+                        signal_store(state=signal['state'], signal_id=signal['_id'], ts=brick['last_ts'], signal_desc=signal['desc'], brick_desc=brick['desc'])
         elif k == 'request_versions':
             result['r'].append(1)
         elif k == 'request_bat_voltage':

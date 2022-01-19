@@ -169,7 +169,28 @@ def latch_store(state, latch_id, ts, latch_desc=None, brick_desc=None):
 
 def latch_delete(brick_id, latch_id):
     """
-    Deletes all latches measurements of a given latch
+    Deletes all signals measurements of a given signal
     """
     global influxDB
     influxDB.delete_series(measurement='latches', tags={'brick_id': brick_id, 'latch_id': str(int(latch_id))})
+
+
+def signal_store(state, signal_id, ts, signal_desc=None, brick_desc=None):
+    global influxDB
+    # store to default (8weeks) to latches
+    brick_id, sid = signal_id.split('_')
+    body = {'measurement': 'signals', 'tags': {'signal_id': str(int(sid)), 'brick_id': brick_id}, 'time': int(ts), 'fields': {'state': int(state)}}
+    if signal_desc is not None and not signal_desc == '':
+        body['tags']['signal_desc'] = signal_desc
+    if brick_desc is not None and not brick_desc == '':
+        body['tags']['brick_desc'] = brick_desc
+    body = [body]
+    _write_points_async(body, time_precision='s')
+
+
+def signal_delete(brick_id, signal_id):
+    """
+    Deletes all signals measurements of a given signal
+    """
+    global influxDB
+    influxDB.delete_series(measurement='signals', tags={'brick_id': brick_id, 'signal_id': str(int(signal_id))})

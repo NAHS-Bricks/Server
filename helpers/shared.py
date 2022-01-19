@@ -85,7 +85,7 @@ signal_defaults = {
     'state_set_ts': None,  # time on which the state was set via API
     'state_transmitted_ts': None,  # time on which the state was transmitted to brick (or None if set but not yet transmitted)
     'states_desc': list(['off', 'on']),
-    'disables': list()
+    'disables': list(['metric'])
 }
 
 

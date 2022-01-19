@@ -8,7 +8,7 @@ from brickserver import Brickserver
 from pymongo import MongoClient
 from parameterized import parameterized_class
 from connector.mqtt import start_async_worker as mqtt_start_worker, _publish_async as mqtt_publish_async
-from connector.influxdb import start_async_worker as influxdb_start_worker
+from connector.influxdb import influxDB, start_async_worker as influxdb_start_worker, setup_database as influx_setup_database
 from connector.brick import start_async_worker as brick_start_worker, activate as brick_activate
 from connector.mongodb import start_mongodb_connection
 import copy
@@ -19,6 +19,7 @@ from helpers.shared import config
 import boto3
 from botocore.exceptions import ClientError as BotoClientError
 import requests
+from datetime import datetime
 
 local = httputil.Host('127.0.0.1', 50000, '')
 remote = httputil.Host('127.0.0.1', 50001, '')
@@ -151,7 +152,7 @@ teardown_module = tearDownModule
 
 
 class BaseCherryPyTestCase(unittest.TestCase):
-    def webapp_request(self, path='/', method='POST', clear_state=False, ignore_brick_id=False, mqtt_test=False, **kwargs):
+    def webapp_request(self, path='/', method='POST', clear_state=False, clear_influx=False, ignore_brick_id=False, mqtt_test=False, **kwargs):
         global mqtt_receiver_str
         global s3_bucket
         mqtt_receiver_str = ""
@@ -164,6 +165,9 @@ class BaseCherryPyTestCase(unittest.TestCase):
                 s3_bucket.objects.all().delete()
             except BotoClientError:  # this client error is raised with RequestTimeTooSkewed when FreezeTime is used
                 pass
+        if clear_influx:
+            influxDB.drop_database(config['influx']['database'])
+            influx_setup_database()
         cherrypy.config.update({'ignore_brick_identification': ignore_brick_id})
 
         headers = [('Host', '127.0.0.1')]

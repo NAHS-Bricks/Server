@@ -1,4 +1,5 @@
 from ._wrapper import *
+from connector.influxdb import influxDB
 
 
 @parameterized_class(getVersionParameter('signal'))
@@ -227,21 +228,34 @@ class TestFeatureSignal(BaseCherryPyTestCase):
 
     def test_disables_are_stored(self):
         response = self.webapp_request(clear_state=True, v=self.v, s=2)
-        self.assertEqual(len(response.signals['localhost_1']['disables']), 0)
+        self.assertEqual(len(response.signals['localhost_1']['disables']), 1)  # metric allready present by default
+        self.assertIn('metric', response.signals['localhost_1']['disables'])
         response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='ui')
-        self.assertEqual(len(response.signals['localhost_1']['disables']), 1)
-        self.assertIn('ui', response.signals['localhost_1']['disables'])
-        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='ui')  # no change allready in list
-        self.assertEqual(len(response.signals['localhost_1']['disables']), 1)
-        self.assertIn('ui', response.signals['localhost_1']['disables'])
-        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='metric')
         self.assertEqual(len(response.signals['localhost_1']['disables']), 2)
         self.assertIn('ui', response.signals['localhost_1']['disables'])
         self.assertIn('metric', response.signals['localhost_1']['disables'])
-        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='del_disable', value='ui')
-        self.assertEqual(len(response.signals['localhost_1']['disables']), 1)
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='ui')  # no change allready in list
+        self.assertEqual(len(response.signals['localhost_1']['disables']), 2)
+        self.assertIn('ui', response.signals['localhost_1']['disables'])
         self.assertIn('metric', response.signals['localhost_1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='metric')  # no change allready in list
+        self.assertEqual(len(response.signals['localhost_1']['disables']), 2)
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='mqtt')
+        self.assertEqual(len(response.signals['localhost_1']['disables']), 3)
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='add_disable', value='mqtt')  # no change allready in list
+        self.assertEqual(len(response.signals['localhost_1']['disables']), 3)
+        self.assertIn('ui', response.signals['localhost_1']['disables'])
+        self.assertIn('metric', response.signals['localhost_1']['disables'])
+        self.assertIn('mqtt', response.signals['localhost_1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='del_disable', value='ui')
+        self.assertEqual(len(response.signals['localhost_1']['disables']), 2)
+        self.assertIn('metric', response.signals['localhost_1']['disables'])
+        self.assertIn('mqtt', response.signals['localhost_1']['disables'])
         response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='del_disable', value='ui')  # no change allready removed
+        self.assertEqual(len(response.signals['localhost_1']['disables']), 2)
+        self.assertIn('metric', response.signals['localhost_1']['disables'])
+        self.assertIn('mqtt', response.signals['localhost_1']['disables'])
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='del_disable', value='mqtt')
         self.assertEqual(len(response.signals['localhost_1']['disables']), 1)
         self.assertIn('metric', response.signals['localhost_1']['disables'])
         response = self.webapp_request(path='/admin', command='set', signal='localhost_1', key='del_disable', value='metric')
@@ -289,3 +303,60 @@ class TestFeatureSignal(BaseCherryPyTestCase):
         self.assertIn('brick/localhost/signal/localhost_0 0', response.mqtt)
         self.assertIn('brick/localhost/signal/localhost_1 1', response.mqtt)
         self.assertIn('brick/localhost/signal/localhost_2 0', response.mqtt)
+
+    def test_metrics_are_stored(self):
+        sel_stmt = 'SELECT "state" FROM "brickserver"."8weeks"."signals" WHERE "brick_id" = \'localhost\' and "signal_id" = \'$sid\' ORDER BY time DESC LIMIT 1'
+        sel_stmt_d = 'SELECT "state" FROM "brickserver"."8weeks"."signals" WHERE "brick_desc" = \'bl\' and "signal_desc" = \'l$sid\' ORDER BY time DESC LIMIT 1'
+        response = self.webapp_request(clear_state=True, clear_influx=True, v=self.v, s=3)
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_0', key='del_disable', value='metric')
+        response = self.webapp_request(path='/admin', command='set', signal='localhost_2', key='del_disable', value='metric')
+
+        response = self.webapp_request(path='/admin', command='set', key='desc', brick='localhost', value='bl')
+        response = self.webapp_request(path='/admin', command='set', key='desc', signal='localhost_0', value='l0')
+        response = self.webapp_request(path='/admin', command='set', key='desc', signal='localhost_1', value='l1')
+        response = self.webapp_request(path='/admin', command='set', key='desc', signal='localhost_2', value='l2')
+
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_0', value=0)
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_1', value=0)
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_2', value=0)
+        response = self.webapp_request()
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '0')).raw['series'][0]['values'][0][1], 0)
+        self.assertEqual(len(influxDB.query(sel_stmt.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '2')).raw['series'][0]['values'][0][1], 0)
+        # metrics should also be found with their description
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '0')).raw['series'][0]['values'][0][1], 0)
+        self.assertEqual(len(influxDB.query(sel_stmt_d.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '2')).raw['series'][0]['values'][0][1], 0)
+
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_0', value=1)
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_1', value=1)
+        response = self.webapp_request()
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '0')).raw['series'][0]['values'][0][1], 1)
+        self.assertEqual(len(influxDB.query(sel_stmt.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '2')).raw['series'][0]['values'][0][1], 0)
+        # metrics should also be found with their description
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '0')).raw['series'][0]['values'][0][1], 1)
+        self.assertEqual(len(influxDB.query(sel_stmt_d.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '2')).raw['series'][0]['values'][0][1], 0)
+
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_2', value=1)
+        response = self.webapp_request()
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '0')).raw['series'][0]['values'][0][1], 1)
+        self.assertEqual(len(influxDB.query(sel_stmt.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '2')).raw['series'][0]['values'][0][1], 1)
+        # metrics should also be found with their description
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '0')).raw['series'][0]['values'][0][1], 1)
+        self.assertEqual(len(influxDB.query(sel_stmt_d.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '2')).raw['series'][0]['values'][0][1], 1)
+
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_0', value=0)
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_1', value=0)
+        response = self.webapp_request(path='/admin', command='set', key='signal', signal='localhost_2', value=0)
+        response = self.webapp_request(mqtt_test=True)  # mqtt_test is just to be sure the queue is clean for following tests
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '0')).raw['series'][0]['values'][0][1], 0)
+        self.assertEqual(len(influxDB.query(sel_stmt.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt.replace('$sid', '2')).raw['series'][0]['values'][0][1], 0)
+        # metrics should also be found with their description
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '0')).raw['series'][0]['values'][0][1], 0)
+        self.assertEqual(len(influxDB.query(sel_stmt_d.replace('$sid', '1')).raw['series']), 0)
+        self.assertEqual(influxDB.query(sel_stmt_d.replace('$sid', '2')).raw['series'][0]['values'][0][1], 0)

@@ -5,7 +5,7 @@ from connector.mongodb import humid_exists, humid_delete, humid_get, humid_save,
 from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete, latch_count
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
 from connector.mongodb import fwmetadata_get, fwmetadata_all, fwmetadata_count, fwmetadata_search, fwmetadata_latest, fwmetadata_delete
-from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete
+from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete, signal_delete as signal_metrics_delete
 from connector.ds import dsfirmware_get, dsfirmware_get_latest, dsfirmware_get_used, dsfirmware_get_bin
 from connector.mqtt import signal_send
 from connector.brick import activate as brick_activator
@@ -347,6 +347,7 @@ def __cmd_delete_brick(data):
         for signal in signal_all(brick_id=brick['_id']):
             result['signals'].append(signal['_id'])
             signal_delete(signal)
+            signal_metrics_delete(*signal['_id'].split('_'))
     bat_stats_delete(brick['_id'])
     brick_delete(brick['_id'])
     return {'deleted': result}

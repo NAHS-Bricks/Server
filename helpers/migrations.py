@@ -1,4 +1,4 @@
-from connector.mongodb import mongoDB, brick_all, brick_save, util_get, util_save, temp_sensor_all, temp_sensor_save, latch_all, latch_save
+from connector.mongodb import mongoDB, brick_all, brick_save, util_get, util_save, temp_sensor_all, temp_sensor_save, latch_all, latch_save, signal_all, signal_save
 from connector.influxdb import influxDB
 from helpers.shared import version_less_than, version_greater_or_equal_than
 import copy
@@ -69,12 +69,20 @@ def _migrate_from_061():
         mongoDB().drop_collection('event_data')
 
 
+def _migrate_from_071():
+    for signal in signal_all():
+        if 'metric' not in signal['disables']:
+            signal['disables'].append('metric')
+            signal_save(signal)
+
+
 _migrations = {
     '0.1.0': _migrate_from_010,
     '0.3.0': _migrate_from_030,
     '0.4.2': _migrate_from_042,
     '0.5.0': _migrate_from_050,
-    '0.6.1': _migrate_from_061
+    '0.6.1': _migrate_from_061,
+    '0.7.1': _migrate_from_071
 }
 
 

@@ -1,7 +1,7 @@
 from ._wrapper import *
 from helpers.current_version import current_brickserver_version
 from helpers.migrations import exec_migrate
-from connector.mongodb import mongoDB, util_get, util_save, brick_get, brick_save, temp_sensor_get, temp_sensor_save, latch_get, latch_save
+from connector.mongodb import mongoDB, util_get, util_save, brick_get, brick_save, temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_get, signal_save
 
 
 # building a brick to be migrated
@@ -67,12 +67,20 @@ class TestMigrations(BaseCherryPyTestCase):
         # create some dummy objects, that create collections to be tested
         mongoDB().events.replace_one({'_id': 'e1'}, {'_id': 'e1'}, True)
         mongoDB().event_data.replace_one({'_id': 'ed1'}, {'_id': 'ed1'}, True)
-        exec_migrate(current_brickserver_version, True)
 
+        # create signal, remove the signals metric disable by hand as this is added by default, but should added by migration in this case
+        signal = signal_get('migrate_test', 0)
+        if 'metric' in signal['disables']:
+            signal['disables'].remove('metric')
+        signal_save(signal)
+        self.assertNotIn('metric', signal_get('migrate_test', 0)['disables'])  # validate removed
+
+        exec_migrate(current_brickserver_version, True)
         self.assertEqual(util_get('last_migration')['version'], current_brickserver_version)
 
         # check if brick has been migrated
         brick = brick_get('migrate_test')
+        signal = signal_get('migrate_test', 0)
         #  < 060 stuff is not relevant, as this is covered on a different test
         #  from 061 stuff
         self.assertNotIn('events', mongoDB().list_collection_names())
@@ -80,3 +88,5 @@ class TestMigrations(BaseCherryPyTestCase):
         self.assertIn('delay', brick)
         self.assertNotIn('sleep_delay', brick)
         self.assertEqual(brick['delay'], 120)
+        #  from 071 stuff
+        self.assertIn('metric', signal['disables'])
