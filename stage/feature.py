@@ -12,7 +12,7 @@ def __feature_os(brick):
                 brick['otaUpdate'] = 'done'
             else:
                 brick.pop('otaUpdate', None)
-        if brick['sketchMD5'] is None and not brick['initalized']:
+        if brick.get('sketchMD5') is None and not brick['initalized']:
             result.append('request_sketchMD5')
         if brick['initalized']:
             brick['sketchMD5'] = None
@@ -53,7 +53,7 @@ def __feature_bat(brick):
     else:
         result.append('request_bat_voltage')
 
-    if brick['features']['bat'] >= 1.01 and brick['bat_adc5V'] is None:
+    if brick['features']['bat'] >= 1.01 and brick.get('bat_adc5V') is None:
         result.append('request_bat_adc5V')
     return result
 
