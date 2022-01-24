@@ -29,7 +29,7 @@ platform_map = {
 
 
 def platform(c):
-    return platform_map.get(c.run('uname -i', hide=True).stdout.strip())
+    return platform_map.get(c.run('uname -m', hide=True).stdout.strip())
 
 
 def docker_pull(c, image):
