@@ -15,11 +15,21 @@ storagedir_minio = "/var/data/minio"
 mongodb_image = 'mongo:4.4'
 influxdb_image = 'influxdb:1.8'
 mosquitto_image = 'eclipse-mosquitto:2.0'
-minio_image = 'bitnami/minio:2022'
 mongodb_service = "docker.mongodb.service"
 influxdb_service = 'docker.influxdb.service'
 mosquitto_service = 'docker.mosquitto.service'
-minio_service = 'docker.minio.service'
+minio_service = 'minio.service'
+minio_release = '2021-06-17T00-10-46Z'
+minio_dir = '/opt/middleware/minio'
+
+platform_map = {
+    'x86_64': 'amd64',
+    'aarch64': 'arm64'
+}
+
+
+def platform(c):
+    return platform_map.get(c.run('uname -i', hide=True).stdout.strip())
 
 
 def docker_pull(c, image):
@@ -72,11 +82,25 @@ def drop_event_system(c):
     rabbitmq_service = 'docker.rabbitmq.service'
     storagedir_rabbitmq = "/var/data/rabbitmq"
     rabbitmq_image = 'rabbitmq:3.8'
-    systemctl_stop(c, rabbitmq_service)
-    c.run(f"rm -f {os.path.join('/etc/systemd/system', rabbitmq_service)}", warn=True, hide=True)
-    c.run(f"rm -rf {storagedir_rabbitmq}", warn=True, hide=True)
-    c.run(f"docker rmi {rabbitmq_image}", warn=True, hide=True)
-    c.run(f"rm -rf {os.path.join(project_dir, 'event')}", warn=True, hide=True)
+    if c.run(f"ls {os.path.join('/etc/systemd/system', rabbitmq_service)}", warn=True, hide=True).ok:
+        print("dropping event system")
+        systemctl_stop(c, rabbitmq_service)
+        c.run(f"rm -f {os.path.join('/etc/systemd/system', rabbitmq_service)}", warn=True, hide=True)
+        c.run(f"rm -rf {storagedir_rabbitmq}", warn=True, hide=True)
+        c.run(f"docker rmi {rabbitmq_image}", warn=True, hide=True)
+        c.run(f"rm -rf {os.path.join(project_dir, 'event')}", warn=True, hide=True)
+
+
+def drop_bitnami_minio(c):
+    minio_service = 'docker.minio.service'
+    storagedir_minio = "/var/data/minio"
+    minio_image = 'bitnami/minio:2022'
+    if c.run(f"ls {os.path.join('/etc/systemd/system', minio_service)}", warn=True, hide=True).ok:
+        print("dropping bitnami minio")
+        systemctl_stop(c, minio_service)
+        c.run(f"rm -f {os.path.join('/etc/systemd/system', minio_service)}", warn=True, hide=True)
+        c.run(f"rm -rf {storagedir_minio}", warn=True, hide=True)
+        c.run(f"docker rmi {minio_image}", warn=True, hide=True)
 
 
 def install_rsyslog(c):
@@ -95,6 +119,25 @@ def install_logrotate(c):
     print("Configuring logrotate for BrickServer")
     c.put("install/logrotate", "/etc/logrotate.d/brickserver")
     c.run("chmod 644 /etc/logrotate.d/brickserver")
+
+
+def install_minio(c):
+    c.run(f"mkdir -p {minio_dir}", warn=True, hide=True)
+    install = False
+    if c.run(f"ls {os.path.join(minio_dir, 'minio')}", warn=True, hide=True).ok:
+        if minio_release not in c.run(f"{os.path.join(minio_dir, 'minio')} -v", hide=True).stdout:
+            print('wrong minio release is installed')
+            install = True
+    else:
+        print('minio is not installed')
+        install = True
+    if install:
+        print(f"Installing minio {minio_release}")
+        url = f"https://dl.min.io/server/minio/release/linux-{platform(c)}/archive/minio.RELEASE.{minio_release}"
+        c.run(f"curl {url} -o {os.path.join(minio_dir, 'minio')}")
+        c.run(f"chmod 744 {os.path.join(minio_dir, 'minio')}")
+    else:
+        print('minio allready installed')
 
 
 def execute_migrations(c):
@@ -148,8 +191,6 @@ def create_directorys(c):
     for d in [project_dir, storagedir_mongo, storagedir_influx, storagedir_mosquitto, backup_dir, storagedir_minio]:
         print(f"Creating {d}")
         c.run(f"mkdir -p {d}", warn=True, hide=True)
-    print(f"Changing ownership of: {storagedir_minio}")
-    c.run(f"chown 1001:root {storagedir_minio}")
 
 
 def install_apt_package(c, package):
@@ -222,9 +263,9 @@ def deploy(c):
     docker_pull(c, mongodb_image)
     docker_pull(c, influxdb_image)
     docker_pull(c, mosquitto_image)
-    docker_pull(c, minio_image)
+    install_minio(c)
     upload_deploy_helpers(c)
-    # Timecritical stuff (when service allready runs) - start
+    print("#####################\n" + '#\n' * 5 + "# Entering DangerZone\n" + '#\n' * 5 + "#####################", flush=True)  # Timecritical stuff (when service allready runs) - start
     create_directorys(c)
     systemctl_stop(c, 'cron')
     systemctl_stop(c, 'brickserver')
@@ -235,6 +276,7 @@ def deploy(c):
     systemctl_stop(c, mosquitto_service)
     systemctl_stop(c, minio_service)
     drop_event_system(c)
+    drop_bitnami_minio(c)
     upload_project_files(c)
     write_brickserver_version(c)
     setup_virtualenv(c)
@@ -242,7 +284,7 @@ def deploy(c):
     systemctl_install_service(c, 'docker.service', mongodb_service, [('__additional__', ''), ('__storage__', storagedir_mongo + ':/data/db'), ('__port__', '27017:27017'), ('__image__', mongodb_image)])
     systemctl_install_service(c, 'docker.service', influxdb_service, [('__additional__', ''), ('__storage__', storagedir_influx + ':/var/lib/influxdb'), ('__port__', '8086:8086'), ('__image__', influxdb_image)])
     systemctl_install_service(c, 'docker.service', mosquitto_service, [('__additional__', ''), ('__storage__', os.path.join(storagedir_mosquitto, 'mosquitto.conf') + ':/mosquitto/config/mosquitto.conf'), ('__port__', '1883:1883'), ('__image__', mosquitto_image)])
-    systemctl_install_service(c, 'docker.service', minio_service, [('__additional__', '--env MINIO_ACCESS_KEY="brickserver" --env MINIO_SECRET_KEY="password"'), ('__storage__', storagedir_minio + ':/data'), ('__port__', '9000:9000'), ('__image__', minio_image)])
+    systemctl_install_service(c, 'minio.service', minio_service, [('__project_dir__', minio_dir), ('__storage__', storagedir_minio), ('__user__', 'brickserver'), ('__password__', 'password')])
     c.run("systemctl daemon-reload")
     install_rsyslog(c)
     install_cron(c)
@@ -258,6 +300,6 @@ def deploy(c):
     execute_migrations(c)
     systemctl_start(c, 'brickserver')
     systemctl_start(c, 'cron')
-    # Timecritical stuff (when service allready runs) - end
+    print("#####################\n" + '#\n' * 5 + "# Leaving DangerZone\n" + '#\n' * 5 + "#####################", flush=True)  # Timecritical stuff (when service allready runs) - end
     cleanup_deploy_helpers(c)
     docker_prune(c)

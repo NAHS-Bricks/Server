@@ -19,8 +19,7 @@ def start_development(c):
     r = c.run("sudo docker ps -f name=dev-minio", hide=True)
     if 'dev-minio' not in r.stdout:
         print("Starting MinIO")
-        c.run("sudo mkdir -p /media/ramdisk/minio; sudo chown -R 1001:root /media/ramdisk/minio")
-        c.run('sudo docker run --name dev-minio --rm -v /media/ramdisk/minio:/data -p 9000:9000 -p 9001:9001 --env MINIO_ACCESS_KEY="brickserver" --env MINIO_SECRET_KEY="password" -d bitnami/minio:2022')
+        c.run('sudo docker run --name dev-minio --rm -v /media/ramdisk/minio:/data -p 9000:9000 --env MINIO_ROOT_USER="brickserver" --env MINIO_ROOT_PASSWORD="password" -d minio/minio:RELEASE.2021-06-17T00-10-46Z server /data')
     c.run("python install/wait_for_influxdb.py")
     c.run("python install/wait_for_mosquitto.py")
     c.run("python install/wait_for_mongodb.py")

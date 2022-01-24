@@ -4,6 +4,8 @@ After=docker.mongodb.service
 Requires=docker.mongodb.service
 After=docker.influxdb.service
 Requires=docker.influxdb.service
+After=minio.service
+Requires=minio.service
 After=docker.mosquitto.service
 Requires=docker.mosquitto.service
 
