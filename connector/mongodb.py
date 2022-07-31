@@ -1,5 +1,5 @@
 from pymongo import MongoClient, ASCENDING, DESCENDING
-from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, humid_defaults
+from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, humid_defaults, fanctl_defaults
 from helpers.feature_versioning import feature_update
 import copy
 from bson.objectid import ObjectId
@@ -373,6 +373,85 @@ def signal_count():
     """
     global _mongoDB
     return _mongoDB.signals.count_documents({})
+
+
+"""
+fanctl
+"""
+
+
+def fanctl_get(brick_id, fanctl_id):
+    """
+    Returns a fanctl from DB or a newly created it if doesn't exist in DB
+    """
+    global _mongoDB
+    if isinstance(fanctl_id, int):
+        fanctl_id = hex(fanctl_id)
+    elif isinstance(fanctl_id, str) and not fanctl_id.startswith('0x'):
+        fanctl_id = hex(int(fanctl_id))
+    fid = brick_id + '_' + fanctl_id
+    fanctl = _mongoDB.fanctls.find_one({'_id': fid})
+    if fanctl is None:
+        fanctl = dict()
+        fanctl.update(copy.deepcopy(fanctl_defaults))
+        fanctl['_id'] = fid
+    return fanctl
+
+
+def fanctl_save(fanctl):
+    """
+    Saves fanctl to DB
+    """
+    global _mongoDB
+    _mongoDB.fanctls.replace_one({'_id': fanctl['_id']}, fanctl, True)
+
+
+def fanctl_delete(fanctl):
+    """
+    Removes fanctl from DB
+    """
+    global _mongoDB
+    _mongoDB.fanctls.delete_one({'_id': fanctl['_id']})
+
+
+def fanctl_exists(brick_id, fanctl_id):
+    """
+    Returns True or False whether a fanctl is stored in DB or not
+    """
+    global _mongoDB
+    if isinstance(fanctl_id, int):
+        fanctl_id = hex(fanctl_id)
+    elif isinstance(fanctl_id, str) and not fanctl_id.startswith('0x'):
+        fanctl_id = hex(int(fanctl_id))
+    fid = brick_id + '_' + fanctl_id
+    fanctl = _mongoDB.fanctls.find_one({'_id': fid})
+    if fanctl is not None:
+        return True
+    return False
+
+
+def fanctl_all(brick_id=None):
+    """
+    Returns an iterator to all fanctls in DB if brick_id is None
+    Otherwise returns an iterator to all fanctls of a specific brick
+    """
+    global _mongoDB
+    if brick_id is None:
+        return _mongoDB.fanctls.find({}).sort("_id", ASCENDING)
+    else:
+        return _mongoDB.fanctls.find({'_id': {'$regex': '^' + str(brick_id) + '_'}}).sort("_id", ASCENDING)
+
+
+def fanctl_count(brick_id=None):
+    """
+    Returns number of fanctl present in DB if brick_id is None
+    Otherwise returns number of fanctls of a specific brick
+    """
+    global _mongoDB
+    if brick_id is None:
+        return _mongoDB.fanctls.count_documents({})
+    else:
+        return _mongoDB.fanctls.count_documents({'_id': {'$regex': '^' + str(brick_id) + '_'}})
 
 
 """

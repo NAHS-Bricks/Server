@@ -1,7 +1,7 @@
 from helpers.shared import send_telegram, calculate_bat_prediction
-from connector.mongodb import temp_sensor_get, humid_get, latch_get
-from connector.influxdb import temp_store, humid_store, bat_level_store, bat_charging_store, latch_store
-from connector.mqtt import temp_send, humid_send, bat_level_send, bat_charging_send, latch_send
+from connector.mongodb import temp_sensor_get, humid_get, latch_get, fanctl_all, fanctl_delete, fanctl_count, fanctl_save
+from connector.influxdb import temp_store, humid_store, bat_level_store, bat_charging_store, latch_store, fanctl_state_store
+from connector.mqtt import temp_send, humid_send, bat_level_send, bat_charging_send, latch_send, fanctl_state_send
 from datetime import datetime, timedelta
 import os
 
@@ -67,6 +67,23 @@ def __process_l(brick_new, brick_old):
             brick_new['latch_triggerstate_received'] = True
 
 
+def __process_fs(brick_new, brick_old):
+    if 'fanctl' not in brick_new['features']:  # pragma: no cover
+        return
+    for fanctl in fanctl_all(brick_new['_id']):
+        # delete obsolete fanctl
+        if brick_new['initalized'] and not fanctl['last_ts'] == brick_new['last_ts']:
+            fanctl_delete(fanctl)
+            continue
+        if 'metric' not in fanctl['disables'] and fanctl['last_ts'] == brick_new['last_ts']:
+            fanctl_state_store(fanctl['state'], fanctl['last_rps'], fanctl['_id'], fanctl['last_ts'], fanctl['desc'], brick_new['desc'])
+        if 'mqtt' not in fanctl['disables'] and fanctl['last_ts'] == brick_new['last_ts']:
+            fanctl_state_send(fanctl['_id'], fanctl['state'], fanctl['last_rps'], received=True)
+        if fanctl['state_should'] is not None and fanctl['state'] == fanctl['state_should']:
+            fanctl['state_should'] = None
+            fanctl_save(fanctl)
+
+
 def __process_y(brick_new, brick_old):
     result = []
     if brick_new['initalized']:
@@ -91,6 +108,8 @@ def __process_y(brick_new, brick_old):
             result.append('update_signal_states')
         if brick_new['features']['all'] >= 1.02:
             result.append('request_delay_default')
+        if 'fanctl' in brick_new['features'] and fanctl_count(brick_new['_id']) > 0:
+            result.append('request_fanctl_mode')
     if 'bat' in brick_new['features'] and not brick_new['bat_solar_charging'] and brick_new['bat_charging']:
         brick_new['bat_periodic_voltage_request'] -= 1
         if brick_new['bat_periodic_voltage_request'] <= 0:
@@ -116,7 +135,8 @@ process = {
     'h': __process_h,
     'b': __process_b,
     'l': __process_l,
-    'y': __process_y
+    'y': __process_y,
+    'fs': __process_fs
 }
 
 

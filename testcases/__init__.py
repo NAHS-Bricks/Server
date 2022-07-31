@@ -12,6 +12,7 @@ from .FeatureTemp import *
 from .FeatureLatch import *
 from .FeatureSignal import *
 from .FeatureHumid import *
+from .FeatureFanctl import *
 from .ConnectorBrick import *
 from .ConnectorS3 import *
 from .Migrations import *

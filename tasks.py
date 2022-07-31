@@ -55,7 +55,7 @@ def coverage(c, short=None, long=None):
         scale = 'short'
     if long:
         scale = 'long'
-    c.run(f"coverage erase && eval $(python-libfaketime) && TESTSCALE={scale} coverage run --concurrency=multiprocessing -m unittest discover && coverage combine && coverage html && coverage report")
+    c.run(f"coverage erase && eval $(python-libfaketime) && TESTSCALE={scale} coverage run --concurrency=multiprocessing -m unittest discover; coverage combine && coverage html && coverage report")
 
 
 @task(pre=[cleanup_development], post=[coverage], name="clean-coverage")

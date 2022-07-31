@@ -43,7 +43,8 @@ def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=N
         'temp': ['temp', 1],
         'humid': ['humid', 1],
         'latch': ['latch', 1],
-        'signal': ['signal', 1]
+        'signal': ['signal', 1],
+        'fanctl': ['fanctl', 1]
     }
 
     if isinstance(specificVersion, list):

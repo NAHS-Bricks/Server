@@ -12,7 +12,7 @@ from cherrypy.lib import file_generator
 from connector.mongodb import start_mongodb_connection, mongodb_lock_acquire, mongodb_lock_release, is_connected as mongodb_connected
 from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
 from connector.mongodb import brick_count, temp_sensor_count, humid_count, latch_count, signal_count
-from connector.mongodb import fwmetadata_save, fwmetadata_count, fwmetadata_latest
+from connector.mongodb import fwmetadata_save, fwmetadata_count, fwmetadata_latest, fanctl_count
 from connector.mqtt import start_async_worker as start_mqtt_worker, is_connected as mqtt_connected, signal_send
 from connector.influxdb import start_async_worker as start_influxdb_worker, is_connected as influxdb_connected
 from connector.brick import start_async_worker as start_brick_worker
@@ -55,6 +55,8 @@ class Brickserver(object):
     s = signal_count (number of signal outputs available on brick)
     d = delay_default value
     m = sketchMD5
+    fs = fanctl fan-states. list of lists where first element of inner list is fanctl addr, second is state (0=Off, 1=On) and third is rps (eg: [[64, 0, 0], [65, 1, 12]])
+    fm = fanctl fan-modes. list of lists where first element of inner list is fanctl addr and second is mode (-1-2) (eg: [[64, 0], [65, 1]])
 
     Output json keys:
     a = adv5V value for brick to use (int between 0 and 1023)
@@ -75,7 +77,11 @@ class Brickserver(object):
         10 = adc5V is requested
         11 = sketchMD5 is requested
         12 = otaUpdate is requested
+        13 = fanctl fan-modes are requested
     q = sets sleep_disabled (true or false)
+    fm = fanctl fan-modes to be used. list of lists where first element of inner list is fanctl addr and second is mode (0-2) to set (eg: [[64, 0], [65, 1]])
+    fd = fanctl fan-dutyCycle to be used. list of lists where first element of inner list is fanctl addr and second is dytyCycle (0-100) to set (eg: [[64, 0], [65, 100]])
+    fs = fanctl fan-state to be used. list of lists where first element of inner list is fanctl addr and second is state (0=Off, 1=On) to set (eg: [[64, 0], [65, 1]])
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -99,6 +105,7 @@ class Brickserver(object):
                 'latch_count': latch_count(),
                 'signal_count': signal_count(),
                 'fwmetadata_count': fwmetadata_count(),
+                'fanctl_count': fanctl_count(),
                 'ds_allowed': config['allow']['ds']
             }
             if config['allow']['ds']:
@@ -247,7 +254,7 @@ class Brickserver(object):
     def upload(self, firmware=None):
         if firmware is not None:
             size = 0
-            with tempfile.SpooledTemporaryFile(max_size=2105345) as tmp_file:
+            with tempfile.TemporaryFile() as tmp_file:
                 while True:
                     data = firmware.file.read(8192)
                     if not data:

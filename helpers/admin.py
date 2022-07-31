@@ -5,7 +5,9 @@ from connector.mongodb import humid_exists, humid_delete, humid_get, humid_save,
 from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete, latch_count
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
 from connector.mongodb import fwmetadata_get, fwmetadata_all, fwmetadata_count, fwmetadata_search, fwmetadata_latest, fwmetadata_delete
-from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete, signal_delete as signal_metrics_delete
+from connector.mongodb import fanctl_all, fanctl_delete, fanctl_exists, fanctl_get, fanctl_save, fanctl_count
+from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete
+from connector.influxdb import signal_delete as signal_metrics_delete, fanctl_delete as fanctl_metrics_delete
 from connector.ds import dsfirmware_get, dsfirmware_get_latest, dsfirmware_get_used, dsfirmware_get_bin
 from connector.mqtt import signal_send
 from connector.brick import activate as brick_activator
@@ -39,6 +41,10 @@ def __set_desc(data):
         signal = signal_get(brick_id, signal_id)
         signal['desc'] = data['value']
         signal_save(signal)
+    elif 'fanctl' in data:
+        fanctl = fanctl_get(*data['fanctl'].split('_'))
+        fanctl['desc'] = data['value']
+        fanctl_save(fanctl)
     else:
         return {'s': 14, 'm': 'no object given for setting desc'}
     return {}
@@ -88,6 +94,11 @@ def __set_add_disable(data):
         if data['value'] not in signal['disables']:
             signal['disables'].append(data['value'])
             signal_save(signal)
+    elif 'fanctl' in data:
+        fanctl = fanctl_get(*data['fanctl'].split('_'))
+        if data['value'] not in fanctl['disables']:
+            fanctl['disables'].append(data['value'])
+            fanctl_save(fanctl)
     else:
         return {'s': 14, 'm': 'no object given for adding disable'}
     return {}
@@ -117,6 +128,11 @@ def __set_del_disable(data):
         if data['value'] in signal['disables']:
             signal['disables'].remove(data['value'])
             signal_save(signal)
+    elif 'fanctl' in data:
+        fanctl = fanctl_get(*data['fanctl'].split('_'))
+        if data['value'] in fanctl['disables']:
+            fanctl['disables'].remove(data['value'])
+            fanctl_save(fanctl)
     else:
         return {'s': 14, 'm': 'no object given for deleteing disable'}
     return {}
@@ -158,6 +174,42 @@ def __set_otaupdate(data):
         return {'s': 35, 'm': 'feature version not satisfied (os >= 1.01)'}
     brick['otaUpdate'] = data['value']
     brick_save(brick)
+    return {}
+
+
+def __set_fanctl_mode(data):
+    if 'fanctl' not in data:
+        return {'s': 41, 'm': 'fanctl is missing in data'}
+    valid_values = [0, 1, 2]
+    if data['value'] not in valid_values:
+        return {'s': 7, 'm': f'invalid value, needs to be one of {valid_values}'}
+    fanctl = fanctl_get(*data['fanctl'].split('_'))
+    fanctl['mode'] = data['value']
+    fanctl['mode_transmitted_ts'] = None
+    fanctl_save(fanctl)
+    return {}
+
+
+def __set_fanctl_duty(data):
+    if 'fanctl' not in data:
+        return {'s': 41, 'm': 'fanctl is missing in data'}
+    if data['value'] not in range(0, 101):
+        return {'s': 7, 'm': 'invalid value, needs to be in range of 0 to 100'}
+    fanctl = fanctl_get(*data['fanctl'].split('_'))
+    fanctl['dutyCycle'] = data['value']
+    fanctl['dutyCycle_transmitted_ts'] = None
+    fanctl_save(fanctl)
+    return {}
+
+
+def __set_fanctl_state(data):
+    if 'fanctl' not in data:
+        return {'s': 41, 'm': 'fanctl is missing in data'}
+    if data['value'] not in range(0, 2):
+        return {'s': 7, 'm': 'invalid value, needs to be 0 or 1'}
+    fanctl = fanctl_get(*data['fanctl'].split('_'))
+    fanctl['state_should'] = data['value']
+    fanctl_save(fanctl)
     return {}
 
 
@@ -264,7 +316,10 @@ _set_direct = {
     'del_disable': __set_del_disable,
     'bat_solar_charging': __set_bat_solar_charging,
     'sleep_disabled': __set_sleep_disabled,
-    'otaupdate': __set_otaupdate
+    'otaupdate': __set_otaupdate,
+    'fanctl_mode': __set_fanctl_mode,
+    'fanctl_duty': __set_fanctl_duty,
+    'fanctl_state': __set_fanctl_state
 }
 
 
@@ -348,6 +403,12 @@ def __cmd_delete_brick(data):
             result['signals'].append(signal['_id'])
             signal_delete(signal)
             signal_metrics_delete(*signal['_id'].split('_'))
+    if 'fanctl' in brick['features']:
+        result['fanctl'] = list()
+        for fanctl in fanctl_all(brick['_id']):
+            result['fanctl'].append(fanctl['_id'])
+            fanctl_delete(fanctl)
+            fanctl_metrics_delete(fanctl['_id'])
     bat_stats_delete(brick['_id'])
     brick_delete(brick['_id'])
     return {'deleted': result}
@@ -377,6 +438,12 @@ def __cmd_get_signal(data):
         return {'s': 18, 'm': 'signal is missing in data'}
     brick_id, signal_id = data['signal'].split('_')
     return {'signal': signal_get(brick_id, signal_id)}
+
+
+def __cmd_get_fanctl(data):
+    if 'fanctl' not in data:
+        return {'s': 41, 'm': 'fanctl is missing in data'}
+    return {'fanctl': fanctl_get(*data['fanctl'].split('_'))}
 
 
 def __cmd_get_firmware(data):
@@ -468,7 +535,7 @@ def __cmd_get_version(data):
 def __cmd_get_count(data):
     if 'item' not in data:
         return {'s': 16, 'm': 'item is missing in data'}
-    valid_items = ['bricks', 'temp_sensors', 'humid_sensors', 'latches', 'signals', 'firmwares']
+    valid_items = ['bricks', 'temp_sensors', 'humid_sensors', 'latches', 'signals', 'firmwares', 'fanctl']
     if data['item'] not in valid_items:
         return {'s': 17, 'm': 'invalid item given. Needs to be one of: ' + str(valid_items)}
     c = 0
@@ -484,6 +551,8 @@ def __cmd_get_count(data):
         c = signal_count()
     elif data['item'] == 'firmwares':
         c = fwmetadata_count()
+    elif data['item'] == 'fanctl':
+        c = fanctl_count()
     return {'count': c}
 
 
@@ -496,6 +565,7 @@ admin_commands = {
     'get_humid_sensor': __cmd_get_humid_sensor,
     'get_latch': __cmd_get_latch,
     'get_signal': __cmd_get_signal,
+    'get_fanctl': __cmd_get_fanctl,
     'get_firmware': __cmd_get_firmware,
     'get_firmwares': __cmd_get_firmwares,
     'fetch_firmware': __cmd_fetch_firmware,
@@ -517,6 +587,8 @@ def __thread_save_execution(data):
         brick_id = data['latch'].split('_', 1)[0]
     elif 'signal' in data:
         brick_id = data['signal'].split('_', 1)[0]
+    elif 'fanctl' in data:
+        brick_id = data['fanctl'].split('_', 1)[0]
     elif 'temp_sensor' in data:
         for brick in brick_all():
             if 'temp' in brick['features'] and data['temp_sensor'] in brick['temp_sensors']:
@@ -560,6 +632,8 @@ def admin_interface(data):
         brick_id, signal_id = data['signal'].split('_')
         if not signal_exists(brick_id, signal_id):
             return {'s': 20, 'm': 'invalid signal'}
+    if 'fanctl' in data and not fanctl_exists(*data['fanctl'].split('_')):
+        return {'s': 40, 'm': 'invalid fanctl'}
 
     result.update(__thread_save_execution(data))
     return result

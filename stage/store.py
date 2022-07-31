@@ -1,4 +1,4 @@
-from connector.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_all, signal_get, signal_save, signal_delete
+from connector.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_all, signal_get, signal_save, signal_delete, fanctl_get, fanctl_save
 from connector.mongodb import humid_get, humid_save
 from helpers.feature_versioning import feature_update
 import copy
@@ -140,6 +140,29 @@ def __store_m(brick, sketchMD5):
     brick['sketchMD5'] = sketchMD5
 
 
+def __store_fs(brick, fan_states):
+    if 'fanctl' not in brick['features']:  # pragma: no cover
+        return
+    for fid, state, rps in fan_states:
+        fanctl = fanctl_get(brick['_id'], fid)
+        fanctl['state'] = state
+        fanctl['last_rps'] = rps
+        fanctl['last_ts'] = brick['last_ts']
+        fanctl_save(fanctl)
+
+
+def __store_fm(brick, fan_modes):
+    if 'fanctl' not in brick['features']:  # pragma: no cover
+        return
+    for fid, mode in fan_modes:
+        if mode < -1 or mode > 2:
+            continue
+        fanctl = fanctl_get(brick['_id'], fid)
+        fanctl['mode'] = mode
+        fanctl['mode_transmitted_ts'] = brick['last_ts']
+        fanctl_save(fanctl)
+
+
 store = {
     'v': __store_v,
     't': __store_t,
@@ -154,7 +177,9 @@ store = {
     's': __store_s,
     'd': __store_d,
     'a': __store_a,
-    'm': __store_m
+    'm': __store_m,
+    'fs': __store_fs,
+    'fm': __store_fm
 }
 
 

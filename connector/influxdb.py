@@ -36,7 +36,6 @@ def setup_database():
         # downsampling humidity measurements
         select_clause = 'SELECT mean("humidity") AS "mean_humidity" INTO "26weeks"."humids_downsampled" FROM "humids" GROUP BY time(60m), *'
         influxDB.create_continuous_query('humid_mean', select_clause, db_name)
-    # downsampling for bat_levels is not needed as they are not quiet frequent, and they should stored to 26weeks by default
     influxDB.switch_database(db_name)
 
 
@@ -75,7 +74,6 @@ def _write_points_async(body, time_precision=None, retention_policy=None):
 
 
 def temp_store(celsius, sensor_id, ts, sensor_desc=None, brick_id=None, brick_desc=None):
-    global influxDB
     # store to default (8weeks) to temps
     body = {'measurement': 'temps', 'tags': {'sensor_id': sensor_id}, 'time': int(ts), 'fields': {'celsius': float(celsius)}}
     if sensor_desc is not None and not sensor_desc == '':
@@ -98,7 +96,6 @@ def temp_delete(sensor_id):
 
 
 def humid_store(humidity, sensor_id, ts, sensor_desc=None, brick_id=None, brick_desc=None):
-    global influxDB
     # store to default (8weeks) to humids
     body = {'measurement': 'humids', 'tags': {'sensor_id': sensor_id}, 'time': int(ts), 'fields': {'humidity': float(humidity)}}
     if sensor_desc is not None and not sensor_desc == '':
@@ -121,7 +118,6 @@ def humid_delete(sensor_id):
 
 
 def bat_level_store(voltage, v_diff, runtime_prediction, brick_id, ts, brick_desc=None):
-    global influxDB
     # store to 26weeks to bat_levels
     body = {'measurement': 'bat_levels', 'tags': {'brick_id': brick_id}, 'time': int(ts), 'fields': {}}
     body['fields']['voltage'] = float(voltage)
@@ -134,7 +130,6 @@ def bat_level_store(voltage, v_diff, runtime_prediction, brick_id, ts, brick_des
 
 
 def bat_charging_store(charging, charging_standby, brick_id, ts, brick_desc=None):
-    global influxDB
     # store to 26weeks to bat_charging
     body = {'measurement': 'bat_charging', 'tags': {'brick_id': brick_id}, 'time': int(ts), 'fields': {}}
     body['fields']['charging'] = (1 if charging else 0)
@@ -155,7 +150,6 @@ def bat_stats_delete(brick_id):
 
 
 def latch_store(state, latch_id, ts, latch_desc=None, brick_desc=None):
-    global influxDB
     # store to default (8weeks) to latches
     brick_id, lid = latch_id.split('_')
     body = {'measurement': 'latches', 'tags': {'latch_id': str(int(lid)), 'brick_id': brick_id}, 'time': int(ts), 'fields': {'state': int(state)}}
@@ -176,8 +170,7 @@ def latch_delete(brick_id, latch_id):
 
 
 def signal_store(state, signal_id, ts, signal_desc=None, brick_desc=None):
-    global influxDB
-    # store to default (8weeks) to latches
+    # store to default (8weeks) to signals
     brick_id, sid = signal_id.split('_')
     body = {'measurement': 'signals', 'tags': {'signal_id': str(int(sid)), 'brick_id': brick_id}, 'time': int(ts), 'fields': {'state': int(state)}}
     if signal_desc is not None and not signal_desc == '':
@@ -194,3 +187,34 @@ def signal_delete(brick_id, signal_id):
     """
     global influxDB
     influxDB.delete_series(measurement='signals', tags={'brick_id': brick_id, 'signal_id': str(int(signal_id))})
+
+
+def fanctl_state_store(state, rps, fanctl_id, ts, fanctl_desc=None, brick_desc=None):
+    # store to default (8weeks) to fanctl_states
+    brick_id, fid = fanctl_id.split('_')
+    body = {'measurement': 'fanctl_states', 'tags': {'fanctl_id': fid, 'brick_id': brick_id}, 'time': int(ts), 'fields': {'state': int(state), 'rps': int(rps)}}
+    if fanctl_desc is not None and not fanctl_desc == '':
+        body['tags']['fanctl_desc'] = fanctl_desc
+    if brick_desc is not None and not brick_desc == '':
+        body['tags']['brick_desc'] = brick_desc
+    body = [body]
+    _write_points_async(body, time_precision='s')
+
+
+def fanctl_duty_store(duty, fanctl_id, ts, fanctl_desc=None, brick_desc=None):
+    # store to default (8weeks) to fanctl_duty
+    brick_id, fid = fanctl_id.split('_')
+    body = {'measurement': 'fanctl_duty', 'tags': {'fanctl_id': fid, 'brick_id': brick_id}, 'time': int(ts), 'fields': {'dutyCycle': int(duty)}}
+    if fanctl_desc is not None and not fanctl_desc == '':
+        body['tags']['fanctl_desc'] = fanctl_desc
+    if brick_desc is not None and not brick_desc == '':
+        body['tags']['brick_desc'] = brick_desc
+    body = [body]
+    _write_points_async(body, time_precision='s')
+
+
+def fanctl_delete(fanctl_id):
+    global influxDB
+    brick_id, fid = fanctl_id.split('_')
+    influxDB.delete_series(measurement='fanctl_states', tags={'brick_id': brick_id, 'fanctl_id': fid})
+    influxDB.delete_series(measurement='fanctl_duty', tags={'brick_id': brick_id, 'fanctl_id': fid})

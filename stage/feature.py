@@ -1,4 +1,4 @@
-from connector.mongodb import temp_sensor_get, humid_get, signal_all
+from connector.mongodb import temp_sensor_get, humid_get, signal_all, fanctl_all
 from datetime import datetime, timedelta
 
 
@@ -126,6 +126,20 @@ def __feature_signal(brick):
         return 'request_signal_count'
 
 
+def __feature_fanctl(brick):
+    result = list()
+    for fanctl in fanctl_all(brick['_id']):
+        if fanctl['mode'] is None and 'request_fanctl_mode' not in result:
+            result.append('request_fanctl_mode')
+        if fanctl['mode'] is not None and fanctl['mode_transmitted_ts'] is None and 'update_fanctl_mode' not in result:
+            result.append('update_fanctl_mode')
+        if fanctl['dutyCycle_transmitted_ts'] is None and fanctl['dutyCycle'] is not None and fanctl['mode'] is not None and fanctl['mode'] > -1 and 'update_fanctl_duty' not in result:
+            result.append('update_fanctl_duty')
+        if fanctl['state_should'] is not None and fanctl['mode'] is not None and fanctl['mode'] > -1 and 'update_fanctl_state' not in result:
+            result.append('update_fanctl_state')
+    return result
+
+
 def __feature_admin_override(brick):
     result = []
     if 'admin_override' not in brick:  # pragma: no cover
@@ -157,6 +171,7 @@ feature = {
     'temp': __feature_temp,
     'humid': __feature_humid,
     'signal': __feature_signal,
+    'fanctl': __feature_fanctl,
     'admin_override': __feature_admin_override
 }
 

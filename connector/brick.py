@@ -15,7 +15,8 @@ def start_async_worker(test_suite=False):  # pragma: no cover
         while True:
             brick_id = msg_queue.get()
             if test_suite and brick_id == 'test_done':  # required for signaling a completed test
-                open('/tmp/brick_activator', 'a').write(f"{brick_id}\n")
+                with open('/tmp/brick_activator', 'a') as f:
+                    f.write(f"{brick_id}\n")
                 continue
             if brick_id is None:
                 continue
@@ -37,7 +38,8 @@ def start_async_worker(test_suite=False):  # pragma: no cover
                 else:
                     feature_requests = exec_feature_stage(brick)
                     feedback = json.dumps(exec_feedback_stage(brick, feature_requests=feature_requests, by_activator=True))
-                    open('/tmp/brick_activator', 'a').write(f"{brick['_id']}={feedback}\n")
+                    with open('/tmp/brick_activator', 'a') as f:
+                        f.write(f"{brick['_id']}={feedback}\n")
 
     global async_queue
     global async_process

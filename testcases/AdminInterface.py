@@ -37,6 +37,12 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin", command="set", latch="unknown_0", key='somekey', value='somevalue')
         self.assertEqual(response.json['s'], 9)
 
+    def test_invalid_fanctl(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path="/admin", command="set", fanctl="unknown_0", key='somekey', value='somevalue')
+        self.assertEqual(response.json['s'], 40)
+
     def test_forgotten_params(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
         self.assertEqual(response.json['s'], 0)
@@ -64,6 +70,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='get_signal')  # signal is missing in data
         self.assertEqual(response.json['s'], 18)
+        response = self.webapp_request(path="/admin", command='get_fanctl')  # fanctl is missing in data
+        self.assertEqual(response.json['s'], 41)
         response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='add_trigger', value=0)  # latch is missing in data
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='del_trigger', value=0)  # latch is missing in data
@@ -92,6 +100,12 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='otaupdate', value='requested')  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='fanctl_mode', value=0)  # fanctl is missing in data
+        self.assertEqual(response.json['s'], 41)
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='fanctl_duty', value=50)  # fanctl is missing in data
+        self.assertEqual(response.json['s'], 41)
+        response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='fanctl_state', value=0)  # fanctl is missing in data
+        self.assertEqual(response.json['s'], 41)
 
     def test_brick_desc(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)

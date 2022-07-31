@@ -57,7 +57,7 @@ def latch_send(latch_id, state):
     _publish_async(f"brick/{brick_id}/latch/{latch_id}", int(state))
 
 
-def signal_send(signal_id, state, transmitted=None):
+def signal_send(signal_id, state, transmitted=False):
     brick_id, _ = signal_id.split('_')
     if not transmitted:
         state += 10
@@ -77,3 +77,17 @@ def bat_charging_send(brick_id, charging=False, standby=False):
     elif standby:
         state = 2
     _publish_async(f"brick/{brick_id}/bat/charging", state)
+
+
+def fanctl_state_send(fanctl_id, state, rps=None, received=False):
+    brick_id, _ = fanctl_id.split('_')
+    if not received:
+        state += 10
+    _publish_async(f"brick/{brick_id}/fanctl/{fanctl_id}/state", int(state))
+    if received and rps is not None:
+        _publish_async(f"brick/{brick_id}/fanctl/{fanctl_id}/rps", int(rps))
+
+
+def fanctl_duty_send(fanctl_id, duty):
+    brick_id, _ = fanctl_id.split('_')
+    _publish_async(f"brick/{brick_id}/fanctl/{fanctl_id}/duty", int(duty))

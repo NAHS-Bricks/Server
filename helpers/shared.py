@@ -88,6 +88,20 @@ signal_defaults = {
     'disables': list(['metric'])
 }
 
+fanctl_defaults = {
+    '_id': None,
+    'desc': None,
+    'mode': None,  # None: UNKNOWN, -1: NOT_SET, 0: PWM, 1: FLX, 2: BARE
+    'mode_transmitted_ts': None,  # time on which mode was transmitted to or received from brick (or None if changed but not yet transmitted)
+    'dutyCycle': None,
+    'dutyCycle_transmitted_ts': None,  # time on which dutyCycle was transmitted to brick (or None if changed but not yet transmitted)
+    'state': None,  # state as received from brick
+    'state_should': None,  # state as it should be send to brick (or None if state is not meant to be changed)
+    'last_rps': None,
+    'last_ts': None,
+    'disables': list(['metric'])
+}
+
 
 def send_telegram(message):
     if 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite':
