@@ -129,14 +129,21 @@ def __feature_signal(brick):
 def __feature_fanctl(brick):
     result = list()
     for fanctl in fanctl_all(brick['_id']):
+        if not fanctl['last_ts'] == brick['last_ts']:
+            continue
         if fanctl['mode'] is None and 'request_fanctl_mode' not in result:
             result.append('request_fanctl_mode')
         if fanctl['mode'] is not None and fanctl['mode_transmitted_ts'] is None and 'update_fanctl_mode' not in result:
             result.append('update_fanctl_mode')
-        if fanctl['dutyCycle_transmitted_ts'] is None and fanctl['dutyCycle'] is not None and fanctl['mode'] is not None and fanctl['mode'] > -1 and 'update_fanctl_duty' not in result:
-            result.append('update_fanctl_duty')
-        if fanctl['state_should'] is not None and fanctl['mode'] is not None and fanctl['mode'] > -1 and 'update_fanctl_state' not in result:
-            result.append('update_fanctl_state')
+        if fanctl['mode'] is not None and fanctl['mode'] > -1:
+            if fanctl['dutyCycle_transmitted_ts'] is None and fanctl['dutyCycle'] is not None and 'update_fanctl_duty' not in result:
+                result.append('update_fanctl_duty')
+            if fanctl['state_should'] is not None and not fanctl['state_should'] == fanctl['state']:
+                if fanctl['state_should'] == 1 and fanctl['dutyCycle'] is not None:
+                    if 'update_fanctl_duty' not in result:
+                        result.append('update_fanctl_duty')
+                elif 'update_fanctl_state' not in result:
+                    result.append('update_fanctl_state')
     return result
 
 

@@ -72,16 +72,12 @@ def __process_fs(brick_new, brick_old):
         return
     for fanctl in fanctl_all(brick_new['_id']):
         # delete obsolete fanctl
-        if brick_new['initalized'] and not fanctl['last_ts'] == brick_new['last_ts']:
-            fanctl_delete(fanctl)
+        if not fanctl['last_ts'] == brick_new['last_ts']:
             continue
         if 'metric' not in fanctl['disables'] and fanctl['last_ts'] == brick_new['last_ts']:
             fanctl_state_store(fanctl['state'], fanctl['last_rps'], fanctl['_id'], fanctl['last_ts'], fanctl['desc'], brick_new['desc'])
         if 'mqtt' not in fanctl['disables'] and fanctl['last_ts'] == brick_new['last_ts']:
             fanctl_state_send(fanctl['_id'], fanctl['state'], fanctl['last_rps'], received=True)
-        if fanctl['state_should'] is not None and fanctl['state'] == fanctl['state_should']:
-            fanctl['state_should'] = None
-            fanctl_save(fanctl)
 
 
 def __process_y(brick_new, brick_old):

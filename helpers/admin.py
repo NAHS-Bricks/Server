@@ -198,6 +198,7 @@ def __set_fanctl_duty(data):
     fanctl = fanctl_get(*data['fanctl'].split('_'))
     fanctl['dutyCycle'] = data['value']
     fanctl['dutyCycle_transmitted_ts'] = None
+    fanctl['state_should'] = 1
     fanctl_save(fanctl)
     return {}
 

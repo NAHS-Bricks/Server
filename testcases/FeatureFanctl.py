@@ -23,8 +23,8 @@ class TestFeatureFanctl(BaseCherryPyTestCase):
         self.assertEqual(fanctl_count(), 4)
         self.assertTrue(fanctl_exists('localhost', '0x44'))
 
-    def test_fanctl_are_deleted(self):
-        # if a fanctl is not delivered while the init-Flag is True the corresponding fanclt should be deleted
+    def test_fanctl_are_not_deleted(self):
+        # if a fanctl is not delivered while the init-Flag is True the corresponding fanclt should NOT be deleted
         with fake_time(datetime.now() - timedelta(seconds=10)):
             response = self.webapp_request(clear_state=True, v=self.v, fs=[[64, 1, 20], [65, 0, 0], [66, 0, 0]])
             self.assertEqual(fanctl_count(), 3)
@@ -33,10 +33,16 @@ class TestFeatureFanctl(BaseCherryPyTestCase):
             self.assertTrue(fanctl_exists('localhost', '0x42'))
         # due to the init just one fanctl should be left
         response = self.webapp_request(y=['i'], fs=[[65, 0, 0]])
-        self.assertEqual(fanctl_count(), 1)
-        self.assertFalse(fanctl_exists('localhost', '0x40'))
+        self.assertEqual(fanctl_count(), 3)
+        self.assertTrue(fanctl_exists('localhost', '0x40'))
         self.assertTrue(fanctl_exists('localhost', '0x41'))
-        self.assertFalse(fanctl_exists('localhost', '0x42'))
+        self.assertTrue(fanctl_exists('localhost', '0x42'))
+        # also no deletion without init-Flag
+        response = self.webapp_request(fs=[[65, 0, 0]])
+        self.assertEqual(fanctl_count(), 3)
+        self.assertTrue(fanctl_exists('localhost', '0x40'))
+        self.assertTrue(fanctl_exists('localhost', '0x41'))
+        self.assertTrue(fanctl_exists('localhost', '0x42'))
 
     def test_state_and_rps_is_stored(self):
         response = self.webapp_request(clear_state=True, y=['i'], v=self.v)
@@ -218,6 +224,38 @@ class TestFeatureFanctl(BaseCherryPyTestCase):
         response = self.webapp_request(fs=[[64, 1, 20]])
         self.assertIn('fd', response.json)
 
+    def test_set_dutyCycle_that_is_not_applied(self):
+        # it was encountered, that sometimes the fanctl fails in applying the dutyCycle in this case it should be send again
+        response = self.webapp_request(clear_state=True, y=['i'], v=self.v, fs=[[64, 0, 0]], fm=[[64, 0]])
+        f1 = fanctl_get('localhost', '0x40')
+        self.assertIsNone(f1['dutyCycle'])
+        self.assertIsNone(f1['dutyCycle_transmitted_ts'])
+        self.assertIsNone(f1['state_should'])
+
+        # setting dutyCycle issues transmission
+        response = self.webapp_request(path='/admin', command='set', fanctl='localhost_0x40', key='fanctl_duty', value=50)
+        response = self.webapp_request(fs=[[64, 0, 0]])
+        self.assertIn('fd', response.json)
+        self.assertEqual(len(response.json['fd']), 1)
+        f1 = fanctl_get('localhost', '0x40')
+        self.assertEqual(f1['dutyCycle'], 50)
+        self.assertIsNotNone(f1['dutyCycle_transmitted_ts'])
+        self.assertEqual(f1['state_should'], 1)  # state_should is set to 1 as a consequence of setting dutyCycle
+
+        # if applying dutyCycle failed it is send again
+        response = self.webapp_request(fs=[[64, 0, 0]])
+        self.assertIn('fd', response.json)
+        self.assertEqual(len(response.json['fd']), 1)
+
+        # now it was applyed and dutyCycle is not send again
+        response = self.webapp_request(fs=[[64, 1, 20]])
+        self.assertNotIn('fd', response.json)
+
+        # fanctl lost it's state, dutyCycle is send again
+        response = self.webapp_request(fs=[[64, 0, 0]])
+        self.assertIn('fd', response.json)
+        self.assertEqual(len(response.json['fd']), 1)
+
     def test_set_state(self):  # via AdminInterface
         response = self.webapp_request(clear_state=True, y=['i'], v=self.v, fs=[[64, 0, 0]], fm=[[64, -1]])
         f1 = fanctl_get('localhost', '0x40')
@@ -260,10 +298,35 @@ class TestFeatureFanctl(BaseCherryPyTestCase):
         self.assertNotIn('fs', response.json)
         f1 = fanctl_get('localhost', '0x40')
         self.assertEqual(f1['state'], 1)
-        self.assertIsNone(f1['state_should'])
+        self.assertEqual(f1['state_should'], 1)  # but the should value stays, just in case
 
-        # finally a regular statechange
+        # now trying to set fanctl off
         response = self.webapp_request(path='/admin', command='set', fanctl='localhost_0x40', key='fanctl_state', value=0)
+        response = self.webapp_request(fs=[[64, 1, 10]])
+        self.assertIn('fs', response.json)
+        self.assertEqual(len(response.json['fs']), 1)
+        self.assertEqual(response.json['fs'][0][1], 0)
+        f1 = fanctl_get('localhost', '0x40')
+        self.assertEqual(f1['state'], 1)
+        self.assertEqual(f1['state_should'], 0)
+
+        # which fails, so retransmission of state
+        response = self.webapp_request(fs=[[64, 1, 10]])
+        self.assertIn('fs', response.json)
+        self.assertEqual(len(response.json['fs']), 1)
+        self.assertEqual(response.json['fs'][0][1], 0)
+        f1 = fanctl_get('localhost', '0x40')
+        self.assertEqual(f1['state'], 1)
+        self.assertEqual(f1['state_should'], 0)
+
+        # and finally it works
+        response = self.webapp_request(fs=[[64, 0, 0]])
+        self.assertNotIn('fs', response.json)
+        f1 = fanctl_get('localhost', '0x40')
+        self.assertEqual(f1['state'], 0)
+        self.assertEqual(f1['state_should'], 0)
+
+        # but is flaky, so retransmit state again
         response = self.webapp_request(fs=[[64, 1, 10]])
         self.assertIn('fs', response.json)
         self.assertEqual(len(response.json['fs']), 1)

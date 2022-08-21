@@ -52,7 +52,7 @@ def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_ac
         elif k == 'update_fanctl_duty':
             result['fd'] = list()
             for fanctl in fanctl_all(brick['_id']):
-                if fanctl['dutyCycle_transmitted_ts'] is None and fanctl['dutyCycle'] is not None and fanctl['mode'] is not None and fanctl['mode'] > -1:
+                if (fanctl['dutyCycle_transmitted_ts'] is None or (not fanctl['state'] == fanctl['state_should'] and fanctl['state_should'] == 1)) and fanctl['dutyCycle'] is not None and fanctl['mode'] is not None and fanctl['mode'] > -1:
                     result['fd'].append([int(fanctl['_id'].split('_')[1], 16), fanctl['dutyCycle']])
                     fanctl['dutyCycle_transmitted_ts'] = brick['last_ts']
                     fanctl_save(fanctl)
