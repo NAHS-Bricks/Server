@@ -57,6 +57,7 @@ class Brickserver(object):
     m = sketchMD5
     fs = fanctl fan-states. list of lists where first element of inner list is fanctl addr, second is state (0=Off, 1=On) and third is rps (eg: [[64, 0, 0], [65, 1, 12]])
     fm = fanctl fan-modes. list of lists where first element of inner list is fanctl addr and second is mode (-1-2) (eg: [[64, 0], [65, 1]])
+    id = ident set during BrickSetup to identify Brick on first connection to Bricks-Server
 
     Output json keys:
     a = adv5V value for brick to use (int between 0 and 1023)
@@ -78,6 +79,7 @@ class Brickserver(object):
         11 = sketchMD5 is requested
         12 = otaUpdate is requested
         13 = fanctl fan-modes are requested
+        14 = brick is requested to clear stored ident (to save space in FSmem)
     q = sets sleep_disabled (true or false)
     fm = fanctl fan-modes to be used. list of lists where first element of inner list is fanctl addr and second is mode (0-2) to set (eg: [[64, 0], [65, 1]])
     fd = fanctl fan-dutyCycle to be used. list of lists where first element of inner list is fanctl addr and second is dytyCycle (0-100) to set (eg: [[64, 0], [65, 100]])
