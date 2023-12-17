@@ -36,10 +36,10 @@ def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=N
         testscale = 'normal'
 
     f = {
-        'all': ['all', 1.02],
-        'os': ['os', 1.01],
-        'sleep': ['sleep', 1.01],
-        'bat': ['bat', 1],
+        'all': ['all', 3],
+        'os': ['os', 2],
+        'sleep': ['sleep', 2],
+        'bat': ['bat', 2],
         'temp': ['temp', 1],
         'humid': ['humid', 1],
         'latch': ['latch', 1],
@@ -59,21 +59,21 @@ def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=N
     if testscale == 'long':
         def combinations(base, comming):
             result = list()
-            for multi in range(0, int((base[1] - 1) / 0.01) + 1):
+            for step in range(0, int(base[1])):
                 if len(comming) > 1:
                     for later in combinations(comming[0], comming[1:]):
-                        this = [[base[0], base[1] - multi * 0.01]]
+                        this = [[base[0], base[1] - step]]
                         this += later
                         if (this[0][0] not in minVersion or this[0][1] >= minVersion[this[0][0]]) and (this[0][0] not in maxVersion or this[0][1] <= maxVersion[this[0][0]]):
                             result.append(this)
                 elif len(comming) == 1:
                     for later in combinations(comming[0], comming[1:]):
-                        this = [[base[0], base[1] - multi * 0.01]]
+                        this = [[base[0], base[1] - step]]
                         this += later
                         if (this[0][0] not in minVersion or this[0][1] >= minVersion[this[0][0]]) and (this[0][0] not in maxVersion or this[0][1] <= maxVersion[this[0][0]]):
                             result.append(this)
                 else:
-                    this = [[base[0], base[1] - multi * 0.01]]
+                    this = [[base[0], base[1] - step]]
                     if (this[0][0] not in minVersion or this[0][1] >= minVersion[this[0][0]]) and (this[0][0] not in maxVersion or this[0][1] <= maxVersion[this[0][0]]):
                         result.append(this)
             return result
@@ -96,9 +96,9 @@ def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=N
             v2.append(f[k])
             r.append({'name': f'with_{k}_v{v2[-1][1]}', 'v': v2})
             if testscale == 'long' and v2[-1][1] > 1:
-                for multi in range(1, int((v2[-1][1] - 1) / 0.01) + 1):
+                for step in range(1, int(v2[-1][1])):
                     v3 = copy.deepcopy(v2)
-                    v3[-1][1] = v3[-1][1] - multi * 0.01
+                    v3[-1][1] = v3[-1][1] - step
                     r.append({'name': f'with_{k}_v{v3[-1][1]}', 'v': v3})
     return r
 
