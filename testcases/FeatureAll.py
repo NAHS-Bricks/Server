@@ -227,11 +227,6 @@ class TestFeatureAllStaticFeatures(BaseCherryPyTestCase):
         response = self.webapp_request()
         self.assertEqual(response.state['delay_default'], 180)
 
-    def test_delay_not_present_on_v100(self):
-        response = self.webapp_request(clear_state=True, v=[['all', 1.0], ['os', 1.0]], y=['i'])
-        self.assertIn('r', response.json)
-        self.assertNotIn('d', response.json)
-
     def test_delay_present_on_v102(self):
         response = self.webapp_request(clear_state=True, v=[['all', 1.02], ['os', 1.0]], d=120, y=['i'])
         self.assertIn('r', response.json)

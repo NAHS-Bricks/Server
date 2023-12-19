@@ -483,6 +483,7 @@ class TestFeatureFanctl(BaseCherryPyTestCase):
         response = self.webapp_request(path='/admin', command='set', key='desc', fanctl='localhost_0x40', value='f0x40')
         response = self.webapp_request(path='/admin', command='set', key='desc', fanctl='localhost_0x41', value='f0x41')
         response = self.webapp_request(fs=[[64, 1, 20], [65, 0, 0]])
+        time.sleep(0.05)
         self.assertEqual(influxDB.query(stmt_state.replace('$fid', '0x40')).raw['series'][0]['values'][0][1], 1)
         self.assertEqual(influxDB.query(stmt_rps.replace('$fid', '0x40')).raw['series'][0]['values'][0][1], 20)
         self.assertEqual(influxDB.query(stmt_state.replace('$fid', '0x41')).raw['series'][0]['values'][0][1], 0)
@@ -493,6 +494,7 @@ class TestFeatureFanctl(BaseCherryPyTestCase):
 
         response = self.webapp_request(path='/admin', command='set', fanctl='localhost_0x41', key='fanctl_duty', value=90)
         response = self.webapp_request(fs=[[64, 1, 20], [65, 0, 0]])
+        time.sleep(0.05)
         # duty should be logged ...
         self.assertEqual(influxDB.query(stmt_duty.replace('$fid', '0x41')).raw['series'][0]['values'][0][1], 90)
         self.assertEqual(influxDB.query(stmt_duty_d.replace('$fid', '0x41')).raw['series'][0]['values'][0][1], 90)  # also with desc
@@ -503,6 +505,7 @@ class TestFeatureFanctl(BaseCherryPyTestCase):
         self.assertEqual(influxDB.query(stmt_rps.replace('$fid', '0x41')).raw['series'][0]['values'][0][1], 0)
 
         response = self.webapp_request(fs=[[64, 1, 20], [65, 1, 33]])
+        time.sleep(0.05)
         self.assertEqual(influxDB.query(stmt_state.replace('$fid', '0x40')).raw['series'][0]['values'][0][1], 1)
         self.assertEqual(influxDB.query(stmt_rps.replace('$fid', '0x40')).raw['series'][0]['values'][0][1], 20)
         self.assertEqual(influxDB.query(stmt_state.replace('$fid', '0x41')).raw['series'][0]['values'][0][1], 1)
