@@ -126,13 +126,18 @@ def __process_y(brick_new, brick_old):
     return result
 
 
+def __process_id(brick_new, brick_old):
+    return ['request_clear_ident']
+
+
 process = {
     't': __process_t,
     'h': __process_h,
     'b': __process_b,
     'l': __process_l,
     'y': __process_y,
-    'fs': __process_fs
+    'fs': __process_fs,
+    'id': __process_id
 }
 
 

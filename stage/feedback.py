@@ -91,6 +91,8 @@ def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_ac
             result['r'].append(12)
         elif k == 'request_fanctl_mode':
             result['r'].append(13)
+        elif k == 'request_clear_ident':
+            result['r'].append(14)
 
     # special-case: requests are made and feature sleep is present or all is at least v1.02: override delay to 10 -- except admin_override for delay is present or delay_overwrite is True
     if 'r' in result and ('admin_override' not in brick or 'delay' not in brick['admin_override']) and not (brick['features']['all'] >= 1.02 and brick['delay_overwrite']):

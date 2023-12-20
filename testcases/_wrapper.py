@@ -37,7 +37,7 @@ def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=N
 
     f = {
         'all': ['all', 3],
-        'os': ['os', 2],
+        'os': ['os', 3],
         'sleep': ['sleep', 2],
         'bat': ['bat', 2],
         'temp': ['temp', 1],

@@ -162,6 +162,10 @@ def __store_fm(brick, fan_modes):
         fanctl['mode_transmitted_ts'] = brick['last_ts']
         fanctl_save(fanctl)
 
+def __store_id(brick, ident):
+    if brick['desc'] is None:
+        brick['desc'] = ident
+
 
 store = {
     'v': __store_v,
@@ -179,7 +183,8 @@ store = {
     'a': __store_a,
     'm': __store_m,
     'fs': __store_fs,
-    'fm': __store_fm
+    'fm': __store_fm,
+    'id': __store_id
 }
 
 
