@@ -1,5 +1,9 @@
-from connector.mongodb import temp_sensor_get, temp_sensor_save, latch_get, latch_save, signal_all, signal_get, signal_save, signal_delete, fanctl_get, fanctl_save
+from connector.mongodb import temp_sensor_get, temp_sensor_save
+from connector.mongodb import latch_get, latch_save
+from connector.mongodb import signal_all, signal_get, signal_save, signal_delete
+from connector.mongodb import fanctl_get, fanctl_save
 from connector.mongodb import humid_get, humid_save
+from connector.mongodb import heater_get, heater_save
 from helpers.feature_versioning import feature_update
 import copy
 
@@ -13,13 +17,18 @@ def __store_v(brick, versions):
         feature_update(brick, feature, brick['features'][feature], version)
         brick['features'][feature] = version
 
-    # remove all features from brick, that hove not been submitted
+    # remove all features from brick, that have not been submitted
     for feature in [feature for feature in brick['features'].keys() if feature not in tmp_feature_list]:
         brick['features'].pop(feature, None)
 
+    # if feature heat is detected create the corresponding heater if not yet done
+    if 'heat' in brick['features']:
+        heat = heater_get(brick['_id'])
+        heater_save(heat)
+
 
 def __store_t(brick, temps):
-    if 'temp' not in brick['features']:  # pragma: no cover
+    if 'temp' not in brick['features'] and 'heat' not in brick['features']:  # pragma: no cover
         return
     for sensor_id, temp in temps:
         sensor = temp_sensor_get(sensor_id)
@@ -68,7 +77,7 @@ def __store_y(brick, bools):
 
 
 def __store_c(brick, corrs):
-    if 'temp' not in brick['features']:  # pragma: no cover
+    if 'temp' not in brick['features'] and 'heat' not in brick['features']:  # pragma: no cover
         return
     for sensor, corr in [(temp_sensor_get(s), c) for s, c in corrs]:
         sensor['corr'] = corr

@@ -6,7 +6,7 @@ class HealthInterface(BaseCherryPyTestCase):
 
     def test_health_page(self):
         response = self.webapp_request(clear_state=True, method='get')
-        self.assertEqual(len(response.json.keys()), 14)
+        self.assertEqual(len(response.json.keys()), 15)
         self.assertEqual(response.json['version'], current_brickserver_version)
         self.assertTrue(response.json['mongodb_connected'])
         self.assertTrue(response.json['influxdb_connected'])
@@ -21,3 +21,4 @@ class HealthInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['signal_count'], 0)
         self.assertEqual(response.json['fwmetadata_count'], 0)
         self.assertEqual(response.json['fanctl_count'], 0)
+        self.assertEqual(response.json['heater_count'], 0)

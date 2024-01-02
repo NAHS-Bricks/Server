@@ -44,7 +44,8 @@ def getVersionParameter(myFeature, forbiddenCombinations=None, specificVersion=N
         'humid': ['humid', 1],
         'latch': ['latch', 1],
         'signal': ['signal', 1],
-        'fanctl': ['fanctl', 1]
+        'fanctl': ['fanctl', 1],
+        'heat': ['heat', 1]
     }
 
     if isinstance(specificVersion, list):
@@ -243,6 +244,9 @@ class BaseCherryPyTestCase(unittest.TestCase):
         response.signals = {}
         for signal in mongoDB.signals.find({}):
             response.signals[signal['_id']] = signal
+        response.heaters = {}
+        for heater in mongoDB.heaters.find({}):
+            response.heaters[heater['_id']] = heater
         response.cron_data = mongoDB.util.find_one({'_id': 'cron_data'})
         if response.cron_data is None:
             response.cron_data = {}

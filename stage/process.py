@@ -7,14 +7,14 @@ import os
 
 
 def __process_t(brick_new, brick_old):
-    if 'temp' not in brick_new['features']:  # pragma: no cover
+    if 'temp' not in brick_new['features'] and 'heat' not in brick_new['features']:  # pragma: no cover
         return
     for sensor in [sensor for sensor in [temp_sensor_get(sensor) for sensor in brick_new['temp_sensors']] if sensor['last_reading'] is not None]:
         if 'metric' not in sensor['disables']:
             temp_store(sensor['last_reading'], sensor['_id'], brick_new['last_ts'], sensor['desc'], brick_new['_id'], brick_new['desc'])
         if 'mqtt' not in sensor['disables']:
             temp_send(sensor['_id'], sensor['last_reading'], brick_new['_id'])
-    if 'temp' in brick_old['features']:
+    if 'temp' in brick_old['features'] or 'heat' in brick_old['features']:
         max_diff = 0
         for sensor in [sensor for sensor in [temp_sensor_get(s) for s in brick_new['temp_sensors']] if sensor['last_reading'] and sensor['prev_reading']]:
             diff = abs(sensor['prev_reading'] - sensor['last_reading'])
@@ -86,7 +86,7 @@ def __process_y(brick_new, brick_old):
         result.append('request_versions')
         result.append('request_type')
         brick_new['init_ts'] = brick_new['last_ts']
-        if 'temp' in brick_new['features']:
+        if 'temp' in brick_new['features'] or 'heat' in brick_new['features']:
             result.append('request_temp_corr')
             result.append('request_temp_precision')
         if 'humid' in brick_new['features']:
@@ -106,6 +106,8 @@ def __process_y(brick_new, brick_old):
             result.append('request_delay_default')
         if 'fanctl' in brick_new['features'] and fanctl_count(brick_new['_id']) > 0:
             result.append('request_fanctl_mode')
+        if 'heat' in brick_new['features']:
+            result.append('update_heater_state')
     if 'bat' in brick_new['features'] and not brick_new['bat_solar_charging'] and brick_new['bat_charging']:
         brick_new['bat_periodic_voltage_request'] -= 1
         if brick_new['bat_periodic_voltage_request'] <= 0:

@@ -85,6 +85,9 @@ _feature_updates = {
     'temp': {
         0.00: _temp_initial
     },
+    'heat': {
+        0.00: _temp_initial
+    },
     'humid': {
         0.00: _humid_initial
     },

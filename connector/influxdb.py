@@ -218,3 +218,23 @@ def fanctl_delete(fanctl_id):
     brick_id, fid = fanctl_id.split('_')
     influxDB.delete_series(measurement='fanctl_states', tags={'brick_id': brick_id, 'fanctl_id': fid})
     influxDB.delete_series(measurement='fanctl_duty', tags={'brick_id': brick_id, 'fanctl_id': fid})
+
+
+def heater_store(state, heater_id, ts, heater_desc=None, brick_desc=None):
+    # store to default (8weeks) to heaters
+    # heater_id equals to brick_id in this case
+    body = {'measurement': 'heaters', 'tags': {'heater_id': heater_id, 'brick_id': heater_id}, 'time': int(ts), 'fields': {'state': int(state)}}
+    if heater_desc is not None and not heater_desc == '':
+        body['tags']['heater_desc'] = heater_desc
+    if brick_desc is not None and not brick_desc == '':
+        body['tags']['brick_desc'] = brick_desc
+    body = [body]
+    _write_points_async(body, time_precision='s')
+
+
+def heater_delete(heater_id):
+    """
+    Deletes all heaters measurements of a given heat
+    """
+    global influxDB
+    influxDB.delete_series(measurement='heaters', tags={'heater_id': heater_id})

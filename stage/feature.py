@@ -1,4 +1,4 @@
-from connector.mongodb import temp_sensor_get, humid_get, signal_all, fanctl_all
+from connector.mongodb import temp_sensor_get, humid_get, signal_all, fanctl_all, heater_get
 from datetime import datetime, timedelta
 
 
@@ -89,6 +89,11 @@ def __feature_sleep(brick):
                 break
         else:
             prefered_delay.append(120)
+    if 'heat' in brick['features']:
+        if heater_get(brick['_id'])['state'] == 1:
+            prefered_delay.append(60)
+        else:
+            prefered_delay.append(120)
     if brick['features']['sleep'] >= 1.01 and brick['sleep_set_disabled'] is not None and not brick['sleep_disabled'] == brick['sleep_set_disabled']:
         prefered_delay.append(10)
         result.append('update_sleep_disabled')
@@ -167,6 +172,11 @@ def __feature_admin_override(brick):
         result.append('update_latch_triggers')
     if 'signal' in brick['features'] and 'signal_states' in brick['admin_override']:
         result.append('update_signal_states')
+    if 'heat' in brick['features']:
+        if 'temp_precision' in brick['admin_override']:
+            result.append('update_temp_precision')
+        if 'heater_state' in brick['admin_override']:
+            result.append('update_heater_state')
     return result
 
 
@@ -176,6 +186,7 @@ feature = {
     'bat': __feature_bat,
     'sleep': __feature_sleep,
     'temp': __feature_temp,
+    'heat': __feature_temp,
     'humid': __feature_humid,
     'signal': __feature_signal,
     'fanctl': __feature_fanctl,

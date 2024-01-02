@@ -1,6 +1,6 @@
-from connector.mongodb import signal_all, signal_save, latch_get, fanctl_all, fanctl_save
-from connector.mqtt import signal_send, fanctl_state_send, fanctl_duty_send
-from connector.influxdb import signal_store, fanctl_duty_store
+from connector.mongodb import signal_all, signal_save, latch_get, fanctl_all, fanctl_save, heater_get, heater_save
+from connector.mqtt import signal_send, fanctl_state_send, fanctl_duty_send, heater_send
+from connector.influxdb import signal_store, fanctl_duty_store, heater_store
 
 
 def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_activator=False):
@@ -42,6 +42,17 @@ def feedback_exec(brick, process_requests=list(), feature_requests=list(), by_ac
                         signal_send(signal['_id'], signal['state'], True)
                     if 'metric' not in signal['disables']:
                         signal_store(state=signal['state'], signal_id=signal['_id'], ts=brick['last_ts'], signal_desc=signal['desc'], brick_desc=brick['desc'])
+        elif k == 'update_heater_state':
+            heater = heater_get(brick['_id'])
+            result['h'] = int(heater['state'])
+            if not by_activator:
+                if heater['state_transmitted_ts'] is None:
+                    heater['state_transmitted_ts'] = brick['last_ts']
+                    heater_save(heater)
+                if 'mqtt' not in heater['disables']:
+                    heater_send(heater['_id'], heater['state'], True)
+                if 'metric' not in heater['disables']:
+                    heater_store(state=heater['state'], heater_id=heater['_id'], ts=brick['last_ts'], heater_desc=heater['desc'], brick_desc=brick['desc'])
         elif k == 'update_fanctl_mode':
             result['fm'] = list()
             for fanctl in fanctl_all(brick['_id']):

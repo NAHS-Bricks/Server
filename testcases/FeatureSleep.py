@@ -1,7 +1,7 @@
 from ._wrapper import *
 
 
-@parameterized_class(getVersionParameter('sleep', '*'))
+@parameterized_class(getVersionParameter('sleep', forbiddenCombinations='*'))
 class TestFeatureSleep(BaseCherryPyTestCase):
     def test_inactiv_by_its_own(self):
         response = self.webapp_request(clear_state=True, v=self.v, d=60, m='1')  # m for getting rid of other features requests
@@ -33,7 +33,7 @@ class TestFeatureSleep(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
 
-@parameterized_class(getVersionParameter('sleep', '*', minVersion={'all': 1.02}))
+@parameterized_class(getVersionParameter('sleep', forbiddenCombinations='*', minVersion={'all': 1.02}))
 class TestFeatureSleep_withAllV102(BaseCherryPyTestCase):
     def test_admin_override_delay_with_delay_overwrite(self):
         response = self.webapp_request(clear_state=True, v=self.v, d=60, y=['d'])
@@ -45,7 +45,7 @@ class TestFeatureSleep_withAllV102(BaseCherryPyTestCase):
         self.assertEqual(response.state['delay'], 60)
 
 
-@parameterized_class(getVersionParameter('sleep', '*', minVersion={'all': 1.02, 'sleep': 1.01}))
+@parameterized_class(getVersionParameter('sleep', forbiddenCombinations='*', minVersion={'all': 1.02, 'sleep': 1.01}))
 class TestFeatureSleepV101(BaseCherryPyTestCase):
     def test_sleep_disabled(self):
         response = self.webapp_request(clear_state=True, v=self.v, d=60, m='1')  # m for getting rid of other features requests
@@ -161,7 +161,7 @@ class TestFeatureSleepWithBatWithAllV102(BaseCherryPyTestCase):
         self.assertEqual(response.state['delay'], 120)
 
 
-@parameterized_class(getVersionParameter(['sleep', 'bat'], ['temp', 'humid', 'latch', 'signal']))
+@parameterized_class(getVersionParameter(['sleep', 'bat'], forbiddenCombinations=['temp', 'humid', 'latch', 'signal', 'heat']))
 class TestFeatureSleepWithBatSolarCharging(BaseCherryPyTestCase):
     def test_solar_charging(self):  # expected to not effect delay
         response = self.webapp_request(clear_state=True, v=self.v, d=60, b=4, y=['c'], m='1', a=850)  # m and a for getting rid of other features requests
@@ -200,7 +200,7 @@ class TestFeatureSleepWithBatSolarCharging(BaseCherryPyTestCase):
                 self.assertEqual(response.state['sleep_increase_wait'], 0)
 
 
-@parameterized_class(getVersionParameter(['sleep', 'temp'], 'signal'))
+@parameterized_class(getVersionParameter(['sleep', 'temp'], forbiddenCombinations=['signal', 'heat']))
 class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
     def test_delay_increase_on_stable_temp(self):
         response = self.webapp_request(clear_state=True, v=self.v, t=[['s1', 25]], c=[['s1', 0]], d=60, p=11, b=4, s=1, m='1', a=850)  # a, m, b and s for getting rid of other features requests
@@ -311,7 +311,7 @@ class TestFeatureSleepWithTemp(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
 
-@parameterized_class(getVersionParameter(['sleep', 'humid'], 'signal'))
+@parameterized_class(getVersionParameter(['sleep', 'humid'], forbiddenCombinations=['signal', 'heat']))
 class TestFeatureSleepWithHumid(BaseCherryPyTestCase):
     def test_delay_increase_on_stable_humidity(self):
         response = self.webapp_request(clear_state=True, v=self.v, h=[['h1', 51]], k=[['h1', 0]], d=60, p=11, b=4, s=1, m='1', a=850)  # a, m, p, b and s for getting rid of other features requests
@@ -422,7 +422,7 @@ class TestFeatureSleepWithHumid(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
 
-@parameterized_class(getVersionParameter(['sleep', 'latch'], ['temp', 'humid', 'signal']))
+@parameterized_class(getVersionParameter(['sleep', 'latch'], forbiddenCombinations=['temp', 'humid', 'signal', 'heat']))
 class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
     def test_static_delay_after_requests_done(self):
         response = self.webapp_request(clear_state=True, v=self.v, y=['i'], d=60, b=4, s=1)  # b and s for getting rid of other features requests
@@ -491,7 +491,7 @@ class TestFeatureSleepWithLatch(BaseCherryPyTestCase):
         self.assertEqual(response.state['sleep_increase_wait'], 3)
 
 
-@parameterized_class(getVersionParameter(['sleep', 'signal'], ['temp', 'humid']))
+@parameterized_class(getVersionParameter(['sleep', 'signal'], forbiddenCombinations=['temp', 'humid', 'heat']))
 class TestFeatureSleepWithSignal(BaseCherryPyTestCase):
     def test_signal_state_dependend_delays(self):
         response = self.webapp_request(clear_state=True, v=self.v, d=60, s=2, b=4, m='1', a=850)  # a, m and b for getting rid of other requests
@@ -526,6 +526,53 @@ class TestFeatureSleepWithSignal(BaseCherryPyTestCase):
         self.assertEqual(response.json['d'], 10)
 
         response = self.webapp_request(x=2, m='1', a=850)  # m and a for getting rid of other requests
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 120)
+
+        self.webapp_request(path='/admin', command="set", brick='localhost', key='delay', value=30)
+        response = self.webapp_request()
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 30)
+        self.assertIn('sleep_increase_wait', response.state)
+        self.assertEqual(response.state['sleep_increase_wait'], 3)
+
+
+@parameterized_class(getVersionParameter(['sleep', 'heat'], forbiddenCombinations=['temp', 'humid', 'signal']))
+class TestFeatureSleepWithHeat(BaseCherryPyTestCase):
+    def test_heater_state_dependend_delays(self):
+        response = self.webapp_request(clear_state=True, v=self.v, d=60, p=11, b=4, m='1', a=850)  # a, m and b for getting rid of other requests
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 120)  # by default heater is set to 0
+
+        self.webapp_request(path='/admin', command="set", heater='localhost', key='heater', value=1)
+        response = self.webapp_request()
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 60)  # heater is now 1
+
+        response = self.webapp_request()
+        self.assertNotIn('r', response.json)
+        self.assertEqual(response.state['delay'], 60)  # nothing changed
+
+        self.webapp_request(path='/admin', command="set", heater='localhost', key='heater', value=0)
+        response = self.webapp_request()
+        self.assertNotIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 120)  # heater back to 0
+
+        response = self.webapp_request()
+        self.assertNotIn('r', response.json)
+        self.assertEqual(response.state['delay'], 120)  # nothing changed again
+
+    def test_admin_override_delay(self):
+        response = self.webapp_request(clear_state=True, v=self.v, y=['i'], d=60, p=11, b=4)  # b for getting rid of other requests
+        self.assertIn('r', response.json)
+        self.assertIn('d', response.json)
+        self.assertEqual(response.json['d'], 10)
+
+        response = self.webapp_request(x=6, m='1', a=850)  # m and a for getting rid of other requests
         self.assertNotIn('r', response.json)
         self.assertIn('d', response.json)
         self.assertEqual(response.json['d'], 120)

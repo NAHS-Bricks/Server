@@ -64,6 +64,13 @@ def signal_send(signal_id, state, transmitted=False):
     _publish_async(f"brick/{brick_id}/signal/{signal_id}", int(state))
 
 
+def heater_send(heater_id, state, transmitted=False):
+    # heater_id equals brick_id in this case
+    if not transmitted:
+        state += 10
+    _publish_async(f"brick/{heater_id}/heater", int(state))
+
+
 def bat_level_send(brick_id, voltage, prediction=None):
     _publish_async(f"brick/{brick_id}/bat/voltage", float(voltage))
     if prediction is not None:

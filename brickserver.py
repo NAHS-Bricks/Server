@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from cherrypy.lib import file_generator
 from connector.mongodb import start_mongodb_connection, mongodb_lock_acquire, mongodb_lock_release, is_connected as mongodb_connected
 from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
-from connector.mongodb import brick_count, temp_sensor_count, humid_count, latch_count, signal_count
+from connector.mongodb import brick_count, temp_sensor_count, humid_count, latch_count, signal_count, heater_count
 from connector.mongodb import fwmetadata_save, fwmetadata_count, fwmetadata_latest, fanctl_count
 from connector.mqtt import start_async_worker as start_mqtt_worker, is_connected as mqtt_connected, signal_send
 from connector.influxdb import start_async_worker as start_influxdb_worker, is_connected as influxdb_connected
@@ -84,6 +84,7 @@ class Brickserver(object):
     fm = fanctl fan-modes to be used. list of lists where first element of inner list is fanctl addr and second is mode (0-2) to set (eg: [[64, 0], [65, 1]])
     fd = fanctl fan-dutyCycle to be used. list of lists where first element of inner list is fanctl addr and second is dytyCycle (0-100) to set (eg: [[64, 0], [65, 100]])
     fs = fanctl fan-state to be used. list of lists where first element of inner list is fanctl addr and second is state (0=Off, 1=On) to set (eg: [[64, 0], [65, 1]])
+    h = state of heater turned on (1) or off (0) (as int 0 or 1)
     """
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -108,10 +109,10 @@ class Brickserver(object):
                 'signal_count': signal_count(),
                 'fwmetadata_count': fwmetadata_count(),
                 'fanctl_count': fanctl_count(),
-                'ds_allowed': config['allow']['ds']
+                'heater_count': heater_count(),
+                'ds_allowed': config['allow']['ds'],
+                'ds_connected': ds_connected() if config['allow']['ds'] else False
             }
-            if config['allow']['ds']:
-                health['ds_connected'] = ds_connected()
             return health
 
         if 'json' in dir(cherrypy.request):

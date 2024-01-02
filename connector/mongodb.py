@@ -1,5 +1,5 @@
 from pymongo import MongoClient, ASCENDING, DESCENDING
-from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, humid_defaults, fanctl_defaults
+from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, humid_defaults, fanctl_defaults, heater_defaults
 from helpers.feature_versioning import feature_update
 import copy
 from bson.objectid import ObjectId
@@ -452,6 +452,67 @@ def fanctl_count(brick_id=None):
         return _mongoDB.fanctls.count_documents({})
     else:
         return _mongoDB.fanctls.count_documents({'_id': {'$regex': '^' + str(brick_id) + '_'}})
+
+
+"""
+heater
+"""
+
+
+def heater_get(brick_id):
+    """
+    Returns a heater from DB or a newly created it if doesn't exist in DB
+    """
+    global _mongoDB
+    heater = _mongoDB.heaters.find_one({'_id': brick_id})
+    if heater is None:
+        heater = dict()
+        heater.update(copy.deepcopy(heater_defaults))
+        heater['_id'] = brick_id
+    return heater
+
+
+def heater_save(heater):
+    """
+    Saves heater to DB
+    """
+    global _mongoDB
+    _mongoDB.heaters.replace_one({'_id': heater['_id']}, heater, True)
+
+
+def heater_delete(heater):
+    """
+    Removes heater from DB
+    """
+    global _mongoDB
+    _mongoDB.heaters.delete_one({'_id': heater['_id']})
+
+
+def heater_exists(brick_id):
+    """
+    Returns True or False whether a heater is stored in DB or not
+    """
+    global _mongoDB
+    heater = _mongoDB.heaters.find_one({'_id': brick_id})
+    if heater is not None:
+        return True
+    return False
+
+
+def heater_all():  # pragma: no cover
+    """
+    Returns an iterator to all heaters in DB
+    """
+    global _mongoDB
+    return _mongoDB.heaters.find({}).sort("_id", ASCENDING)
+
+
+def heater_count():
+    """
+    Returns number of heaters present in DB
+    """
+    global _mongoDB
+    return _mongoDB.heaters.count_documents({})
 
 
 """

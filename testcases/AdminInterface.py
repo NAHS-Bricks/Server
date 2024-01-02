@@ -6,7 +6,7 @@ admininterface_versions = [['os', 1.0], ['all', 1.0]]
 
 
 class TestAdminInterface(BaseCherryPyTestCase):
-    def test_invalid_comand(self):
+    def test_invalid_command(self):
         response = self.webapp_request(path="/admin", command="bullshit")
         self.assertEqual(response.json['s'], 2)
 
@@ -37,11 +37,23 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin", command="set", latch="unknown_0", key='somekey', value='somevalue')
         self.assertEqual(response.json['s'], 9)
 
+    def test_invalid_signal(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path="/admin", command="set", signal="unknown_0", key='somekey', value='somevalue')
+        self.assertEqual(response.json['s'], 20)
+
     def test_invalid_fanctl(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
         self.assertEqual(response.json['s'], 0)
         response = self.webapp_request(path="/admin", command="set", fanctl="unknown_0", key='somekey', value='somevalue')
         self.assertEqual(response.json['s'], 40)
+
+    def test_invalid_heater(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions)
+        self.assertEqual(response.json['s'], 0)
+        response = self.webapp_request(path="/admin", command="set", heater="unknown", key='somekey', value='somevalue')
+        self.assertEqual(response.json['s'], 44)
 
     def test_forgotten_params(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
@@ -70,6 +82,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 13)
         response = self.webapp_request(path="/admin", command='get_signal')  # signal is missing in data
         self.assertEqual(response.json['s'], 18)
+        response = self.webapp_request(path="/admin", command='get_heater')  # heater is missing in data
+        self.assertEqual(response.json['s'], 42)
         response = self.webapp_request(path="/admin", command='get_fanctl')  # fanctl is missing in data
         self.assertEqual(response.json['s'], 41)
         response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='add_trigger', value=0)  # latch is missing in data
@@ -92,6 +106,8 @@ class TestAdminInterface(BaseCherryPyTestCase):
         self.assertEqual(response.json['s'], 17)
         response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='signal', value=0)  # signal is missing in data
         self.assertEqual(response.json['s'], 18)
+        response = self.webapp_request(ignore_brick_id=True, path="/admin", command='set', key='heater', value=0)  # heater is missing in data
+        self.assertEqual(response.json['s'], 42)
         response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='bat_solar_charging', value=True)  # brick is missing in data
         self.assertEqual(response.json['s'], 11)
         response = self.webapp_request(ignore_brick_id=True, path='/admin', command='set', key='sleep_disabled', value=True)  # brick is missing in data
@@ -174,6 +190,14 @@ class TestAdminInterface(BaseCherryPyTestCase):
         response = self.webapp_request(path="/admin", command='set', signal='localhost_0', key='signal', value=0)
         self.assertEqual(response.json['s'], 19)
 
+    def test_set_heater_without_feature_heat(self):
+        response = self.webapp_request(clear_state=True, v=admininterface_versions + [['heat', 1]])  # indirectly create heater object, to be able to find it by adminInterface later on
+        response = self.webapp_request(v=admininterface_versions)  # now remove the feature from brick
+        self.assertNotIn('heat', response.state['features'])
+        self.assertIn('localhost', response.heaters)
+        response = self.webapp_request(path="/admin", command='set', heater='localhost', key='heater', value=0)
+        self.assertEqual(response.json['s'], 43)
+
     def test_set_sleep_disabled(self):
         response = self.webapp_request(clear_state=True, v=admininterface_versions)
         response = self.webapp_request(path="/admin", command='set', brick='localhost', key='sleep_disabled', value=0)  # invalid value, needs to be a bool
@@ -190,13 +214,14 @@ class TestAdminInterface(BaseCherryPyTestCase):
     def test_get_features(self):
         response = self.webapp_request(path="/admin", command='get_features')
         self.assertEqual(response.json['s'], 0)
-        self.assertEqual(len(response.json['features']), 6)
+        self.assertEqual(len(response.json['features']), 7)
         self.assertIn('temp', response.json['features'])
         self.assertIn('humid', response.json['features'])
         self.assertIn('bat', response.json['features'])
         self.assertIn('sleep', response.json['features'])
         self.assertIn('latch', response.json['features'])
         self.assertIn('signal', response.json['features'])
+        self.assertIn('heat', response.json['features'])
 
     def test_getting_fwmetadata(self):
         response = self.webapp_request(clear_state=True)

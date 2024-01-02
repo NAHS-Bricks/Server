@@ -6,10 +6,11 @@ from connector.mongodb import latch_exists, latch_get, latch_save, latch_delete,
 from connector.mongodb import signal_exists, signal_all, signal_delete, signal_count, signal_get, signal_save
 from connector.mongodb import fwmetadata_get, fwmetadata_all, fwmetadata_count, fwmetadata_search, fwmetadata_latest, fwmetadata_delete
 from connector.mongodb import fanctl_all, fanctl_delete, fanctl_exists, fanctl_get, fanctl_save, fanctl_count
-from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete
+from connector.mongodb import heater_get, heater_save, heater_exists, heater_delete, heater_count
+from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete, heater_delete as heater_metrics_delete
 from connector.influxdb import signal_delete as signal_metrics_delete, fanctl_delete as fanctl_metrics_delete
 from connector.ds import dsfirmware_get, dsfirmware_get_latest, dsfirmware_get_used, dsfirmware_get_bin
-from connector.mqtt import signal_send
+from connector.mqtt import signal_send, heater_send
 from connector.brick import activate as brick_activator
 from connector.s3 import firmware_exists, firmware_delete, firmware_filename
 from helpers.feature_versioning import features_available
@@ -45,6 +46,10 @@ def __set_desc(data):
         fanctl = fanctl_get(*data['fanctl'].split('_'))
         fanctl['desc'] = data['value']
         fanctl_save(fanctl)
+    elif 'heater' in data:
+        heater = heater_get(data['heater'])
+        heater['desc'] = data['value']
+        heater_save(heater)
     else:
         return {'s': 14, 'm': 'no object given for setting desc'}
     return {}
@@ -65,6 +70,12 @@ def __set_state_desc(data):
             return {'s': 7, 'm': 'invalid state range(0, ' + str(len(signal['states_desc']) - 1) + ')'}
         signal['states_desc'][data['state']] = data['value']
         signal_save(signal)
+    elif 'heater' in data:
+        heater = heater_get(data['heater'])
+        if data['state'] not in range(0, len(heater['states_desc'])):
+            return {'s': 7, 'm': 'invalid state range(0, ' + str(len(heater['states_desc']) - 1) + ')'}
+        heater['states_desc'][data['state']] = data['value']
+        heater_save(heater)
     else:
         return {'s': 14, 'm': 'no object given for setting state_desc'}
     return {}
@@ -99,6 +110,11 @@ def __set_add_disable(data):
         if data['value'] not in fanctl['disables']:
             fanctl['disables'].append(data['value'])
             fanctl_save(fanctl)
+    elif 'heater' in data:
+        heater = heater_get(data['heater'])
+        if data['value'] not in heater['disables']:
+            heater['disables'].append(data['value'])
+            heater_save(heater)
     else:
         return {'s': 14, 'm': 'no object given for adding disable'}
     return {}
@@ -133,6 +149,11 @@ def __set_del_disable(data):
         if data['value'] in fanctl['disables']:
             fanctl['disables'].remove(data['value'])
             fanctl_save(fanctl)
+    elif 'heater' in data:
+        heater = heater_get(data['heater'])
+        if data['value'] in heater['disables']:
+            heater['disables'].remove(data['value'])
+            heater_save(heater)
     else:
         return {'s': 14, 'm': 'no object given for deleteing disable'}
     return {}
@@ -218,8 +239,8 @@ def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
     brick = brick_get(data['brick'])
-    if 'temp' not in brick['features']:
-        return {'s': 6, 'm': 'temp not in features of brick'}
+    if 'temp' not in brick['features'] and 'heat' not in brick['features']:
+        return {'s': 6, 'm': 'temp and heat not in features of brick'}
     if data['value'] not in range(9, 13):
         return {'s': 7, 'm': 'invalid value range(9, 12)'}
     brick['temp_precision'] = data['value']
@@ -301,6 +322,26 @@ def __set_signal(data):
     return {}
 
 
+def __set_heater(data):
+    if 'heater' not in data:
+        return {'s': 42, 'm': 'heater is missing in data'}
+    brick = brick_get(data['heater'])
+    if 'heat' not in brick['features']:
+        return {'s': 43, 'm': 'heat not in features of brick'}
+    heater = heater_get(data['heater'])
+    if int(data['value']) not in range(0, len(heater['states_desc'])):
+        return {'s': 7, 'm': 'invalid value range(0, ' + str(len(heater['states_desc']) - 1) + ')'}
+    brick['admin_override']['heater_state'] = True
+    heater['state'] = int(data['value'])
+    heater['state_set_ts'] = int(time.time())
+    heater['state_transmitted_ts'] = None
+    heater_save(heater)
+    if 'mqtt' not in heater['disables']:
+        heater_send(heater['_id'], heater['state'], False)
+    brick_save(brick)
+    return {}
+
+
 def __set_default(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -329,7 +370,8 @@ _set_indirect = {
     'bat_adc5V': __set_bat_adc5v,
     'add_trigger': __set_add_trigger,
     'del_trigger': __set_del_trigger,
-    'signal': __set_signal
+    'signal': __set_signal,
+    'heater': __set_heater
 }
 
 
@@ -354,11 +396,13 @@ def __cmd_set(data):
         result.update(_set_direct[data['key']](data))
     else:
         brick = None
-        if 'brick' in data or 'latch' in data or 'signal' in data:
+        if 'brick' in data or 'latch' in data or 'signal' in data or 'heater' in data:
             if 'latch' in data:
                 brick = brick_get(data['latch'].split('_')[0])
             elif 'signal' in data:
                 brick = brick_get(data['signal'].split('_')[0])
+            elif 'heater' in data:
+                brick = brick_get(data['heater'])
             else:
                 brick = brick_get(data['brick'])
             if 'admin_override' not in brick['features']:
@@ -380,7 +424,7 @@ def __cmd_delete_brick(data):
         return {'s': 11, 'm': 'brick is missing in data'}
     brick = brick_get(data['brick'])
     result = {'brick': brick['_id']}
-    if 'temp' in brick['features']:
+    if 'temp' in brick['features'] or 'heat' in brick['features']:
         result['temp_sensors'] = list()
         for sensor in brick['temp_sensors']:
             result['temp_sensors'].append(sensor)
@@ -410,6 +454,12 @@ def __cmd_delete_brick(data):
             result['fanctl'].append(fanctl['_id'])
             fanctl_delete(fanctl)
             fanctl_metrics_delete(fanctl['_id'])
+    if 'heat' in brick['features']:
+        result['heaters'] = list()
+        heater = heater_get(brick['_id'])
+        result['heaters'].append(heater['_id'])
+        heater_delete(heater)
+        heater_metrics_delete(heater['_id'])
     bat_stats_delete(brick['_id'])
     brick_delete(brick['_id'])
     return {'deleted': result}
@@ -445,6 +495,12 @@ def __cmd_get_fanctl(data):
     if 'fanctl' not in data:
         return {'s': 41, 'm': 'fanctl is missing in data'}
     return {'fanctl': fanctl_get(*data['fanctl'].split('_'))}
+
+
+def __cmd_get_heater(data):
+    if 'heater' not in data:
+        return {'s': 42, 'm': 'heater is missing in data'}
+    return {'heater': heater_get(data['heater'])}
 
 
 def __cmd_get_firmware(data):
@@ -536,7 +592,7 @@ def __cmd_get_version(data):
 def __cmd_get_count(data):
     if 'item' not in data:
         return {'s': 16, 'm': 'item is missing in data'}
-    valid_items = ['bricks', 'temp_sensors', 'humid_sensors', 'latches', 'signals', 'firmwares', 'fanctl']
+    valid_items = ['bricks', 'temp_sensors', 'humid_sensors', 'latches', 'signals', 'firmwares', 'fanctl', 'heaters']
     if data['item'] not in valid_items:
         return {'s': 17, 'm': 'invalid item given. Needs to be one of: ' + str(valid_items)}
     c = 0
@@ -554,6 +610,8 @@ def __cmd_get_count(data):
         c = fwmetadata_count()
     elif data['item'] == 'fanctl':
         c = fanctl_count()
+    elif data['item'] == 'heaters':
+        c = heater_count()
     return {'count': c}
 
 
@@ -567,6 +625,7 @@ admin_commands = {
     'get_latch': __cmd_get_latch,
     'get_signal': __cmd_get_signal,
     'get_fanctl': __cmd_get_fanctl,
+    'get_heater': __cmd_get_heater,
     'get_firmware': __cmd_get_firmware,
     'get_firmwares': __cmd_get_firmwares,
     'fetch_firmware': __cmd_fetch_firmware,
@@ -584,6 +643,8 @@ def __thread_save_execution(data):
     brick_id = None
     if 'brick' in data:
         brick_id = data['brick']
+    elif 'heater' in data:
+        brick_id = data['heater']
     elif 'latch' in data:
         brick_id = data['latch'].split('_', 1)[0]
     elif 'signal' in data:
@@ -592,7 +653,7 @@ def __thread_save_execution(data):
         brick_id = data['fanctl'].split('_', 1)[0]
     elif 'temp_sensor' in data:
         for brick in brick_all():
-            if 'temp' in brick['features'] and data['temp_sensor'] in brick['temp_sensors']:
+            if ('temp' in brick['features'] or 'heat' in brick['features']) and data['temp_sensor'] in brick['temp_sensors']:
                 brick_id = brick['_id']
                 break
     elif 'humid_sensor' in data:
@@ -635,6 +696,8 @@ def admin_interface(data):
             return {'s': 20, 'm': 'invalid signal'}
     if 'fanctl' in data and not fanctl_exists(*data['fanctl'].split('_')):
         return {'s': 40, 'm': 'invalid fanctl'}
+    if 'heater' in data and not heater_exists(data['heater']):
+        return {'s': 44, 'm': 'invalid heater'}
 
     result.update(__thread_save_execution(data))
     return result
