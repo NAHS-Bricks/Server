@@ -9,11 +9,13 @@ class TestSharedFunctions(BaseCherryPyTestCase):
         self.assertTrue(version_less_than('1.0.0.1', '1.0.0.2'))
         self.assertFalse(version_less_than('1.0', '1.0'))
         self.assertFalse(version_less_than('1.0.1', '1.0'))
+        self.assertTrue(version_less_than('0.9.0', '0.10.0'))
 
     def test_version_greater_or_equal_than(self):
         self.assertFalse(version_greater_or_equal_than('1.0', '1.0.1'))
         self.assertTrue(version_greater_or_equal_than('1.0', '1.0'))
         self.assertTrue(version_greater_or_equal_than('1.0.1', '1.0'))
+        self.assertTrue(version_greater_or_equal_than('0.10.0', '0.9.0'))
 
     def test_calculate_bat_prediction(self):
         dti = int(datetime.strptime("2021-03-17T10:39:57Z", "%Y-%m-%dT%H:%M:%SZ").timestamp())
