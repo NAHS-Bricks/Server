@@ -223,10 +223,16 @@ class TestFeatureHeat(BaseCherryPyTestCase):
         # after the feature heat is recognized on a brick, a heater should be auto created for this brick
         response = self.webapp_request(clear_state=True)  # Create Brick without features, no heater should exist
         self.assertEqual(len(response.heaters), 0)
+        response = self.webapp_request(path='/admin', command='get_count', item='heaters')
+        self.assertIn('count', response.json)
+        self.assertEqual(response.json['count'], 0)
 
         response = self.webapp_request(v=self.v)  # Now transmit versions, the heater should be auto-created
         self.assertEqual(len(response.heaters), 1)
         self.assertIn('localhost', response.heaters)
+        response = self.webapp_request(path='/admin', command='get_count', item='heaters')
+        self.assertIn('count', response.json)
+        self.assertEqual(response.json['count'], 1)
 
     def test_heater_set_state_api(self):
         response = self.webapp_request(clear_state=True, v=self.v)

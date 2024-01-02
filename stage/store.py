@@ -67,6 +67,8 @@ def __store_y(brick, bools):
     if 'bat' in brick['features']:
         brick['bat_charging'] = ('c' in bools)
         brick['bat_charging_standby'] = ('s' in bools)
+        if brick['features']['bat'] >= 3:
+            brick['bat_wall_powered'] = ('w' in bools)
     brick['initalized'] = ('i' in bools)
     if brick['features']['all'] >= 1.02:
         brick['delay_overwrite'] = ('d' in bools)

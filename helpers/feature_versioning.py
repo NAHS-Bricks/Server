@@ -44,8 +44,12 @@ def _bat_initial(brick):
     brick['bat_runtime_prediction'] = None
 
 
-def _bat_101(brick):
+def _bat_2(brick):
     brick['bat_adc5V'] = None
+
+
+def _bat_3(brick):
+    brick['bat_wall_powered'] = False
 
 
 def _sleep_initial(brick):
@@ -80,7 +84,8 @@ _feature_updates = {
     },
     'bat': {
         0.00: _bat_initial,
-        1.01: _bat_101
+        1.01: _bat_2,
+        3: _bat_3
     },
     'temp': {
         0.00: _temp_initial

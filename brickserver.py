@@ -50,6 +50,7 @@ class Brickserver(object):
         i = brick initalized (just started up, runtimeData is on initial values)
         d = delay_overwrite(AllwaysWithDefault) is active/set
         q = sleep_disabled is active/set
+        w = Brick (with feature Bat) is connected to wall-power
     x = bricktype as int (1 = TempBrick)
     p = temp_precision for temp-sensors as int
     s = signal_count (number of signal outputs available on brick)

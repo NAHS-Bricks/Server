@@ -410,3 +410,16 @@ class TestFeatureBatV101(BaseCherryPyTestCase):
 
         response = self.webapp_request(path='/admin', brick='localhost', command='set', key='bat_adc5V', value=1024)
         self.assertEqual(response.json['s'], 7)
+
+
+@parameterized_class(getVersionParameter('bat', specificVersion=[['bat', 3]], minVersion={'bat': 3}))
+class TestFeatureBatV3(BaseCherryPyTestCase):
+    def test_wall_powered_is_stored(self):
+        response = self.webapp_request(clear_state=True, v=self.v)
+        self.assertFalse(response.state['bat_wall_powered'])
+
+        response = self.webapp_request(y=['w'])
+        self.assertTrue(response.state['bat_wall_powered'])
+
+        response = self.webapp_request()
+        self.assertFalse(response.state['bat_wall_powered'])
