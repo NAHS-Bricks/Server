@@ -7,7 +7,7 @@ def start_development(c):
     if 'dev-mongo' not in r.stdout:
         print("Starting mongoDB")
         c.run("sudo mkdir -p /media/ramdisk/mongodb")
-        c.run("sudo docker run --name dev-mongo --rm -v /media/ramdisk/mongodb:/data/db -p 27017:27017 -d mongo:4.4")
+        c.run("sudo docker run --name dev-mongo --rm -v /media/ramdisk/mongodb:/data/db -p 27017:27017 -d mongo:4.4.18")
     r = c.run("sudo docker ps -f name=dev-influx", hide=True)
     if 'dev-influx' not in r.stdout:
         print("Starting influxDB")
