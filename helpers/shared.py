@@ -2,7 +2,6 @@ import os
 import json
 import subprocess
 import cherrypy
-from datetime import datetime, timedelta
 
 
 config = {
@@ -21,7 +20,8 @@ config = {
     'mqtt': {
         'server': 'localhost',
         'port': 1883,
-        'clientid': 'brickserver'
+        'clientid': 'brickserver',
+        'ha_discovery_prefix': 'homeassistant'
     },
     's3': {
         'server': 'localhost',

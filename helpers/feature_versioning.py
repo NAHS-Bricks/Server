@@ -5,6 +5,7 @@ def _all_initial(brick):
     brick['features']['all'] = 0
     brick['features']['os'] = 0
     brick['desc'] = None
+    brick['ha_enabled'] = False
     brick['init_ts'] = None
     brick['last_ts'] = None
     brick['initalized'] = False
