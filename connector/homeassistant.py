@@ -1,4 +1,4 @@
-from connector.mongodb import brick_get
+from connector.mongodb import brick_get, temp_sensor_get, humid_get, latch_get
 from connector.mqtt import _publish_async
 from helpers.current_version import current_brickserver_version as bs_version
 from helpers.shared import config
@@ -44,15 +44,43 @@ def __cmp_bat_prediction(brick_id):
 
 
 def __cmp_temp(brick_id, sensor):
-    pass
+    sensor_id = sensor['_id']
+    result = {
+        'platform': 'sensor',
+        'unique_id': f'brick{brick_id}temp{sensor_id}',
+        'device_class': 'temperature',
+        'state_topic': f'~/temp/{sensor_id}'
+    }
+    if sensor['desc'] is not None and not sensor['desc'] == '':
+        result['name'] = sensor['desc']
+    return result
 
 
 def __cmp_humid(brick_id, sensor):
-    pass
+    sensor_id = sensor['_id']
+    result = {
+        'platform': 'sensor',
+        'unique_id': f'brick{brick_id}humid{sensor_id}',
+        'device_class': 'humidity',
+        'state_topic': f'~/humid/{sensor_id}'
+    }
+    if sensor['desc'] is not None and not sensor['desc'] == '':
+        result['name'] = sensor['desc']
+    return result
 
 
 def __cmp_latch(brick_id, sensor):
-    pass
+    sensor_id = sensor['_id']
+    result = {
+        'platform': 'sensor',
+        'unique_id': f'brick{brick_id}latch{sensor_id}',
+        'device_class': 'enum',
+        'options': sensor['states_desc'],
+        'state_topic': f'~/latch/{sensor_id}'
+    }
+    if sensor['desc'] is not None and not sensor['desc'] == '':
+        result['name'] = sensor['desc']
+    return result
 
 
 def send_config(brick=None, brick_id=None):
@@ -60,10 +88,12 @@ def send_config(brick=None, brick_id=None):
         brick = brick_get(brick_id)
     if not brick['ha_enabled']:
         return
-    brick_id = brick['id']
+    brick_id = brick['_id']
     payload = dict()
-    payload['~'] = f'/brick/{brick["id"]}'
-    payload['device'] = {'ids': brick_id, 'name': brick['desc'], 'mf': 'NiJOs', 'mdl': type_mdl_map[brick['type']], 'hw': type_hw_map[brick['type']]}
+    payload['~'] = f'/brick/{brick_id}'
+    payload['device'] = {'ids': brick_id, 'mf': 'NiJOs', 'mdl': type_mdl_map[brick['type']], 'hw': type_hw_map[brick['type']]}
+    if brick['desc'] is not None and not brick['desc'] == '':
+        payload['device']['name'] = brick['desc']
     payload['origin'] = {'name': 'BrickServer', 'sw': bs_version, 'url': 'https://bricks.nijos.de'}
     payload['components'] = dict()
     for feature in brick['features'].keys():
@@ -71,9 +101,18 @@ def send_config(brick=None, brick_id=None):
             payload['components']['battery'] = __cmp_bat_percent(brick_id)
             payload['components']['battery_prediction'] = __cmp_bat_prediction(brick_id)
         elif feature == 'temp':
-            pass
+            for sensor_id in brick['temp_sensors']:
+                sensor = temp_sensor_get(sensor_id)
+                if 'mqtt' not in sensor['disables']:
+                    payload['components'][f'temp{sensor_id}'] = __cmp_temp(brick_id, sensor)
         elif feature == 'humid':
-            pass
+            for sensor_id in brick['humid_sensors']:
+                sensor = humid_get(sensor_id)
+                if 'mqtt' not in sensor['disables']:
+                    payload['components'][f'humid{sensor_id}'] = __cmp_humid(brick_id, sensor)
         elif feature == 'latch':
-            pass
+            for latch_id in range(brick['latch_count']):
+                latch = latch_get(brick_id, latch_id)
+                if 'mqtt' not in latch['disables']:
+                    payload['components'][f'latch{latch_id}'] = __cmp_latch(brick_id, latch)
     _publish_async(topic=f'{discovery_prefix}/device/{brick_id}/config', payload=payload)
