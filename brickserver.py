@@ -10,12 +10,13 @@ import zipfile
 from datetime import datetime, timedelta
 from cherrypy.lib import file_generator
 from connector.mongodb import start_mongodb_connection, mongodb_lock_acquire, mongodb_lock_release, is_connected as mongodb_connected
-from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save, latch_get, signal_all, signal_save
+from connector.mongodb import brick_get, brick_save, brick_all, brick_all_ids, util_get, util_save
 from connector.mongodb import brick_count, temp_sensor_count, humid_count, latch_count, signal_count, heater_count
 from connector.mongodb import fwmetadata_save, fwmetadata_count, fwmetadata_latest, fanctl_count
-from connector.mqtt import start_async_worker as start_mqtt_worker, is_connected as mqtt_connected, signal_send
+from connector.mqtt import start_async_worker as start_mqtt_worker, is_connected as mqtt_connected
 from connector.influxdb import start_async_worker as start_influxdb_worker, is_connected as influxdb_connected
 from connector.brick import start_async_worker as start_brick_worker
+from connector.homeassistant import start_async_listener as start_ha_listener
 from connector.s3 import is_connected as s3_connected, firmware_save, firmware_get, firmware_exists, firmware_filename
 from connector.ds import is_connected as ds_connected
 from stage.store import store_exec as exec_store_stage
@@ -41,7 +42,8 @@ class Brickserver(object):
     l = list of latch states, where the index of a state is the id of the latch input (eg: [0, 1] )
     h = list of sensors with humidity, where sensor and humid are lists themself (eg: [['s1', h1], ['s2', h2]] )
     k = list of sensors with corr (humidity), where sensor and corr are lists themself (eg: [['s1', c1], ['s2', c2]] )
-    v = list of features with version (as float), where elements are lists themself, allways needs to contain os and all (as this are meta-features) (eg: [['os', 1.0], ['all', 1.0], ['bat', 1.0]] )
+    v = list of features with version (as float), where elements are lists themself,
+        always needs to contain os and all (as this are meta-features) (eg: [['os', 1.0], ['all', 1.0], ['bat', 1.0]] )
     f = list of bricks features as in brick_state_defaults
     b = bat-voltage as float
     y = list of chars representing boolean values, if a char is in list it's considered as true if it's missing it's considered as false
@@ -56,7 +58,8 @@ class Brickserver(object):
     s = signal_count (number of signal outputs available on brick)
     d = delay_default value
     m = sketchMD5
-    fs = fanctl fan-states. list of lists where first element of inner list is fanctl addr, second is state (0=Off, 1=On) and third is rps (eg: [[64, 0, 0], [65, 1, 12]])
+    fs = fanctl fan-states.
+         List of lists where first element of inner list is fanctl addr, second is state (0=Off, 1=On) and third is rps (eg: [[64, 0, 0], [65, 1, 12]])
     fm = fanctl fan-modes. list of lists where first element of inner list is fanctl addr and second is mode (-1-2) (eg: [[64, 0], [65, 1]])
     id = ident set during BrickSetup to identify Brick on first connection to Bricks-Server
 
@@ -83,8 +86,10 @@ class Brickserver(object):
         14 = brick is requested to clear stored ident (to save space in FSmem)
     q = sets sleep_disabled (true or false)
     fm = fanctl fan-modes to be used. list of lists where first element of inner list is fanctl addr and second is mode (0-2) to set (eg: [[64, 0], [65, 1]])
-    fd = fanctl fan-dutyCycle to be used. list of lists where first element of inner list is fanctl addr and second is dytyCycle (0-100) to set (eg: [[64, 0], [65, 100]])
-    fs = fanctl fan-state to be used. list of lists where first element of inner list is fanctl addr and second is state (0=Off, 1=On) to set (eg: [[64, 0], [65, 1]])
+    fd = fanctl fan-dutyCycle to be used.
+         List of lists where first element of inner list is fanctl addr and second is dytyCycle (0-100) to set (eg: [[64, 0], [65, 100]])
+    fs = fanctl fan-state to be used.
+         List of lists where first element of inner list is fanctl addr and second is state (0=Off, 1=On) to set (eg: [[64, 0], [65, 1]])
     h = state of heater turned on (1) or off (0) (as int 0 or 1)
     """
     @cherrypy.expose
@@ -96,7 +101,7 @@ class Brickserver(object):
             if os.path.isfile('/tmp/telegram_messages'):
                 os.remove('/tmp/telegram_messages')
 
-        if cherrypy.request.method == "GET":
+        if cherrypy.request.method == 'GET':
             health = {
                 'version': current_brickserver_version,
                 'mongodb_connected': mongodb_connected(),
@@ -120,7 +125,7 @@ class Brickserver(object):
             data = cherrypy.request.json
             if not test_suite:  # pragma: no cover
                 print()
-                print("Deliver: " + json.dumps(data))
+                print('Deliver: ' + json.dumps(data))
             brick_ip = cherrypy.request.remote.ip
             brick_id = get_deviceid(brick_ip)
             if test_suite and 'test_brick_id' in data:
@@ -162,7 +167,7 @@ class Brickserver(object):
             mongodb_lock_release(brick_id)
 
             if not test_suite:  # pragma: no cover
-                print("Feedback: " + json.dumps(feedback))
+                print('Feedback: ' + json.dumps(feedback))
             return feedback
         return {'s': 1}
 
@@ -183,7 +188,7 @@ class Brickserver(object):
         if 'json' in dir(cherrypy.request):
             data = cherrypy.request.json
             if not test_suite:  # pragma: no cover
-                print("Admin: " + json.dumps(data))
+                print('Admin: ' + json.dumps(data))
             return admin_interface(data)
         else:
             return {'s': 99}
@@ -216,7 +221,8 @@ class Brickserver(object):
             if brick['last_ts'] > ts_1_hour_ago:  # Has send data within the last hour
                 cron_data['offline_send'][brick['_id']] = False
             elif not cron_data['offline_send'][brick['_id']]:  # One hour offline and no message send
-                send_telegram("Brick " + (brick['_id'] if brick['desc'] is None or brick['desc'] == '' else brick['desc']) + " didn't send any data within the last hour!")
+                send_telegram('Brick ' + (brick['_id'] if brick['desc'] is None or brick['desc'] == '' else brick['desc']) +
+                              " didn't send any data within the last hour!")
                 cron_data['offline_send'][brick['_id']] = True
 
         # Create daily report
@@ -314,7 +320,7 @@ class Brickserver(object):
         mongodb_lock_release(brick_id)
 
         if 'otaUpdate' in brick and brick['otaUpdate'] == 'running':
-            cherrypy.response.headers['Content-Type'] = "application/octet-stream"
+            cherrypy.response.headers['Content-Type'] = 'application/octet-stream'
             cherrypy.response.headers['Content-Disposition'] = 'attachment; filename="' + firmware_filename(fwmetadata=fwm) + '"'
             cherrypy.response.headers['x-MD5'] = fwm['sketchMD5']
             return file_generator(firmware_get(fwmetadata=fwm))
@@ -324,7 +330,7 @@ class Brickserver(object):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="NAHS-BrickServer")
+    parser = argparse.ArgumentParser(description='NAHS-BrickServer')
     parser.add_argument('--version', '-v', dest='version', action='store_true', help='Prints version of BrickServer')
     parser.add_argument('--migrate', '-m', dest='migrate', action='store_true', help='Executes migrations')
     args = parser.parse_args()
@@ -342,5 +348,6 @@ if __name__ == '__main__':
     start_influxdb_worker()
     start_brick_worker()
     start_mongodb_connection()
+    start_ha_listener()
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': config['server_port'], })
     cherrypy.quickstart(Brickserver())

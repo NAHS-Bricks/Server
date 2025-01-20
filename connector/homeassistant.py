@@ -1,9 +1,11 @@
-from connector.mongodb import brick_get, temp_sensor_get, humid_get, latch_get
+from connector.mongodb import brick_get, brick_all, temp_sensor_get, humid_get, latch_get
 from connector.mqtt import _publish_async
 from helpers.current_version import current_brickserver_version as bs_version
 from helpers.shared import config
+from multiprocessing import Process
 
 
+async_listener = None
 discovery_prefix = config['mqtt']['ha_discovery_prefix']
 
 # brick_type to model (mdl) map
@@ -84,6 +86,8 @@ def __cmp_latch(brick_id, sensor):
 
 
 def send_config(brick=None, brick_id=None):
+    if not config['allow']['homeassistant']:
+        return
     if not brick:
         brick = brick_get(brick_id)
     if not brick['ha_enabled']:
@@ -116,3 +120,24 @@ def send_config(brick=None, brick_id=None):
                 if 'mqtt' not in latch['disables']:
                     payload['components'][f'latch{latch_id}'] = __cmp_latch(brick_id, latch)
     _publish_async(topic=f'{discovery_prefix}/device/{brick_id}/config', payload=payload)
+
+
+def start_async_listener():  # pragma: no cover
+    def _async_listener():
+        from paho.mqtt import subscribe
+
+        def _on_message(client, userdata, message):
+            if message.payload.decode('utf-8') == config['mqtt']['ha_birth_msg']:
+                for brick in brick_all():
+                    send_config(brick=brick)
+
+        subscribe.callback(_on_message,
+                           f'{discovery_prefix}/status',
+                           hostname=config['mqtt']['server'],
+                           port=config['mqtt']['port'],
+                           transport='tcp')
+
+    global async_listener
+    if async_listener is None and config['allow']['homeassistant']:
+        async_listener = Process(target=_async_listener, args=(), daemon=True)
+        async_listener.start()

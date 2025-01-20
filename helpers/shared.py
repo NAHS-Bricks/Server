@@ -21,7 +21,8 @@ config = {
         'server': 'localhost',
         'port': 1883,
         'clientid': 'brickserver',
-        'ha_discovery_prefix': 'homeassistant'
+        'ha_discovery_prefix': 'homeassistant',
+        'ha_birth_msg': 'online'
     },
     's3': {
         'server': 'localhost',
@@ -38,11 +39,15 @@ config = {
         'access_secret': 'K003E2hhtN3dEH85EWxWfvCNL8wVmbI'
     },
     'allow': {
-        'ds': False
+        'ds': False,
+        'homeassistant': True
     }
 }
 if os.path.isfile('config.json'):
-    config.update(json.loads(open('config.json', 'r').read().strip()))
+    fileconfig = json.load(open('config.json', 'r'))
+    for k in fileconfig.keys():
+        if k in config and isinstance(fileconfig[k], dict) and isinstance(config[k], dict):
+            config[k].update(fileconfig[k])
 else:  # pragma: no cover
     open('config.json', 'w').write(json.dumps(config, indent=2, sort_keys=True))
 

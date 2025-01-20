@@ -2,7 +2,6 @@ from pymongo import MongoClient, ASCENDING, DESCENDING
 from helpers.shared import config, temp_sensor_defaults, latch_defaults, signal_defaults, humid_defaults, fanctl_defaults, heater_defaults
 from helpers.feature_versioning import feature_update
 import copy
-from bson.objectid import ObjectId
 from threading import Lock
 
 mongoClient = None
@@ -22,7 +21,7 @@ def start_mongodb_connection():
 def mongoDB():
     global _mongoDB
     if _mongoDB is None:  # pragma: no cover
-        start_mongoDB_connection()
+        start_mongodb_connection()
     return _mongoDB
 
 
@@ -59,8 +58,7 @@ def brick_get(brick_id):
     """
     Returns a brick from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
-    brick = _mongoDB.bricks.find_one({'_id': brick_id})
+    brick = mongoDB().bricks.find_one({'_id': brick_id})
     if brick is None:
         brick = {}
         feature_update(brick, 'all', -1, 0)
@@ -72,24 +70,21 @@ def brick_save(brick):
     """
     Saves brick to DB
     """
-    global _mongoDB
-    _mongoDB.bricks.replace_one({'_id': brick['_id']}, brick, True)
+    mongoDB().bricks.replace_one({'_id': brick['_id']}, brick, True)
 
 
 def brick_delete(brick_id):
     """
     Removes brick from DB
     """
-    global _mongoDB
-    _mongoDB.bricks.delete_one({'_id': brick_id})
+    mongoDB().bricks.delete_one({'_id': brick_id})
 
 
 def brick_exists(brick_id):
     """
     Returns True or False whether a brick is stored in DB or not
     """
-    global _mongoDB
-    brick = _mongoDB.bricks.find_one({'_id': brick_id})
+    brick = mongoDB().bricks.find_one({'_id': brick_id})
     if brick is not None:
         return True
     return False
@@ -99,17 +94,15 @@ def brick_all():  # pragma: no cover
     """
     Returns an iterator to all bricks in DB
     """
-    global _mongoDB
-    return _mongoDB.bricks.find({})
+    return mongoDB().bricks.find({})
 
 
 def brick_all_ids():
     """
     Returns a list of all brick's id's present in DB
     """
-    global _mongoDB
     ids = []
-    for brick in _mongoDB.bricks.find({}):
+    for brick in mongoDB().bricks.find({}):
         ids.append(brick['_id'])
     return ids
 
@@ -118,8 +111,7 @@ def brick_count():
     """
     Returns number of bricks present in DB
     """
-    global _mongoDB
-    return _mongoDB.bricks.count_documents({})
+    return mongoDB().bricks.count_documents({})
 
 
 """
@@ -131,8 +123,7 @@ def temp_sensor_get(sensor_id):
     """
     Returns a temp_sensor from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
-    sensor = _mongoDB.temp_sensors.find_one({'_id': sensor_id})
+    sensor = mongoDB().temp_sensors.find_one({'_id': sensor_id})
     if sensor is None:
         sensor = {}
         sensor.update(copy.deepcopy(temp_sensor_defaults))
@@ -144,24 +135,21 @@ def temp_sensor_save(sensor):
     """
     Saves temp_sensor to DB
     """
-    global _mongoDB
-    _mongoDB.temp_sensors.replace_one({'_id': sensor['_id']}, sensor, True)
+    mongoDB().temp_sensors.replace_one({'_id': sensor['_id']}, sensor, True)
 
 
 def temp_sensor_delete(sensor_id):
     """
     Removes temp_sensor from DB
     """
-    global _mongoDB
-    _mongoDB.temp_sensors.delete_one({'_id': sensor_id})
+    mongoDB().temp_sensors.delete_one({'_id': sensor_id})
 
 
 def temp_sensor_exists(sensor_id):
     """
     Returns True or False whether a temp_sensor is stored in DB or not
     """
-    global _mongoDB
-    sensor = _mongoDB.temp_sensors.find_one({'_id': sensor_id})
+    sensor = mongoDB().temp_sensors.find_one({'_id': sensor_id})
     if sensor is not None:
         return True
     return False
@@ -171,16 +159,14 @@ def temp_sensor_all():  # pragma: no cover
     """
     Returns an iterator to all temp_sensors in DB
     """
-    global _mongoDB
-    return _mongoDB.temp_sensors.find({})
+    return mongoDB().temp_sensors.find({})
 
 
 def temp_sensor_count():
     """
     Returns number of tempsensors present in DB
     """
-    global _mongoDB
-    return _mongoDB.temp_sensors.count_documents({})
+    return mongoDB().temp_sensors.count_documents({})
 
 
 """
@@ -192,8 +178,7 @@ def humid_get(sensor_id):
     """
     Returns a humidity sensor from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
-    sensor = _mongoDB.humid_sensors.find_one({'_id': sensor_id})
+    sensor = mongoDB().humid_sensors.find_one({'_id': sensor_id})
     if sensor is None:
         sensor = {}
         sensor.update(copy.deepcopy(humid_defaults))
@@ -205,24 +190,21 @@ def humid_save(sensor):
     """
     Saves humidity sensor to DB
     """
-    global _mongoDB
-    _mongoDB.humid_sensors.replace_one({'_id': sensor['_id']}, sensor, True)
+    mongoDB().humid_sensors.replace_one({'_id': sensor['_id']}, sensor, True)
 
 
 def humid_delete(sensor_id):
     """
     Removes humidity sensor from DB
     """
-    global _mongoDB
-    _mongoDB.humid_sensors.delete_one({'_id': sensor_id})
+    mongoDB().humid_sensors.delete_one({'_id': sensor_id})
 
 
 def humid_exists(sensor_id):
     """
     Returns True or False whether a humidity sensor is stored in DB or not
     """
-    global _mongoDB
-    sensor = _mongoDB.humid_sensors.find_one({'_id': sensor_id})
+    sensor = mongoDB().humid_sensors.find_one({'_id': sensor_id})
     if sensor is not None:
         return True
     return False
@@ -232,16 +214,14 @@ def humid_all():  # pragma: no cover
     """
     Returns an iterator to all humidity sensors in DB
     """
-    global _mongoDB
-    return _mongoDB.humid_sensors.find({})
+    return mongoDB().humid_sensors.find({})
 
 
 def humid_count():
     """
     Returns number of humidity sensors present in DB
     """
-    global _mongoDB
-    return _mongoDB.humid_sensors.count_documents({})
+    return mongoDB().humid_sensors.count_documents({})
 
 
 """
@@ -253,9 +233,8 @@ def latch_get(brick_id, latch_id):
     """
     Returns a latch from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
     lid = brick_id + '_' + str(latch_id)
-    latch = _mongoDB.latches.find_one({'_id': lid})
+    latch = mongoDB().latches.find_one({'_id': lid})
     if latch is None:
         latch = dict()
         latch.update(copy.deepcopy(latch_defaults))
@@ -267,26 +246,23 @@ def latch_save(latch):
     """
     Saves latch to DB
     """
-    global _mongoDB
-    _mongoDB.latches.replace_one({'_id': latch['_id']}, latch, True)
+    mongoDB().latches.replace_one({'_id': latch['_id']}, latch, True)
 
 
 def latch_delete(brick_id, latch_id):
     """
     Removes latch from DB
     """
-    global _mongoDB
     lid = brick_id + '_' + str(latch_id)
-    _mongoDB.latches.delete_one({'_id': lid})
+    mongoDB().latches.delete_one({'_id': lid})
 
 
 def latch_exists(brick_id, latch_id):
     """
     Returns True or False whether a latch is stored in DB or not
     """
-    global _mongoDB
     lid = brick_id + '_' + str(latch_id)
-    latch = _mongoDB.latches.find_one({'_id': lid})
+    latch = mongoDB().latches.find_one({'_id': lid})
     if latch is not None:
         return True
     return False
@@ -296,16 +272,14 @@ def latch_all():  # pragma: no cover
     """
     Returns an iterator to all latches in DB
     """
-    global _mongoDB
-    return _mongoDB.latches.find({})
+    return mongoDB().latches.find({})
 
 
 def latch_count():
     """
     Returns number of latches present in DB
     """
-    global _mongoDB
-    return _mongoDB.latches.count_documents({})
+    return mongoDB().latches.count_documents({})
 
 
 """
@@ -317,9 +291,8 @@ def signal_get(brick_id, signal_id):
     """
     Returns a signal from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
     sid = brick_id + '_' + str(signal_id)
-    signal = _mongoDB.signals.find_one({'_id': sid})
+    signal = mongoDB().signals.find_one({'_id': sid})
     if signal is None:
         signal = dict()
         signal.update(copy.deepcopy(signal_defaults))
@@ -331,25 +304,22 @@ def signal_save(signal):
     """
     Saves signal to DB
     """
-    global _mongoDB
-    _mongoDB.signals.replace_one({'_id': signal['_id']}, signal, True)
+    mongoDB().signals.replace_one({'_id': signal['_id']}, signal, True)
 
 
 def signal_delete(signal):
     """
     Removes signal from DB
     """
-    global _mongoDB
-    _mongoDB.signals.delete_one({'_id': signal['_id']})
+    mongoDB().signals.delete_one({'_id': signal['_id']})
 
 
 def signal_exists(brick_id, signal_id):
     """
     Returns True or False whether a signal is stored in DB or not
     """
-    global _mongoDB
     sid = brick_id + '_' + str(signal_id)
-    signal = _mongoDB.signals.find_one({'_id': sid})
+    signal = mongoDB().signals.find_one({'_id': sid})
     if signal is not None:
         return True
     return False
@@ -360,19 +330,17 @@ def signal_all(brick_id=None):  # pragma: no cover
     Returns an iterator to all signals in DB if brick_id is None
     Otherwise returns an iterator to all signals of a specific brick
     """
-    global _mongoDB
     if brick_id is None:
-        return _mongoDB.signals.find({}).sort("_id", ASCENDING)
+        return mongoDB().signals.find({}).sort('_id', ASCENDING)
     else:
-        return _mongoDB.signals.find({'_id': {'$regex': '^' + str(brick_id) + '_'}}).sort("_id", ASCENDING)
+        return mongoDB().signals.find({'_id': {'$regex': '^' + str(brick_id) + '_'}}).sort('_id', ASCENDING)
 
 
 def signal_count():
     """
     Returns number of signals present in DB
     """
-    global _mongoDB
-    return _mongoDB.signals.count_documents({})
+    return mongoDB().signals.count_documents({})
 
 
 """
@@ -384,13 +352,12 @@ def fanctl_get(brick_id, fanctl_id):
     """
     Returns a fanctl from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
     if isinstance(fanctl_id, int):
         fanctl_id = hex(fanctl_id)
     elif isinstance(fanctl_id, str) and not fanctl_id.startswith('0x'):
         fanctl_id = hex(int(fanctl_id))
     fid = brick_id + '_' + fanctl_id
-    fanctl = _mongoDB.fanctls.find_one({'_id': fid})
+    fanctl = mongoDB().fanctls.find_one({'_id': fid})
     if fanctl is None:
         fanctl = dict()
         fanctl.update(copy.deepcopy(fanctl_defaults))
@@ -402,29 +369,26 @@ def fanctl_save(fanctl):
     """
     Saves fanctl to DB
     """
-    global _mongoDB
-    _mongoDB.fanctls.replace_one({'_id': fanctl['_id']}, fanctl, True)
+    mongoDB().fanctls.replace_one({'_id': fanctl['_id']}, fanctl, True)
 
 
 def fanctl_delete(fanctl):
     """
     Removes fanctl from DB
     """
-    global _mongoDB
-    _mongoDB.fanctls.delete_one({'_id': fanctl['_id']})
+    mongoDB().fanctls.delete_one({'_id': fanctl['_id']})
 
 
 def fanctl_exists(brick_id, fanctl_id):
     """
     Returns True or False whether a fanctl is stored in DB or not
     """
-    global _mongoDB
     if isinstance(fanctl_id, int):
         fanctl_id = hex(fanctl_id)
     elif isinstance(fanctl_id, str) and not fanctl_id.startswith('0x'):
         fanctl_id = hex(int(fanctl_id))
     fid = brick_id + '_' + fanctl_id
-    fanctl = _mongoDB.fanctls.find_one({'_id': fid})
+    fanctl = mongoDB().fanctls.find_one({'_id': fid})
     if fanctl is not None:
         return True
     return False
@@ -435,11 +399,10 @@ def fanctl_all(brick_id=None):
     Returns an iterator to all fanctls in DB if brick_id is None
     Otherwise returns an iterator to all fanctls of a specific brick
     """
-    global _mongoDB
     if brick_id is None:
-        return _mongoDB.fanctls.find({}).sort("_id", ASCENDING)
+        return mongoDB().fanctls.find({}).sort('_id', ASCENDING)
     else:
-        return _mongoDB.fanctls.find({'_id': {'$regex': '^' + str(brick_id) + '_'}}).sort("_id", ASCENDING)
+        return mongoDB().fanctls.find({'_id': {'$regex': '^' + str(brick_id) + '_'}}).sort('_id', ASCENDING)
 
 
 def fanctl_count(brick_id=None):
@@ -447,11 +410,10 @@ def fanctl_count(brick_id=None):
     Returns number of fanctl present in DB if brick_id is None
     Otherwise returns number of fanctls of a specific brick
     """
-    global _mongoDB
     if brick_id is None:
-        return _mongoDB.fanctls.count_documents({})
+        return mongoDB().fanctls.count_documents({})
     else:
-        return _mongoDB.fanctls.count_documents({'_id': {'$regex': '^' + str(brick_id) + '_'}})
+        return mongoDB().fanctls.count_documents({'_id': {'$regex': '^' + str(brick_id) + '_'}})
 
 
 """
@@ -463,8 +425,7 @@ def heater_get(brick_id):
     """
     Returns a heater from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
-    heater = _mongoDB.heaters.find_one({'_id': brick_id})
+    heater = mongoDB().heaters.find_one({'_id': brick_id})
     if heater is None:
         heater = dict()
         heater.update(copy.deepcopy(heater_defaults))
@@ -476,24 +437,21 @@ def heater_save(heater):
     """
     Saves heater to DB
     """
-    global _mongoDB
-    _mongoDB.heaters.replace_one({'_id': heater['_id']}, heater, True)
+    mongoDB().heaters.replace_one({'_id': heater['_id']}, heater, True)
 
 
 def heater_delete(heater):
     """
     Removes heater from DB
     """
-    global _mongoDB
-    _mongoDB.heaters.delete_one({'_id': heater['_id']})
+    mongoDB().heaters.delete_one({'_id': heater['_id']})
 
 
 def heater_exists(brick_id):
     """
     Returns True or False whether a heater is stored in DB or not
     """
-    global _mongoDB
-    heater = _mongoDB.heaters.find_one({'_id': brick_id})
+    heater = mongoDB().heaters.find_one({'_id': brick_id})
     if heater is not None:
         return True
     return False
@@ -503,16 +461,14 @@ def heater_all():  # pragma: no cover
     """
     Returns an iterator to all heaters in DB
     """
-    global _mongoDB
-    return _mongoDB.heaters.find({}).sort("_id", ASCENDING)
+    return mongoDB().heaters.find({}).sort('_id', ASCENDING)
 
 
 def heater_count():
     """
     Returns number of heaters present in DB
     """
-    global _mongoDB
-    return _mongoDB.heaters.count_documents({})
+    return mongoDB().heaters.count_documents({})
 
 
 """
@@ -524,40 +480,36 @@ def fwmetadata_get(brick_type, version):
     """
     Returns FirmwareMetadata from DB or None if it doesn't exist in DB
     """
-    global _mongoDB
-    mid = f"{brick_type}_{version}"
-    return _mongoDB.fwmetadata.find_one({'_id': mid})
+    mid = f'{brick_type}_{version}'
+    return mongoDB().fwmetadata.find_one({'_id': mid})
 
 
 def fwmetadata_save(metadata):
     """
     Saves FirmwareMetadata to DB
     """
-    global _mongoDB
     if '_id' not in metadata:
         metadata['_id'] = f"{metadata['brick_type']}_{metadata['version']}"
     if 'dev' not in metadata:
         metadata['dev'] = False
-    _mongoDB.fwmetadata.replace_one({'_id': metadata['_id']}, metadata, True)
+    mongoDB().fwmetadata.replace_one({'_id': metadata['_id']}, metadata, True)
 
 
 def fwmetadata_delete(metadata):
     """
     Removes FirmwareMetadata from DB
     """
-    global _mongoDB
     if '_id' not in metadata:  # pragma: no cover
         metadata['_id'] = f"{metadata['brick_type']}_{metadata['version']}"
-    _mongoDB.fwmetadata.delete_one({'_id': metadata['_id']})
+    mongoDB().fwmetadata.delete_one({'_id': metadata['_id']})
 
 
 def fwmetadata_exists(brick_type, version):
     """
     Returns True or False whether FirmwareMetadata is stored in DB or not
     """
-    global _mongoDB
-    mid = f"{brick_type}_{version}"
-    fm = _mongoDB.fwmetadata.find_one({'_id': mid})
+    mid = f'{brick_type}_{version}'
+    fm = mongoDB().fwmetadata.find_one({'_id': mid})
     if fm is not None:
         return True
     return False
@@ -568,35 +520,31 @@ def fwmetadata_all(brick_type=None):
     Returns an iterator to all FirmwareMetadata in DB if brick_type is None
     Otherwise returns an iterator to all FirmwareMetadata of a specific brick_type
     """
-    global _mongoDB
     if brick_type is None:
-        return _mongoDB.fwmetadata.find({}).sort("_id", ASCENDING)
+        return mongoDB().fwmetadata.find({}).sort('_id', ASCENDING)
     else:
-        return _mongoDB.fwmetadata.find({'brick_type': brick_type}).sort("_id", ASCENDING)
+        return mongoDB().fwmetadata.find({'brick_type': brick_type}).sort('_id', ASCENDING)
 
 
 def fwmetadata_search(brick_type, sketchMD5):
     """
     Returns FirmwareMetadata with a specific brick_type and sketchMD5 or None if it not exits
     """
-    global _mongoDB
-    return _mongoDB.fwmetadata.find_one({'brick_type': brick_type, 'sketchMD5': sketchMD5})
+    return mongoDB().fwmetadata.find_one({'brick_type': brick_type, 'sketchMD5': sketchMD5})
 
 
 def fwmetadata_latest(brick_type):
     """
     Returns FirmwareMetadata with newest version for given brick_type
     """
-    global _mongoDB
-    return _mongoDB.fwmetadata.find_one({'brick_type': brick_type}, sort=[('_id', DESCENDING)], limit=1)
+    return mongoDB().fwmetadata.find_one({'brick_type': brick_type}, sort=[('_id', DESCENDING)], limit=1)
 
 
 def fwmetadata_count():
     """
     Returns number of FirmwareMetadata present in DB
     """
-    global _mongoDB
-    return _mongoDB.fwmetadata.count_documents({})
+    return mongoDB().fwmetadata.count_documents({})
 
 
 """
@@ -608,8 +556,7 @@ def util_get(util_id):
     """
     Returns a util from DB or a newly created it if doesn't exist in DB
     """
-    global _mongoDB
-    util = _mongoDB.util.find_one({'_id': util_id})
+    util = mongoDB().util.find_one({'_id': util_id})
     if util is None:
         util = {'_id': util_id}
     return util
@@ -619,5 +566,4 @@ def util_save(util):
     """
     Saves util to DB
     """
-    global _mongoDB
-    _mongoDB.util.replace_one({'_id': util['_id']}, util, True)
+    mongoDB().util.replace_one({'_id': util['_id']}, util, True)
