@@ -1,5 +1,5 @@
 from connector.mongodb import brick_get, brick_all, temp_sensor_get, humid_get, latch_get
-from connector.mqtt import _publish_async
+from connector.mqtt import _publish_async, bat_level_send, temp_send, humid_send, latch_send
 from helpers.current_version import current_brickserver_version as bs_version
 from helpers.shared import config
 from multiprocessing import Process
@@ -85,7 +85,7 @@ def __cmp_latch(brick_id, sensor):
     return result
 
 
-def send_config(brick=None, brick_id=None):
+def send_device_config(brick=None, brick_id=None):
     if not config['allow']['homeassistant']:
         return
     if not brick:
@@ -122,6 +122,38 @@ def send_config(brick=None, brick_id=None):
     _publish_async(topic=f'{discovery_prefix}/device/{brick_id}/config', payload=payload)
 
 
+def send_sensor_states(brick=None, brick_id=None):
+    if not config['allow']['homeassistant']:
+        return
+    if not brick:
+        brick = brick_get(brick_id)
+    if not brick['ha_enabled']:
+        return
+    brick_id = brick['_id']
+
+    if 'bat' in brick['features']:
+        if brick['bat_last_reading'] > 0:
+            bat_level_send(brick_id, brick['bat_last_reading'], brick['bat_runtime_prediction'])
+
+    if 'temp' in brick['features']:
+        for sensor in [temp_sensor_get(sid) for sid in brick['temp_sensors']]:
+            if 'mqtt' in sensor['disables'] or sensor['last_reading'] is None:
+                continue
+            temp_send(sensor['_id'], sensor['last_reading'], brick_id)
+
+    if 'humid' in brick['features']:
+        for sensor in [humid_get(sid) for sid in brick['humid_sensors']]:
+            if 'mqtt' in sensor['disables'] or sensor['last_reading'] is None:
+                continue
+            humid_send(sensor['_id'], sensor['last_reading'], brick_id)
+
+    if 'latch' in brick['features']:
+        for latch in [latch_get(brick_id, lid) for lid in range(brick['latch_count'])]:
+            if 'mqtt' in latch['disables'] or latch['last_state'] is None:
+                continue
+            latch_send(latch['_id'], latch['last_state'])
+
+
 def start_async_listener():  # pragma: no cover
     def _async_listener():
         from paho.mqtt import subscribe
@@ -129,7 +161,9 @@ def start_async_listener():  # pragma: no cover
         def _on_message(client, userdata, message):
             if message.payload.decode('utf-8') == config['mqtt']['ha_birth_msg']:
                 for brick in brick_all():
-                    send_config(brick=brick)
+                    send_device_config(brick=brick)
+                for brick in brick_all():
+                    send_sensor_states(brick=brick)
 
         subscribe.callback(_on_message,
                            f'{discovery_prefix}/status',
