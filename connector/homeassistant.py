@@ -168,6 +168,15 @@ def send_sensor_states(brick=None, brick_id=None):
             latch_send(latch['_id'], latch['last_state'])
 
 
+def send_all_configs():
+    if not config['allow']['homeassistant']:
+        return
+    for brick in brick_all():
+        send_device_config(brick=brick)
+    for brick in brick_all():
+        send_sensor_states(brick=brick)
+
+
 def start_async_listener():  # pragma: no cover
     def _async_listener():
         from paho.mqtt import subscribe
@@ -175,10 +184,7 @@ def start_async_listener():  # pragma: no cover
         def _on_message(client, userdata, message):
             if message.payload.decode('utf-8') == config['mqtt']['ha_birth_msg']:
                 print('Received birth message from Home Assistant. Transmitting Brick-Configs ans latest Seansor-States')
-                for brick in brick_all():
-                    send_device_config(brick=brick)
-                for brick in brick_all():
-                    send_sensor_states(brick=brick)
+                send_all_configs()
 
         subscribe.callback(_on_message,
                            f'{discovery_prefix}/status',

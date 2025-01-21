@@ -7,12 +7,14 @@ from connector.mongodb import signal_exists, signal_all, signal_delete, signal_c
 from connector.mongodb import fwmetadata_get, fwmetadata_all, fwmetadata_count, fwmetadata_search, fwmetadata_latest, fwmetadata_delete
 from connector.mongodb import fanctl_all, fanctl_delete, fanctl_exists, fanctl_get, fanctl_save, fanctl_count
 from connector.mongodb import heater_get, heater_save, heater_exists, heater_delete, heater_count
-from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete, heater_delete as heater_metrics_delete
+from connector.influxdb import temp_delete, bat_stats_delete, latch_delete as latch_metrics_delete, humid_delete as humid_metrics_delete
+from connector.influxdb import heater_delete as heater_metrics_delete
 from connector.influxdb import signal_delete as signal_metrics_delete, fanctl_delete as fanctl_metrics_delete
 from connector.ds import dsfirmware_get, dsfirmware_get_latest, dsfirmware_get_used, dsfirmware_get_bin
 from connector.mqtt import signal_send, heater_send
 from connector.brick import activate as brick_activator
 from connector.s3 import firmware_exists, firmware_delete, firmware_filename
+from connector.homeassistant import send_all_configs as send_ha_configs
 from helpers.feature_versioning import features_available
 from helpers.current_version import current_brickserver_version
 import time
@@ -235,6 +237,17 @@ def __set_fanctl_state(data):
     return {}
 
 
+def __set_ha_enabled(data):
+    if 'brick' not in data:
+        return {'s': 11, 'm': 'brick is missing in data'}
+    if not isinstance(data['value'], bool):
+        return {'s': 7, 'm': 'invalid value, needs to be a boolean'}
+    brick = brick_get(data['brick'])
+    brick['ha_enabled'] = data['value']
+    brick_save(brick)
+    return {}
+
+
 def __set_temp_precision(data):
     if 'brick' not in data:
         return {'s': 11, 'm': 'brick is missing in data'}
@@ -361,7 +374,8 @@ _set_direct = {
     'otaupdate': __set_otaupdate,
     'fanctl_mode': __set_fanctl_mode,
     'fanctl_duty': __set_fanctl_duty,
-    'fanctl_state': __set_fanctl_state
+    'fanctl_state': __set_fanctl_state,
+    'ha_enabled': __set_ha_enabled
 }
 
 
@@ -615,6 +629,11 @@ def __cmd_get_count(data):
     return {'count': c}
 
 
+def __cmd_transmit_ha_configs(data):
+    send_ha_configs()
+    return {}
+
+
 admin_commands = {
     'get_bricks': __cmd_get_bricks,
     'get_brick': __cmd_get_brick,
@@ -632,7 +651,8 @@ admin_commands = {
     'delete_firmware': __cmd_delete_firmware,
     'get_features': __cmd_get_features,
     'get_version': __cmd_get_version,
-    'get_count': __cmd_get_count
+    'get_count': __cmd_get_count,
+    'transmit_ha_configs': __cmd_transmit_ha_configs
 }
 
 
@@ -662,7 +682,9 @@ def __thread_save_execution(data):
                 brick_id = brick['_id']
                 break
 
-    if brick_id is None and 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite' and not cherrypy.config['ignore_brick_identification']:  # pragma: no cover
+    test_is_running = 'environment' in cherrypy.config and cherrypy.config['environment'] == 'test_suite'
+    test_requires_brick = not cherrypy.config['ignore_brick_identification']
+    if brick_id is None and test_is_running and test_requires_brick:  # pragma: no cover
         raise Exception(f"brick can't be identified by: {data}")
 
     mongodb_lock_acquire(brick_id)
